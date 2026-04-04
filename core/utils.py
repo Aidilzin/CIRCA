@@ -90,28 +90,33 @@ def bgr_frame_to_qimage(frame: np.ndarray) -> QImage:
             f"got shape {frame.shape}."
         )
 
-    # Convert BGR → RGB (YOLO/Qt expects RGB; OpenCV uses BGR by default).
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    try:
+        # Convert BGR → RGB (YOLO/Qt expects RGB; OpenCV uses BGR by default).
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # Ensure C-contiguous memory layout before passing to QImage.
-    # Non-contiguous arrays (e.g. from numpy slicing) would produce
-    # incorrect strides and must be made contiguous first.
-    if not rgb.flags["C_CONTIGUOUS"]:
-        rgb = np.ascontiguousarray(rgb)
+        # Ensure C-contiguous memory layout before passing to QImage.
+        # Non-contiguous arrays (e.g. from numpy slicing) would produce
+        # incorrect strides and must be made contiguous first.
+        if not rgb.flags["C_CONTIGUOUS"]:
+            rgb = np.ascontiguousarray(rgb)
 
-    h, w, _ = rgb.shape
-    bytes_per_line = rgb.strides[0]  # exact bytes per row (includes any padding)
+        h, w, _ = rgb.shape
+        bytes_per_line = rgb.strides[0]  # exact bytes per row (includes any padding)
 
-    # Construct QImage pointing at the numpy buffer, then immediately .copy()
-    # so Qt owns the data independently of the numpy array's lifetime.
-    qimage = QImage(
-        rgb.data,
-        w,
-        h,
-        bytes_per_line,
-        QImage.Format.Format_RGB888,
-    )
-    return qimage.copy()
+        # Construct QImage pointing at the numpy buffer, then immediately .copy()
+        # so Qt owns the data independently of the numpy array's lifetime.
+        qimage = QImage(
+            rgb.data,
+            w,
+            h,
+            bytes_per_line,
+            QImage.Format.Format_RGB888,
+        )
+        return qimage.copy()
+    except Exception as e:
+        logger.error("bgr_frame_to_qimage: color conversion failed — %s", e)
+        # Re-raise to let worker decide how to handle (e.g. drop frame)
+        raise ValueError(f"Color conversion failed: {e}") from e
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +141,10 @@ def enumerate_cameras(
       not None) are returned. This filters out virtual ghost cameras and 
       Windows Hello IR sources without relying on brittle string matching.
 
+    String Denylist:
+      Filters out common virtual devices or ghost indices (e.g., 'Camera 1', 
+      'OBS Virtual Camera') to prevent accidental selection of invalid sources.
+
     Probe Collision Fix:
       If index == active_device_index, the validation step is skipped because
       the CameraWorker is already using this device. Attempting to open it
@@ -152,6 +161,9 @@ def enumerate_cameras(
     """
     names = qt_names if qt_names is not None else []
     available: List[Tuple[int, str]] = []
+    
+    # String Denylist: items to ignore if present in the device name.
+    denylist = ["Camera 1", "Virtual", "OBS"]
 
     for index in range(max_index + 1):
         # Resolve the human-readable label (even if validation is skipped).
@@ -159,6 +171,11 @@ def enumerate_cameras(
             label = names[index]
         else:
             label = f"Camera {index} (USB)"
+
+        # ── String Denylist check ──
+        if any(bad_str in label for bad_str in denylist):
+            logger.debug("Skipping blacklisted device: %s", label)
+            continue
 
         # ── Collision avoidance ──
         if index == active_device_index:

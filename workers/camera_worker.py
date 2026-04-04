@@ -226,11 +226,12 @@ class CameraWorker(QObject):
             # Stage 2: Read a frame
             # ----------------------------------------------------------
             ret, frame = cap.read()
-            if not ret or frame is None:
-                msg = (
-                    f"Camera {self._device_index} read() failed — device lost. (UJ-03)"
+            if not ret or frame is None or frame.size == 0:
+                msg = "Camera disconnected"
+                logger.warning(
+                    "Camera %d read() failed — device lost. (UJ-03)", 
+                    self._device_index
                 )
-                logger.warning(msg)
                 self.camera_error.emit(msg)
                 # Change 4: Graceful Worker Disconnect.
                 # Immediately break and exit to prevent segfault or blocking on lost hardware.
@@ -250,7 +251,10 @@ class CameraWorker(QObject):
             if variance < params.blur_threshold:
                 # Board is moving or out of focus.
                 if self._running:
-                    self.new_frame.emit(bgr_frame_to_qimage(frame))
+                    try:
+                        self.new_frame.emit(bgr_frame_to_qimage(frame))
+                    except ValueError:
+                        pass # Drop corrupted frames
                 continue
 
             # ----------------------------------------------------------
@@ -261,7 +265,10 @@ class CameraWorker(QObject):
 
             # Emit to GUI (FR12 live display, FR19 real-time preprocessing preview).
             if self._running:
-                self.new_frame.emit(bgr_frame_to_qimage(processed))
+                try:
+                    self.new_frame.emit(bgr_frame_to_qimage(processed))
+                except ValueError:
+                    pass # Drop corrupted frames
 
             # Emit to InferenceWorker.
             if self._running:

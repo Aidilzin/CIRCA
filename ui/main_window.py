@@ -558,8 +558,11 @@ class MainWindow(QMainWindow):
         """Red dot in StatusFooter; CameraWorker will retry automatically."""
         logger.warning("MainWindow: camera error — %s", message)
         self.status_footer.set_camera_error(message)
-        # UX Spec update: show "camera unavailable" panel in live window
-        self.video_widget.set_status_text("camera unavailable")
+        # UX Spec update: show "camera unavailable" panel or clear feed
+        if "disconnected" in message.lower():
+            self.video_widget.clear_feed("Camera disconnected")
+        else:
+            self.video_widget.set_status_text("camera unavailable")
 
     @pyqtSlot()
     def _on_model_loaded(self) -> None:
