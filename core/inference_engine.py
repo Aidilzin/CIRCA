@@ -84,6 +84,7 @@ IOU_THRESHOLD: float = 0.45
 # InferenceEngine
 # ---------------------------------------------------------------------------
 
+
 class InferenceEngine:
     """
     Wraps an OpenVINO CompiledModel for synchronous YOLOv12 INT8 inference.
@@ -193,9 +194,7 @@ class InferenceEngine:
         if frame is None or frame.size == 0:
             raise ValueError("InferenceEngine.run() received an empty frame.")
         if frame.ndim != 3 or frame.shape[2] != 3:
-            raise ValueError(
-                f"Expected (H, W, 3) BGR frame; got shape {frame.shape}."
-            )
+            raise ValueError(f"Expected (H, W, 3) BGR frame; got shape {frame.shape}.")
 
         original_h, original_w = frame.shape[:2]
 
@@ -245,8 +244,8 @@ class InferenceEngine:
         resized = cv2.resize(frame, MODEL_INPUT_SIZE, interpolation=cv2.INTER_LINEAR)
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         normalized = rgb.astype(np.float32) / 255.0
-        chw = np.transpose(normalized, (2, 0, 1))          # HWC → CHW
-        return np.expand_dims(chw, axis=0)                  # CHW → NCHW [1,3,H,W]
+        chw = np.transpose(normalized, (2, 0, 1))  # HWC → CHW
+        return np.expand_dims(chw, axis=0)  # CHW → NCHW [1,3,H,W]
 
     def _postprocess(
         self,
@@ -273,30 +272,28 @@ class InferenceEngine:
             Filtered, NMS-suppressed List[BoundingBox] in original pixel space.
         """
         # Squeeze batch dim: [1, 4+C, A] → [4+C, A] → transpose → [A, 4+C]
-        output = np.squeeze(raw_output, axis=0).T   # shape: [num_anchors, 4+C]
+        output = np.squeeze(raw_output, axis=0).T  # shape: [num_anchors, 4+C]
 
         num_anchors = output.shape[0]
         if num_anchors == 0:
             return []
 
         # Split into bbox coordinates and class scores
-        boxes_cxcywh = output[:, :4]                 # [A, 4]: cx, cy, w, h
-        class_scores = output[:, 4:]                 # [A, C]: per-class confidence
+        boxes_cxcywh = output[:, :4]  # [A, 4]: cx, cy, w, h
+        class_scores = output[:, 4:]  # [A, C]: per-class confidence
 
         # Per anchor: best class index + its confidence score
         class_ids = np.argmax(class_scores, axis=1)  # [A]
-        confidences = class_scores[
-            np.arange(num_anchors), class_ids
-        ]                                            # [A]
+        confidences = class_scores[np.arange(num_anchors), class_ids]  # [A]
 
         # Confidence threshold filter (FR11 / InferenceParams.confidence_threshold)
         conf_mask = confidences >= params.confidence_threshold
         if not np.any(conf_mask):
             return []
 
-        boxes_filtered = boxes_cxcywh[conf_mask]     # [K, 4]
-        confs_filtered = confidences[conf_mask]       # [K]
-        ids_filtered = class_ids[conf_mask]           # [K]
+        boxes_filtered = boxes_cxcywh[conf_mask]  # [K, 4]
+        confs_filtered = confidences[conf_mask]  # [K]
+        ids_filtered = class_ids[conf_mask]  # [K]
 
         # Scale factors: model input space (640×640) → original frame space
         scale_x = original_w / MODEL_INPUT_SIZE[0]

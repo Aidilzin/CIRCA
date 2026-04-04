@@ -82,7 +82,6 @@ from ui.theme import (
     FONT_UI,
     FONT_UI_FALLBACKS,
     SPACING_SM,
-    SPACING_XS,
     WARNING_BANNER_HEIGHT,
 )
 
@@ -181,7 +180,9 @@ class WarningBanner(QWidget):
         text_font.setPixelSize(FONT_SIZE_LABEL)
         text_font.setWeight(QFont.Weight.Medium)
         self._text_label.setFont(text_font)
-        self._text_label.setStyleSheet(f"color: {COLOR_STATUS_WARN}; background: transparent;")
+        self._text_label.setStyleSheet(
+            f"color: {COLOR_STATUS_WARN}; background: transparent;"
+        )
         self._text_label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(self._text_label, stretch=1)
 

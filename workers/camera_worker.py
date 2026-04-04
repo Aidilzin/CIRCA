@@ -47,7 +47,6 @@ Module import boundary (architecture §Boundaries):
 from __future__ import annotations
 
 import logging
-import queue
 import time
 from typing import Optional
 
@@ -78,6 +77,7 @@ CAMERA_RETRY_POLL_S: float = 0.1
 # ---------------------------------------------------------------------------
 # CameraWorker
 # ---------------------------------------------------------------------------
+
 
 class CameraWorker(QObject):
     """
@@ -196,9 +196,7 @@ class CameraWorker(QObject):
         self._running = True
         cap: Optional[cv2.VideoCapture] = None
 
-        logger.info(
-            "CameraWorker started — device_index=%d", self._device_index
-        )
+        logger.info("CameraWorker started — device_index=%d", self._device_index)
 
         while self._running:
             # ----------------------------------------------------------
@@ -229,12 +227,36 @@ class CameraWorker(QObject):
             if not ret or frame is None or frame.size == 0:
                 msg = "Camera disconnected"
                 logger.warning(
-                    "Camera %d read() failed — device lost. (UJ-03)", 
-                    self._device_index
+                    "Camera %d read() failed — device lost. (UJ-03)", self._device_index
                 )
                 self.camera_error.emit(msg)
-                # Change 4: Graceful Worker Disconnect.
+                # Graceful Worker Disconnect.
                 # Immediately break and exit to prevent segfault or blocking on lost hardware.
+                self._running = False
+                break
+
+            # ── Dead Noise Check (Support Lenovo physical switches) ──
+            # CALIBRATION:
+            # Ghost noise (switch off): std ~4.4, mean ~0.14
+            # Real dark sensor: std ~2.4, mean ~0.03
+            frame_std = np.std(frame)
+            frame_mean = np.mean(frame)
+            
+            # During live streaming, we are more lenient than during enumeration
+            # because the user has already explicitly selected this camera.
+            # We ONLY break if the sensor goes completely dead (std < 0.1)
+            # OR if we see digital garbage (std > 3.0 + low mean).
+            if frame_std < 0.1:
+                msg = "Camera disconnected (Dead Sensor)"
+                logger.warning("Camera %d: sensor went dead.", self._device_index)
+                self.camera_error.emit(msg)
+                self._running = False
+                break
+                
+            if frame_std > 3.0 and frame_mean < 0.5:
+                msg = "Camera disconnected (Physical Switch Off)"
+                logger.warning("Camera %d: digital garbage detected (std=%.2f).", self._device_index, frame_std)
+                self.camera_error.emit(msg)
                 self._running = False
                 break
 
@@ -254,13 +276,13 @@ class CameraWorker(QObject):
                     try:
                         self.new_frame.emit(bgr_frame_to_qimage(frame))
                     except ValueError:
-                        pass # Drop corrupted frames
+                        pass  # Drop corrupted frames
                 continue
 
             # ----------------------------------------------------------
             # Stage 5: Sharp frame — apply preprocessing pipeline (FR3, FR4)
             # ----------------------------------------------------------
-            processed = apply_clahe(frame, params)   # FR3: CLAHE contrast enhance
+            processed = apply_clahe(frame, params)  # FR3: CLAHE contrast enhance
             processed = apply_gamma(processed, params)  # FR4: Gamma shadow lift
 
             # Emit to GUI (FR12 live display, FR19 real-time preprocessing preview).
@@ -268,7 +290,7 @@ class CameraWorker(QObject):
                 try:
                     self.new_frame.emit(bgr_frame_to_qimage(processed))
                 except ValueError:
-                    pass # Drop corrupted frames
+                    pass  # Drop corrupted frames
 
             # Emit to InferenceWorker.
             if self._running:

@@ -4,9 +4,10 @@ import sys
 import faulthandler
 
 # C-Level crash reporting: enables traceback for segfaults
-faulthandler.enable(file=open('crash_report.log', 'w'))
+faulthandler.enable(file=open("crash_report.log", "w"))
 
 from core.debug import trace_execution
+
 
 def _get_model_path() -> str:
     """
@@ -24,7 +25,7 @@ def _configure_logging() -> None:
     Set up module-level logging for the application.
     """
     level = logging.DEBUG if os.environ.get("CIRCA_DEBUG") else logging.INFO
-    
+
     # Configure logging to both console and file
     logging.basicConfig(
         level=level,
@@ -32,15 +33,15 @@ def _configure_logging() -> None:
         datefmt="%H:%M:%S",
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler("execution_trace.log", mode="w")
-        ]
+            logging.FileHandler("execution_trace.log", mode="w"),
+        ],
     )
     logging.getLogger("circa").setLevel(level)
 
 
 def exception_hook(exctype, value, traceback):
     """
-    Global exception handler to ensure unhandled Python exceptions 
+    Global exception handler to ensure unhandled Python exceptions
     are logged to execution_trace.log before the app dies.
     """
     logger = logging.getLogger(__name__)
@@ -59,22 +60,24 @@ def main() -> int:
     _configure_logging()
     logger = logging.getLogger(__name__)
     logger.debug("[TRIPWIRE] Entered main()")
-    
+
     try:
         logger.info("CIRCA starting up…")
 
         # Must create QApplication before any QWidget
         from PyQt6.QtWidgets import QApplication
+
         logger.debug("[TRIPWIRE] About to instantiate QApplication")
         app = QApplication(sys.argv)
         logger.debug("[TRIPWIRE] QApplication instantiated")
-        
+
         app.setApplicationName("CIRCA")
         app.setApplicationDisplayName("CIRCA — PCB Defect Detection")
         app.setOrganizationName("FYP")
 
         # Apply global dark theme QSS (all tokens from ui/theme.py)
         from ui.theme import build_qss
+
         logger.debug("[TRIPWIRE] About to apply QSS theme")
         app.setStyleSheet(build_qss())
         logger.debug("Global QSS theme applied.")
@@ -84,14 +87,15 @@ def main() -> int:
         model_path = _get_model_path()
         logger.info("Model path resolved: %s", model_path)
         if not os.path.isfile(model_path):
-            logger.warning("Model file not found at '%s'.")
+            logger.warning("Model file not found at '%s'.", model_path)
 
         # Build and show the main window
         from ui.main_window import MainWindow
+
         logger.debug("[TRIPWIRE] About to instantiate MainWindow")
         window = MainWindow(model_path=model_path)
         logger.debug("[TRIPWIRE] MainWindow instantiated")
-        
+
         logger.debug("[TRIPWIRE] About to call window.show()")
         window.show()
         logger.info("MainWindow shown — entering Qt event loop.")
@@ -100,7 +104,7 @@ def main() -> int:
         exit_code = app.exec()
         logger.info("CIRCA exiting — code %d.", exit_code)
         return exit_code
-        
+
     except Exception as e:
         logger.exception("CRITICAL CRASH in main(): %s", e)
         return 1
@@ -110,4 +114,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

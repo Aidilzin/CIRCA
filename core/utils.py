@@ -28,7 +28,7 @@ Functional requirements covered:
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import cv2
 import numpy as np
@@ -47,6 +47,7 @@ _MAX_CAMERA_INDEX: int = 5
 # ---------------------------------------------------------------------------
 # FR12 — BGR → QImage conversion (canonical, single source of truth)
 # ---------------------------------------------------------------------------
+
 
 def bgr_frame_to_qimage(frame: np.ndarray) -> QImage:
     """
@@ -123,10 +124,11 @@ def bgr_frame_to_qimage(frame: np.ndarray) -> QImage:
 # FR2 — Camera enumeration (Windows DirectShow / UVC)
 # ---------------------------------------------------------------------------
 
+
 def enumerate_cameras(
     max_index: int = _MAX_CAMERA_INDEX,
     active_device_index: int = -1,
-    qt_names: Optional[List[str]] = None
+    qt_names: Optional[List[str]] = None,
 ) -> List[Tuple[int, str]]:
     """
     Probe UVC camera indices 0 through max_index and return all that respond.
@@ -135,15 +137,17 @@ def enumerate_cameras(
     is mandatory on Windows. Human-readable names should be retrieved via
     PyQt6.QtMultimedia on the Main GUI Thread and passed in via qt_names.
 
-    Active Frame Validation:
+    Active Frame Validation (Robustified):
       Every detected device is briefly opened and a frame is captured via 
-      cap.read(). Only devices that yield a valid frame (ret=True, frame is 
-      not None) are returned. This filters out virtual ghost cameras and 
-      Windows Hello IR sources without relying on brittle string matching.
+      cap.read(). Only devices that yield a valid, non-empty, and non-flat 
+      frame are returned. This filters out virtual ghost cameras, driver
+      placeholders (grey/black), and Windows Hello IR sources.
 
-    String Denylist:
-      Filters out common virtual devices or ghost indices (e.g., 'Camera 1', 
-      'OBS Virtual Camera') to prevent accidental selection of invalid sources.
+    Name-Based Trust System:
+      If a device has a real human-readable name from QtMultimedia, we are
+      more lenient (trusting the OS registration). If it has a generic
+      fallback label, we apply strict noise checks to reject digital ghost
+      buffers common on Lenovo and other laptop hardware.
 
     Probe Collision Fix:
       If index == active_device_index, the validation step is skipped because
@@ -161,41 +165,75 @@ def enumerate_cameras(
     """
     names = qt_names if qt_names is not None else []
     available: List[Tuple[int, str]] = []
-    
+
     # String Denylist: items to ignore if present in the device name.
     denylist = ["Camera 1", "Virtual", "OBS"]
 
     for index in range(max_index + 1):
         # Resolve the human-readable label (even if validation is skipped).
-        if index < len(names):
+        has_real_name = index < len(names) and names[index]
+        if has_real_name:
             label = names[index]
         else:
             label = f"Camera {index} (USB)"
 
         # ── String Denylist check ──
         if any(bad_str in label for bad_str in denylist):
-            logger.debug("Skipping blacklisted device: %s", label)
+            logger.debug("enumerate_cameras: skipping blacklisted device: '%s'", label)
             continue
 
         # ── Collision avoidance ──
         if index == active_device_index:
-            logger.debug("Skipping validation for active camera index %d.", index)
+            logger.debug("enumerate_cameras: skipping validation for active camera index %d.", index)
             available.append((index, label))
             continue
 
+        logger.debug("enumerate_cameras: probing index %d ('%s')...", index, label)
         cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
         try:
             if cap.isOpened():
-                # Verify the camera actually produces a feed.
+                # Verify the camera actually produces a functional data stream.
                 ret, frame = cap.read()
-                if not ret or frame is None:
-                    logger.debug("Camera at index %d opened but failed to capture a valid frame.", index)
+                
+                # Check 1: Did the read succeed?
+                if not ret or frame is None or frame.size == 0:
+                    logger.debug("enumerate_cameras: index %d read() failed or empty.", index)
                     continue
+                
+                # Check 2: Statistical Validation (reject placeholders/noise)
+                # CALIBRATION (Lenovo):
+                # Ghost noise (switch off): std ~6.0, mean ~0.2 (Generic Fallback Name)
+                # Real dark sensor: std ~2.4, mean ~0.03 (Proper Name: "Integrated Camera")
+                frame_std = np.std(frame)
+                frame_mean = np.mean(frame)
+                
+                logger.info("enumerate_cameras: index %d ('%s') diagnostics: std=%.4f, mean=%.4f", index, label, frame_std, frame_mean)
+                
+                # Use Name Trust: Generic fallback labels must pass stricter tests.
+                if has_real_name:
+                    # Named hardware: only reject if completely dead/flat.
+                    if frame_std < 0.1:
+                        logger.warning("enumerate_cameras: named device %d rejected as dead buffer (std < 0.1).", index)
+                        continue
+                    # Also reject digital garbage if mean is low
+                    if frame_std > 6.0 and frame_mean < 0.5:
+                        logger.warning("enumerate_cameras: named device %d rejected as digital garbage (std > 6.0, mean < 0.5).", index)
+                        continue
+                else:
+                    # Generic fallback: reject perfectly flat OR digital garbage.
+                    if frame_std < 1.0:
+                        logger.warning("enumerate_cameras: generic device %d rejected as dead buffer (std < 1.0).", index)
+                        continue
+                    if frame_std > 3.0 and frame_mean < 0.5:
+                        logger.warning("enumerate_cameras: generic device %d rejected as digital garbage (std > 3.0, mean < 0.5).", index)
+                        continue
 
                 available.append((index, label))
-                logger.debug("Camera found at index %d: %s", index, label)
+                logger.debug("enumerate_cameras: SUCCESS - found valid camera at index %d: '%s'", index, label)
             else:
-                logger.debug("No camera at index %d", index)
+                logger.debug("enumerate_cameras: index %d is not opened.", index)
+        except Exception as e:
+            logger.error("enumerate_cameras: exception probing index %d: %s", index, e)
         finally:
             cap.release()
 

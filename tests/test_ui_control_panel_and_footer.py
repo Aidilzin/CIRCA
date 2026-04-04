@@ -46,18 +46,13 @@ QApplication provided by tests/conftest.py.
 
 from __future__ import annotations
 
-import re
-from typing import Any
 
-import pytest
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
 from core.models import InferenceParams, PreprocessParams
 from ui.control_panel import ControlPanel, PreprocessingSlider
 from ui.status_footer import StatusFooter, _DOT_COLOR_IDLE
 from ui.theme import (
-    COLOR_ACCENT_CYAN,
     COLOR_STATUS_ERROR,
     COLOR_STATUS_OK,
     COLOR_STATUS_WARN,
@@ -72,11 +67,12 @@ from ui.theme import (
 # Helpers
 # ===========================================================================
 
+
 def make_slider(
     name: str = "Test Slider",
     sublabel: str = "test sub",
     min_val: float = 0.0,
-    max_val: float = 1000.0,    # Wide range so all default_val values are in range
+    max_val: float = 1000.0,  # Wide range so all default_val values are in range
     default_val: float = 5.0,
     precision: int = 1,
     suffix: str = "",
@@ -92,7 +88,6 @@ def make_slider(
     )
 
 
-
 def collect_signal(signal) -> list:
     """Connect a signal and return a list that accumulates all emitted values."""
     received: list = []
@@ -104,8 +99,8 @@ def collect_signal(signal) -> list:
 # PreprocessingSlider — basic construction
 # ===========================================================================
 
-class TestPreprocessingSliderInit:
 
+class TestPreprocessingSliderInit:
     def test_default_value_returned_correctly(self):
         s = make_slider(default_val=5.0)
         assert abs(s.value() - 5.0) < 0.05
@@ -124,15 +119,21 @@ class TestPreprocessingSliderInit:
 
     def test_name_label_content(self):
         s = PreprocessingSlider(
-            name="Glare Control", sublabel="sub",
-            min_val=1.0, max_val=8.0, default_val=2.0
+            name="Glare Control",
+            sublabel="sub",
+            min_val=1.0,
+            max_val=8.0,
+            default_val=2.0,
         )
         assert s._name_label.text() == "Glare Control"
 
     def test_sub_label_content(self):
         s = PreprocessingSlider(
-            name="name", sublabel="CLAHE clip limit",
-            min_val=1.0, max_val=8.0, default_val=2.0
+            name="name",
+            sublabel="CLAHE clip limit",
+            min_val=1.0,
+            max_val=8.0,
+            default_val=2.0,
         )
         assert s._sub_label.text() == "CLAHE clip limit"
 
@@ -141,8 +142,8 @@ class TestPreprocessingSliderInit:
 # PreprocessingSlider — FONT_MONO contract (UX spec anti-jitter rule)
 # ===========================================================================
 
-class TestPreprocessingSliderFont:
 
+class TestPreprocessingSliderFont:
     def test_value_label_uses_mono_font_family(self):
         """
         UX spec: live value labels MUST use FONT_MONO to prevent layout
@@ -169,6 +170,7 @@ class TestPreprocessingSliderFont:
     def test_value_label_minimum_width_covers_max_value(self):
         """Min width must be >= horizontal advance of the maximum value string."""
         from PyQt6.QtGui import QFontMetrics
+
         s = make_slider(min_val=0.0, max_val=999.9, default_val=1.0, precision=1)
         fm = QFontMetrics(s._value_label.font())
         max_text_width = fm.horizontalAdvance("999.9")
@@ -179,8 +181,8 @@ class TestPreprocessingSliderFont:
 # PreprocessingSlider — value update and signal emission
 # ===========================================================================
 
-class TestPreprocessingSliderUpdates:
 
+class TestPreprocessingSliderUpdates:
     def test_moving_slider_emits_value_changed(self):
         s = make_slider(min_val=0.0, max_val=10.0, default_val=5.0, precision=1)
         received = collect_signal(s.value_changed)
@@ -224,7 +226,7 @@ class TestPreprocessingSliderUpdates:
     def test_no_emission_when_value_unchanged(self):
         s = make_slider(min_val=0.0, max_val=10.0, default_val=5.0, precision=1)
         received = collect_signal(s.value_changed)
-        s.set_value(5.0)   # Same as default — slider int unchanged
+        s.set_value(5.0)  # Same as default — slider int unchanged
         assert len(received) == 0
 
 
@@ -232,8 +234,8 @@ class TestPreprocessingSliderUpdates:
 # PreprocessingSlider — float ↔ int scale conversion
 # ===========================================================================
 
-class TestPreprocessingSliderScale:
 
+class TestPreprocessingSliderScale:
     def test_to_int_precision_1(self):
         s = make_slider(precision=1)
         assert s._to_int(2.0) == 20
@@ -265,8 +267,8 @@ class TestPreprocessingSliderScale:
 # ControlPanel — initialisation and default UX spec values
 # ===========================================================================
 
-class TestControlPanelInit:
 
+class TestControlPanelInit:
     def test_starts_expanded(self):
         cp = ControlPanel()
         assert cp.is_expanded is True
@@ -280,7 +282,6 @@ class TestControlPanelInit:
         # isHidden() reflects the explicit setVisible() state correctly even
         # for unshown top-level widgets (isVisible() requires show() to return True).
         assert not cp._content.isHidden()
-
 
     def test_toggle_button_shows_collapse_arrow_when_expanded(self):
         cp = ControlPanel()
@@ -311,8 +312,8 @@ class TestControlPanelInit:
 # ControlPanel — collapse / expand toggle
 # ===========================================================================
 
-class TestControlPanelToggle:
 
+class TestControlPanelToggle:
     def test_toggle_collapses_panel(self):
         cp = ControlPanel()
         cp.toggle()
@@ -339,9 +340,8 @@ class TestControlPanelToggle:
         cp.toggle()
         assert cp.is_expanded is True
         assert cp.maximumWidth() == CONTROL_PANEL_WIDTH_EXPANDED
-        assert not cp._content.isHidden()   # isHidden() correct for unshown widgets
+        assert not cp._content.isHidden()  # isHidden() correct for unshown widgets
         assert cp._toggle_btn.text() == "<"
-
 
     def test_toggle_via_button_click(self):
         cp = ControlPanel()
@@ -355,8 +355,8 @@ class TestControlPanelToggle:
 # ControlPanel — signal emission
 # ===========================================================================
 
-class TestControlPanelSignals:
 
+class TestControlPanelSignals:
     def test_clahe_slider_emits_preprocessing_params(self):
         cp = ControlPanel()
         received: list[PreprocessParams] = []
@@ -439,8 +439,8 @@ class TestControlPanelSignals:
 # ControlPanel — populate_cameras
 # ===========================================================================
 
-class TestControlPanelCameras:
 
+class TestControlPanelCameras:
     def test_populate_cameras_adds_items(self):
         cp = ControlPanel()
         cp.populate_cameras([(0, "Camera 0"), (2, "Camera 2")])
@@ -478,11 +478,14 @@ class TestControlPanelCameras:
 # StatusFooter — initialisation
 # ===========================================================================
 
-class TestStatusFooterInit:
 
+class TestStatusFooterInit:
     def test_fixed_height_is_48(self):
         footer = StatusFooter()
-        assert footer.height() == STATUS_FOOTER_HEIGHT or footer.minimumHeight() == STATUS_FOOTER_HEIGHT
+        assert (
+            footer.height() == STATUS_FOOTER_HEIGHT
+            or footer.minimumHeight() == STATUS_FOOTER_HEIGHT
+        )
 
     def test_camera_indicator_starts_grey(self):
         footer = StatusFooter()
@@ -505,8 +508,8 @@ class TestStatusFooterInit:
 # StatusFooter — camera status
 # ===========================================================================
 
-class TestStatusFooterCamera:
 
+class TestStatusFooterCamera:
     def test_set_camera_active_sets_green_dot(self):
         footer = StatusFooter()
         footer.set_camera_active()
@@ -529,8 +532,8 @@ class TestStatusFooterCamera:
 
     def test_set_camera_idle_sets_grey_dot(self):
         footer = StatusFooter()
-        footer.set_camera_active()       # start active
-        footer.set_camera_idle()         # go idle
+        footer.set_camera_active()  # start active
+        footer.set_camera_idle()  # go idle
         assert footer._camera_indicator.dot_color == _DOT_COLOR_IDLE
 
     def test_set_camera_idle_label_text(self):
@@ -552,8 +555,8 @@ class TestStatusFooterCamera:
 # StatusFooter — model status
 # ===========================================================================
 
-class TestStatusFooterModel:
 
+class TestStatusFooterModel:
     def test_set_model_ready_sets_green_dot(self):
         footer = StatusFooter()
         footer.set_model_ready()
@@ -598,8 +601,8 @@ class TestStatusFooterModel:
 # StatusFooter — detection count
 # ===========================================================================
 
-class TestStatusFooterDetections:
 
+class TestStatusFooterDetections:
     def test_zero_detections_green_dot(self):
         footer = StatusFooter()
         footer.set_detection_count(0)
@@ -650,8 +653,8 @@ class TestStatusFooterDetections:
 # StatusFooter — FPS counter
 # ===========================================================================
 
-class TestStatusFooterFps:
 
+class TestStatusFooterFps:
     def test_set_fps_positive_value(self):
         footer = StatusFooter()
         footer.set_fps(15.0)

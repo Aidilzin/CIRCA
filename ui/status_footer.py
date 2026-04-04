@@ -51,12 +51,8 @@ from PyQt6.QtWidgets import (
 
 from ui.theme import (
     COLOR_ACCENT_CYAN,
-    COLOR_BG_SURFACE,
-    COLOR_BORDER,
     COLOR_STATUS_ERROR,
     COLOR_STATUS_OK,
-    COLOR_STATUS_WARN,
-    COLOR_TEXT_DISABLED,
     COLOR_TEXT_PRIMARY,
     COLOR_TEXT_SECONDARY,
     FONT_MONO,
@@ -66,7 +62,6 @@ from ui.theme import (
     FONT_UI,
     FONT_UI_FALLBACKS,
     SPACING_MD,
-    SPACING_SM,
     SPACING_XS,
     STATUS_DOT_SIZE,
     STATUS_FOOTER_HEIGHT,
@@ -150,9 +145,7 @@ class _StatusIndicator(QWidget):
     def _set_dot_color(self, color: str) -> None:
         """Apply border-radius circle style with the given hex colour."""
         self._current_color = color
-        self._dot.setStyleSheet(
-            _DOT_STYLE.format(color=color, r=STATUS_DOT_SIZE // 2)
-        )
+        self._dot.setStyleSheet(_DOT_STYLE.format(color=color, r=STATUS_DOT_SIZE // 2))
 
 
 class StatusFooter(QWidget):
@@ -232,6 +225,7 @@ class StatusFooter(QWidget):
         )
         # Fixed minimum width: widest expected string is "30 fps" at 11px mono
         from PyQt6.QtGui import QFontMetrics
+
         fm = QFontMetrics(fps_font)
         self._fps_label.setMinimumWidth(fm.horizontalAdvance("30 fps") + 8)
         row.addWidget(self._fps_label)

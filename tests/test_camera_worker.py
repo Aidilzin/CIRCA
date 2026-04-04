@@ -22,17 +22,13 @@ Real VideoCapture hardware is NOT required.
 """
 
 import time
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
-from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QImage
 
 from core.models import PreprocessParams
 from workers.camera_worker import (
-    CAMERA_RETRY_INTERVAL_S,
-    CAMERA_RETRY_POLL_S,
     CameraWorker,
 )
 
@@ -45,10 +41,10 @@ from workers.camera_worker import (
 # No per-file fixture needed.
 
 
-
 # ===========================================================================
 # Helpers
 # ===========================================================================
+
 
 def make_flat_frame(value: int = 128, size: int = 64) -> np.ndarray:
     """Create a uniform (blurry) BGR frame — Laplacian variance ~0."""
@@ -102,8 +98,8 @@ def make_default_params(**overrides) -> PreprocessParams:
 # Initialisation & attribute tests
 # ===========================================================================
 
-class TestCameraWorkerInit:
 
+class TestCameraWorkerInit:
     def test_default_device_index_is_zero(self):
         worker = CameraWorker()
         assert worker._device_index == 0
@@ -123,6 +119,7 @@ class TestCameraWorkerInit:
     def test_is_qobject_not_qthread(self):
         """Architecture rule: CameraWorker must be QObject, NOT QThread."""
         from PyQt6.QtCore import QThread, QObject
+
         worker = CameraWorker()
         assert isinstance(worker, QObject)
         assert not isinstance(worker, QThread)
@@ -132,8 +129,8 @@ class TestCameraWorkerInit:
 # Signal declarations
 # ===========================================================================
 
-class TestCameraWorkerSignals:
 
+class TestCameraWorkerSignals:
     def test_new_frame_signal_exists(self):
         worker = CameraWorker()
         assert hasattr(worker, "new_frame")
@@ -164,11 +161,13 @@ class TestCameraWorkerSignals:
 # update_params — thread-safe parameter slot
 # ===========================================================================
 
-class TestUpdateParams:
 
+class TestUpdateParams:
     def test_update_params_changes_stored_params(self):
         worker = CameraWorker()
-        new_params = PreprocessParams(clahe_clip_limit=5.0, gamma=1.8, blur_threshold=200.0)
+        new_params = PreprocessParams(
+            clahe_clip_limit=5.0, gamma=1.8, blur_threshold=200.0
+        )
         worker.update_params(new_params)
         assert worker._params.clahe_clip_limit == 5.0
         assert worker._params.gamma == 1.8
@@ -197,8 +196,8 @@ class TestUpdateParams:
 # stop()
 # ===========================================================================
 
-class TestStop:
 
+class TestStop:
     def test_stop_sets_running_false(self):
         worker = CameraWorker()
         worker._running = True
@@ -217,13 +216,12 @@ class TestStop:
 # _wait_for_retry — non-blocking retry sleep
 # ===========================================================================
 
-class TestWaitForRetry:
 
+class TestWaitForRetry:
     def test_exits_immediately_when_running_is_false(self):
         worker = CameraWorker()
         worker._running = False
-        start = time.monotonic()
-        with patch("time.sleep") as mock_sleep:
+                with patch("time.sleep") as mock_sleep:
             worker._wait_for_retry()
         # Should exit on first poll check without sleeping
         assert mock_sleep.call_count == 0
@@ -266,8 +264,8 @@ class TestWaitForRetry:
 # run() — camera open failure path
 # ===========================================================================
 
-class TestRunCameraOpenFailure:
 
+class TestRunCameraOpenFailure:
     def test_emits_camera_error_when_camera_fails_to_open(self):
         worker = CameraWorker(device_index=99)
         errors: list[str] = []
@@ -276,8 +274,10 @@ class TestRunCameraOpenFailure:
         mock_cap = make_mock_cap(opened=False)
         mock_cap.release = MagicMock()
 
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("time.sleep", side_effect=lambda _: worker.stop()):
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch("time.sleep", side_effect=lambda _: worker.stop()),
+        ):
             worker.run()
 
         assert len(errors) >= 1
@@ -289,8 +289,10 @@ class TestRunCameraOpenFailure:
         worker.camera_error.connect(lambda msg: errors.append(msg))
 
         mock_cap = make_mock_cap(opened=False)
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("time.sleep", side_effect=lambda _: worker.stop()):
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch("time.sleep", side_effect=lambda _: worker.stop()),
+        ):
             worker.run()
 
         assert any("3" in e for e in errors)
@@ -298,8 +300,10 @@ class TestRunCameraOpenFailure:
     def test_cap_release_called_on_open_failure(self):
         worker = CameraWorker()
         mock_cap = make_mock_cap(opened=False)
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("time.sleep", side_effect=lambda _: worker.stop()):
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch("time.sleep", side_effect=lambda _: worker.stop()),
+        ):
             worker.run()
 
         mock_cap.release.assert_called()
@@ -319,11 +323,11 @@ class TestRunCameraOpenFailure:
             cap.release = fake_release
             return cap
 
-        with patch("cv2.VideoCapture", side_effect=spy_cap), \
-             patch("time.sleep"):
+        with patch("cv2.VideoCapture", side_effect=spy_cap), patch("time.sleep"):
             worker.run()
 
         import cv2 as _cv2
+
         for _, backend in calls:
             assert backend == _cv2.CAP_DSHOW, (
                 f"Expected CAP_DSHOW ({_cv2.CAP_DSHOW}), got {backend}"
@@ -334,8 +338,8 @@ class TestRunCameraOpenFailure:
 # run() — camera read failure (disconnect) path (UJ-03)
 # ===========================================================================
 
-class TestRunReadFailure:
 
+class TestRunReadFailure:
     def test_emits_camera_error_on_read_failure(self):
         worker = CameraWorker()
         errors: list[str] = []
@@ -344,8 +348,10 @@ class TestRunReadFailure:
         mock_cap = make_mock_cap(opened=True)
         mock_cap.read.return_value = (False, None)
 
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("time.sleep", side_effect=lambda _: worker.stop()):
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch("time.sleep", side_effect=lambda _: worker.stop()),
+        ):
             worker.run()
 
         assert len(errors) >= 1
@@ -355,8 +361,10 @@ class TestRunReadFailure:
         mock_cap = make_mock_cap(opened=True)
         mock_cap.read.return_value = (False, None)
 
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("time.sleep", side_effect=lambda _: worker.stop()):
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch("time.sleep", side_effect=lambda _: worker.stop()),
+        ):
             worker.run()
 
         mock_cap.release.assert_called()
@@ -369,8 +377,10 @@ class TestRunReadFailure:
         mock_cap = make_mock_cap(opened=True)
         mock_cap.read.return_value = (False, None)
 
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("time.sleep", side_effect=lambda _: worker.stop()):
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch("time.sleep", side_effect=lambda _: worker.stop()),
+        ):
             worker.run()
 
         assert len(frames) == 0
@@ -380,8 +390,8 @@ class TestRunReadFailure:
 # run() — blurry frame path (variance < blur_threshold)
 # ===========================================================================
 
-class TestRunBlurryFrame:
 
+class TestRunBlurryFrame:
     def test_blurry_frame_emits_new_frame(self):
         """Live feed must always be displayed, even for blurry/motion frames."""
         worker = CameraWorker()
@@ -390,7 +400,9 @@ class TestRunBlurryFrame:
         worker.new_frame.connect(lambda img: received.append(img))
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=2, frame=blurry)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=2, frame=blurry
+        )
 
         with patch("cv2.VideoCapture", return_value=mock_cap):
             worker.run()
@@ -406,10 +418,14 @@ class TestRunBlurryFrame:
         worker = CameraWorker()
         blurry = make_flat_frame()
         inference_frames: list = []
-        worker.frame_ready_for_inference.connect(lambda arr: inference_frames.append(arr))
+        worker.frame_ready_for_inference.connect(
+            lambda arr: inference_frames.append(arr)
+        )
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=3, frame=blurry)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=3, frame=blurry
+        )
 
         with patch("cv2.VideoCapture", return_value=mock_cap):
             worker.run()
@@ -431,7 +447,9 @@ class TestRunBlurryFrame:
         worker.new_frame.connect(lambda img: received.append(img))
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=1, frame=green_bgr)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=1, frame=green_bgr
+        )
 
         with patch("cv2.VideoCapture", return_value=mock_cap):
             worker.run()
@@ -446,8 +464,8 @@ class TestRunBlurryFrame:
 # run() — sharp frame path (full preprocessing + dual emit)
 # ===========================================================================
 
-class TestRunSharpFrame:
 
+class TestRunSharpFrame:
     def test_sharp_frame_emits_new_frame(self):
         worker = CameraWorker()
         sharp = make_sharp_frame()
@@ -455,7 +473,9 @@ class TestRunSharpFrame:
         worker.new_frame.connect(lambda img: received.append(img))
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=2, frame=sharp)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=2, frame=sharp
+        )
 
         with patch("cv2.VideoCapture", return_value=mock_cap):
             worker.run()
@@ -470,10 +490,14 @@ class TestRunSharpFrame:
         worker = CameraWorker()
         sharp = make_sharp_frame(64)
         inference_arrays: list[np.ndarray] = []
-        worker.frame_ready_for_inference.connect(lambda arr: inference_arrays.append(arr))
+        worker.frame_ready_for_inference.connect(
+            lambda arr: inference_arrays.append(arr)
+        )
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=2, frame=sharp)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=2, frame=sharp
+        )
 
         with patch("cv2.VideoCapture", return_value=mock_cap):
             worker.run()
@@ -490,7 +514,9 @@ class TestRunSharpFrame:
         worker = CameraWorker()
         sharp = make_sharp_frame(64)
         inference_arrays: list[np.ndarray] = []
-        worker.frame_ready_for_inference.connect(lambda arr: inference_arrays.append(arr))
+        worker.frame_ready_for_inference.connect(
+            lambda arr: inference_arrays.append(arr)
+        )
 
         mock_cap = make_mock_cap(opened=True)
         read_frames: list[np.ndarray] = []
@@ -518,10 +544,14 @@ class TestRunSharpFrame:
         sharp = make_sharp_frame(64)
         emit_order: list[str] = []
         worker.new_frame.connect(lambda _: emit_order.append("display"))
-        worker.frame_ready_for_inference.connect(lambda _: emit_order.append("inference"))
+        worker.frame_ready_for_inference.connect(
+            lambda _: emit_order.append("inference")
+        )
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=1, frame=sharp)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=1, frame=sharp
+        )
 
         with patch("cv2.VideoCapture", return_value=mock_cap):
             worker.run()
@@ -540,11 +570,25 @@ class TestRunSharpFrame:
         sharp = make_sharp_frame(64)
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=1, frame=sharp)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=1, frame=sharp
+        )
 
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("workers.camera_worker.apply_clahe", wraps=__import__("core.preprocessor", fromlist=["apply_clahe"]).apply_clahe) as mock_clahe, \
-             patch("workers.camera_worker.apply_gamma", wraps=__import__("core.preprocessor", fromlist=["apply_gamma"]).apply_gamma) as mock_gamma:
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch(
+                "workers.camera_worker.apply_clahe",
+                wraps=__import__(
+                    "core.preprocessor", fromlist=["apply_clahe"]
+                ).apply_clahe,
+            ) as mock_clahe,
+            patch(
+                "workers.camera_worker.apply_gamma",
+                wraps=__import__(
+                    "core.preprocessor", fromlist=["apply_gamma"]
+                ).apply_gamma,
+            ) as mock_gamma,
+        ):
             worker.run()
 
         mock_clahe.assert_called_once()
@@ -558,11 +602,15 @@ class TestRunSharpFrame:
         blurry = make_flat_frame()
 
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=2, frame=blurry)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=2, frame=blurry
+        )
 
-        with patch("cv2.VideoCapture", return_value=mock_cap), \
-             patch("workers.camera_worker.apply_clahe") as mock_clahe, \
-             patch("workers.camera_worker.apply_gamma") as mock_gamma:
+        with (
+            patch("cv2.VideoCapture", return_value=mock_cap),
+            patch("workers.camera_worker.apply_clahe") as mock_clahe,
+            patch("workers.camera_worker.apply_gamma") as mock_gamma,
+        ):
             worker.run()
 
         mock_clahe.assert_not_called()
@@ -573,14 +621,16 @@ class TestRunSharpFrame:
 # run() — cleanup on exit
 # ===========================================================================
 
-class TestRunCleanup:
 
+class TestRunCleanup:
     def test_cap_released_on_clean_exit(self):
         """cap.release() must be called when run() exits normally."""
         worker = CameraWorker()
         sharp = make_sharp_frame()
         mock_cap = make_mock_cap(opened=True)
-        mock_cap.read.side_effect = make_stop_side_effect(worker, n_frames=1, frame=sharp)
+        mock_cap.read.side_effect = make_stop_side_effect(
+            worker, n_frames=1, frame=sharp
+        )
 
         with patch("cv2.VideoCapture", return_value=mock_cap):
             worker.run()
@@ -614,8 +664,8 @@ class TestRunCleanup:
 # Params-updated integration (motion gate threshold changes)
 # ===========================================================================
 
-class TestParamsIntegration:
 
+class TestParamsIntegration:
     def test_blur_threshold_from_params_governs_gate(self):
         """
         A frame with non-zero variance should pass the gate when
@@ -626,6 +676,7 @@ class TestParamsIntegration:
         frame[::4, ::4] = [200, 200, 200]  # sparse pattern, low variance
 
         from core.preprocessor import compute_variance
+
         actual_variance = compute_variance(frame)
 
         # Frame should be sharp with very low threshold

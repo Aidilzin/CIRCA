@@ -55,6 +55,7 @@ def _build_gamma_lut(gamma: float) -> np.ndarray:
 # FR3 — CLAHE Adaptive Contrast Enhancement
 # ---------------------------------------------------------------------------
 
+
 def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     """
     Apply CLAHE (Contrast Limited Adaptive Histogram Equalisation) to the
@@ -113,6 +114,7 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
 # FR4 — Gamma Correction
 # ---------------------------------------------------------------------------
 
+
 def apply_gamma(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     """
     Apply power-law gamma correction to a BGR frame using a pre-built LUT.
@@ -161,6 +163,7 @@ def apply_gamma(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # FR5 — Laplacian Variance Blur / Motion Gate
 # ---------------------------------------------------------------------------
+
 
 def compute_variance(frame: np.ndarray) -> float:
     """

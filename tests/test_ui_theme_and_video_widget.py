@@ -27,13 +27,9 @@ is a QWidget subclass.
 """
 
 import re
-from typing import Optional
 
-import numpy as np
 import pytest
-from PyQt6.QtCore import QRect
-from PyQt6.QtGui import QColor, QImage, QPixmap, QPainter
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QColor, QImage, QPixmap
 
 from core.models import BoundingBox, DetectionResult
 from ui import theme
@@ -48,12 +44,12 @@ from ui.video_widget import VideoWidget
 # QApplication provided by tests/conftest.py (session scope).
 
 
-
 # ===========================================================================
 # Helpers
 # ===========================================================================
 
-HEX_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
+HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
 
 def is_valid_hex(value: str) -> bool:
     return bool(HEX_RE.match(value))
@@ -66,11 +62,19 @@ def make_qimage(w: int = 64, h: int = 64) -> QImage:
     return img
 
 
-def make_detection(class_name: str = "solder_bridge", confidence: float = 0.90) -> DetectionResult:
+def make_detection(
+    class_name: str = "solder_bridge", confidence: float = 0.90
+) -> DetectionResult:
     return DetectionResult(
         boxes=[
-            BoundingBox(x=10, y=10, width=50, height=50,
-                        class_name=class_name, confidence=confidence)
+            BoundingBox(
+                x=10,
+                y=10,
+                width=50,
+                height=50,
+                class_name=class_name,
+                confidence=confidence,
+            )
         ]
     )
 
@@ -97,8 +101,8 @@ def render_widget_offscreen(widget: VideoWidget) -> QPixmap:
 # ui/theme.py — token validity
 # ===========================================================================
 
-class TestThemeColors:
 
+class TestThemeColors:
     # All colour constants that must exist and be valid hex strings.
     COLOR_CONSTANTS = [
         "COLOR_BG_BASE",
@@ -142,18 +146,25 @@ class TestThemeColors:
 
 
 class TestThemeDefectColors:
-
     def test_all_four_defect_classes_present(self):
         """Every defect class from CLASS_LABELS must have a colour entry."""
-        required = {"solder_bridge", "missing_component", "misaligned_component", "burnt_area"}
+        required = {
+            "solder_bridge",
+            "missing_component",
+            "misaligned_component",
+            "burnt_area",
+        }
         assert required.issubset(set(DEFECT_CLASS_COLORS.keys()))
 
-    @pytest.mark.parametrize("class_name,expected_hex", [
-        ("solder_bridge",        "#FF5252"),
-        ("missing_component",    "#FF9800"),
-        ("misaligned_component", "#FFEB3B"),
-        ("burnt_area",           "#9C27B0"),
-    ])
+    @pytest.mark.parametrize(
+        "class_name,expected_hex",
+        [
+            ("solder_bridge", "#FF5252"),
+            ("missing_component", "#FF9800"),
+            ("misaligned_component", "#FFEB3B"),
+            ("burnt_area", "#9C27B0"),
+        ],
+    )
     def test_defect_colour_values(self, class_name, expected_hex):
         assert DEFECT_CLASS_COLORS[class_name] == expected_hex
 
@@ -170,7 +181,6 @@ class TestThemeDefectColors:
 
 
 class TestThemeTypography:
-
     def test_font_ui_is_inter(self):
         assert theme.FONT_UI == "Inter"
 
@@ -178,8 +188,13 @@ class TestThemeTypography:
         assert theme.FONT_MONO == "JetBrains Mono"
 
     def test_font_size_constants_exist(self):
-        for attr in ["FONT_SIZE_TITLE", "FONT_SIZE_LABEL", "FONT_SIZE_BODY",
-                     "FONT_SIZE_MONO_LIVE", "FONT_SIZE_MONO_CHIP"]:
+        for attr in [
+            "FONT_SIZE_TITLE",
+            "FONT_SIZE_LABEL",
+            "FONT_SIZE_BODY",
+            "FONT_SIZE_MONO_LIVE",
+            "FONT_SIZE_MONO_CHIP",
+        ]:
             assert hasattr(theme, attr), f"theme.{attr} must be defined"
 
     def test_mono_chip_size_is_11(self):
@@ -188,7 +203,6 @@ class TestThemeTypography:
 
 
 class TestThemeSpacing:
-
     def test_spacing_base_unit_is_8(self):
         """All spacing must be multiples of the 8px base unit."""
         assert theme.SPACING_SM == 8
@@ -198,7 +212,6 @@ class TestThemeSpacing:
 
 
 class TestThemeLayout:
-
     def test_window_min_width_is_1024(self):
         assert theme.WINDOW_MIN_WIDTH == 1024
 
@@ -213,7 +226,6 @@ class TestThemeLayout:
 
 
 class TestBuildQss:
-
     def test_build_qss_returns_string(self):
         assert isinstance(build_qss(), str)
 
@@ -223,11 +235,11 @@ class TestBuildQss:
     def test_qss_contains_bg_base_colour(self):
         """All colour tokens referenced in QSS must use theme constants."""
         qss = build_qss()
-        assert "#121212" in qss   # COLOR_BG_BASE
+        assert "#121212" in qss  # COLOR_BG_BASE
 
     def test_qss_contains_accent_colour(self):
         qss = build_qss()
-        assert "#00BCD4" in qss   # COLOR_ACCENT_CYAN
+        assert "#00BCD4" in qss  # COLOR_ACCENT_CYAN
 
     def test_qss_contains_slider_rules(self):
         qss = build_qss()
@@ -238,8 +250,8 @@ class TestBuildQss:
 # VideoWidget — initialisation
 # ===========================================================================
 
-class TestVideoWidgetInit:
 
+class TestVideoWidgetInit:
     def test_initial_frame_is_none(self):
         w = make_widget()
         assert w._current_frame is None
@@ -254,6 +266,7 @@ class TestVideoWidgetInit:
 
     def test_is_qwidget(self):
         from PyQt6.QtWidgets import QWidget
+
         w = make_widget()
         assert isinstance(w, QWidget)
 
@@ -267,8 +280,8 @@ class TestVideoWidgetInit:
 # VideoWidget — set_frame slot
 # ===========================================================================
 
-class TestSetFrame:
 
+class TestSetFrame:
     def test_set_frame_stores_qimage(self):
         w = make_widget()
         img = make_qimage()
@@ -294,8 +307,8 @@ class TestSetFrame:
 # VideoWidget — set_detections slot
 # ===========================================================================
 
-class TestSetDetections:
 
+class TestSetDetections:
     def test_set_detections_stores_result(self):
         w = make_widget()
         result = make_detection()
@@ -327,8 +340,8 @@ class TestSetDetections:
 # VideoWidget — set_status_text slot
 # ===========================================================================
 
-class TestSetStatusText:
 
+class TestSetStatusText:
     def test_set_status_text_updates_text(self):
         w = make_widget()
         w.set_status_text("Camera Error")
@@ -344,8 +357,8 @@ class TestSetStatusText:
 # VideoWidget — clear_frame
 # ===========================================================================
 
-class TestClearFrame:
 
+class TestClearFrame:
     def test_clear_frame_sets_frame_to_none(self):
         w = make_widget()
         w.set_frame(make_qimage())
@@ -364,8 +377,8 @@ class TestClearFrame:
 # VideoWidget — _compute_letterbox_rect (pure geometry)
 # ===========================================================================
 
-class TestComputeLetterboxRect:
 
+class TestComputeLetterboxRect:
     def test_square_frame_in_square_widget_fills_entirely(self):
         w = make_widget(400, 400)
         # Use the actual widget size after minimum-size constraint is applied.
@@ -379,33 +392,35 @@ class TestComputeLetterboxRect:
 
     def test_wider_widget_letterboxes_left_right(self):
         """Frame 4:3, widget 16:9 → bars on left/right, frame fills vertically."""
-        w = make_widget(800, 450)   # 16:9
+        w = make_widget(800, 450)  # 16:9
         rect = w._compute_letterbox_rect(640, 480)  # 4:3
         # Frame should be centered, bars on left and right
         assert rect.height() == 450  # fills vertically
-        assert rect.x() > 0         # offset from left
+        assert rect.x() > 0  # offset from left
         assert rect.y() == 0
 
     def test_taller_widget_letterboxes_top_bottom(self):
         """Frame 16:9, widget 4:3 → bars on top/bottom, frame fills horizontally."""
-        w = make_widget(640, 640)   # square
+        w = make_widget(640, 640)  # square
         rect = w._compute_letterbox_rect(1280, 720)  # 16:9
         assert rect.width() == 640  # fills horizontally
-        assert rect.y() > 0         # offset from top
+        assert rect.y() > 0  # offset from top
         assert rect.x() == 0
 
     def test_frame_centred_in_widget(self):
         """The letterbox image must be centred within the widget."""
         w = make_widget(400, 400)
         actual_w, actual_h = w.width(), w.height()
-        rect = w._compute_letterbox_rect(actual_w, actual_w // 2)  # 2:1 frame in square widget
+        rect = w._compute_letterbox_rect(
+            actual_w, actual_w // 2
+        )  # 2:1 frame in square widget
         # Image height = actual_w/2 → scaled to fit width → drawn_h = actual_w//2
         # vertical offset = (actual_h - drawn_h) // 2
         expected_drawn_h = actual_w // 2
         expected_y = (actual_h - expected_drawn_h) // 2
         assert rect.y() == expected_y, (
             f"Expected y={expected_y}, got {rect.y()} "
-            f"(widget={actual_w}×{actual_h}, frame={actual_w}×{actual_w//2})"
+            f"(widget={actual_w}×{actual_h}, frame={actual_w}×{actual_w // 2})"
         )
 
     def test_degenerate_zero_frame_returns_widget_rect(self):
@@ -426,6 +441,7 @@ class TestComputeLetterboxRect:
 # ===========================================================================
 # VideoWidget — offscreen render smoke tests
 # ===========================================================================
+
 
 class TestOffscreenRendering:
     """
@@ -455,8 +471,12 @@ class TestOffscreenRendering:
 
     def test_all_defect_classes_render_without_crash(self):
         """All four defect class colours must resolve without KeyError."""
-        classes = ["solder_bridge", "missing_component",
-                   "misaligned_component", "burnt_area"]
+        classes = [
+            "solder_bridge",
+            "missing_component",
+            "misaligned_component",
+            "burnt_area",
+        ]
         for cls in classes:
             w = make_widget()
             w.set_frame(make_qimage(320, 240))
@@ -469,8 +489,16 @@ class TestOffscreenRendering:
         w = make_widget()
         w.set_frame(make_qimage(320, 240))
         result = DetectionResult(
-            boxes=[BoundingBox(x=10, y=10, width=50, height=50,
-                               class_name="future_class_99", confidence=0.8)]
+            boxes=[
+                BoundingBox(
+                    x=10,
+                    y=10,
+                    width=50,
+                    height=50,
+                    class_name="future_class_99",
+                    confidence=0.8,
+                )
+            ]
         )
         w.set_detections(result)
         pixmap = render_widget_offscreen(w)
@@ -481,8 +509,16 @@ class TestOffscreenRendering:
         w = make_widget(640, 480)
         w.set_frame(make_qimage(640, 480))
         result = DetectionResult(
-            boxes=[BoundingBox(x=5, y=0, width=100, height=60,
-                               class_name="solder_bridge", confidence=0.85)]
+            boxes=[
+                BoundingBox(
+                    x=5,
+                    y=0,
+                    width=100,
+                    height=60,
+                    class_name="solder_bridge",
+                    confidence=0.85,
+                )
+            ]
         )
         w.set_detections(result)
         pixmap = render_widget_offscreen(w)
@@ -494,9 +530,30 @@ class TestOffscreenRendering:
         w.set_frame(make_qimage(640, 480))
         result = DetectionResult(
             boxes=[
-                BoundingBox(x=10,  y=10,  width=80, height=60, class_name="solder_bridge", confidence=0.92),
-                BoundingBox(x=200, y=200, width=80, height=60, class_name="burnt_area", confidence=0.78),
-                BoundingBox(x=400, y=100, width=80, height=60, class_name="missing_component", confidence=0.65),
+                BoundingBox(
+                    x=10,
+                    y=10,
+                    width=80,
+                    height=60,
+                    class_name="solder_bridge",
+                    confidence=0.92,
+                ),
+                BoundingBox(
+                    x=200,
+                    y=200,
+                    width=80,
+                    height=60,
+                    class_name="burnt_area",
+                    confidence=0.78,
+                ),
+                BoundingBox(
+                    x=400,
+                    y=100,
+                    width=80,
+                    height=60,
+                    class_name="missing_component",
+                    confidence=0.65,
+                ),
             ]
         )
         w.set_detections(result)
@@ -521,6 +578,19 @@ class TestOffscreenRendering:
         img = pixmap.toImage()
         centre_color = QColor(img.pixel(50, 50))
         # Centre pixel must be dark (R, G, B all < 30 for #121212)
-        assert centre_color.red()   < 30
+        assert centre_color.red() < 30
         assert centre_color.green() < 30
-        assert centre_color.blue()  < 30
+        assert centre_color.blue() < 30
+
+    def test_clear_feed_resets_state(self):
+        """clear_feed() must drop both the current frame and detections, and set status text."""
+        w = make_widget()
+        w.set_frame(make_qimage())
+        w.set_detections(make_detection())
+        assert w._current_frame is not None
+        assert w._detections is not None
+
+        w.clear_feed("New Status")
+        assert w._current_frame is None
+        assert w._detections is None
+        assert w._status_text == "New Status"

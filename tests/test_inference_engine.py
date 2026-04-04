@@ -20,13 +20,11 @@ No real OpenVINO model file required.
 
 import numpy as np
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 from core.models import BoundingBox, DetectionResult, InferenceParams
 from core.inference_engine import (
     CLASS_LABELS,
-    IOU_THRESHOLD,
     MODEL_INPUT_SIZE,
     InferenceEngine,
 )
@@ -35,6 +33,7 @@ from core.inference_engine import (
 # ===========================================================================
 # Fixtures and helpers
 # ===========================================================================
+
 
 def make_inference_engine_with_mocks(
     num_classes: int = 4,
@@ -61,10 +60,11 @@ def make_inference_engine_with_mocks(
     mock_compiled_model.output.return_value = mock_output_layer
 
     # Patch the openvino import inside inference_engine's __init__
-    with patch.dict("sys.modules", {"openvino.runtime": MagicMock()}), \
-         patch("core.inference_engine.Path.exists", return_value=True), \
-         patch("builtins.open", MagicMock()):
-
+    with (
+        patch.dict("sys.modules", {"openvino.runtime": MagicMock()}),
+        patch("core.inference_engine.Path.exists", return_value=True),
+        patch("builtins.open", MagicMock()),
+    ):
         mock_ov_module = MagicMock()
         mock_core_instance = MagicMock()
         mock_core_instance.read_model.return_value = MagicMock()
@@ -82,7 +82,10 @@ def make_inference_engine_with_mocks(
 
 
 def make_raw_output(
-    cx: float, cy: float, w: float, h: float,
+    cx: float,
+    cy: float,
+    w: float,
+    h: float,
     class_scores: list[float],
     num_anchors: int = 8400,
 ) -> np.ndarray:
@@ -112,8 +115,8 @@ def make_default_params(**overrides) -> InferenceParams:
 # CLASS_LABELS — FR7–FR10
 # ===========================================================================
 
-class TestClassLabels:
 
+class TestClassLabels:
     def test_has_four_classes(self):
         assert len(CLASS_LABELS) == 4
 
@@ -137,8 +140,8 @@ class TestClassLabels:
 # InferenceEngine.__init__ — model loading (FR6)
 # ===========================================================================
 
-class TestInferenceEngineInit:
 
+class TestInferenceEngineInit:
     def test_raises_file_not_found_when_xml_missing(self, tmp_path):
         missing = str(tmp_path / "nonexistent.xml")
         with pytest.raises(FileNotFoundError, match="model XML not found"):
@@ -175,8 +178,8 @@ class TestInferenceEngineInit:
 # InferenceEngine._preprocess_frame
 # ===========================================================================
 
-class TestPreprocessFrame:
 
+class TestPreprocessFrame:
     def setup_method(self):
         self.engine, _ = make_inference_engine_with_mocks()
 
@@ -225,23 +228,25 @@ class TestPreprocessFrame:
         # After BGR→RGB: R channel (NCHW channel 0) should be 0 (was B=255→R channel)
         # Actually blue BGR → red in RGB at channel 0: result[0,0] should == 0
         # because the blue pixel's R component is 0
-        assert result[0, 0].max() < 0.01   # R channel of blue pixel is ~0
+        assert result[0, 0].max() < 0.01  # R channel of blue pixel is ~0
 
 
 # ===========================================================================
 # InferenceEngine._postprocess — core FR logic
 # ===========================================================================
 
-class TestPostprocess:
 
+class TestPostprocess:
     def setup_method(self):
         self.engine, _ = make_inference_engine_with_mocks(num_classes=4)
         self.params = make_default_params(confidence_threshold=0.5)
 
     def _run_postprocess(self, raw_output, original_w=640, original_h=640):
         return self.engine._postprocess(
-            raw_output, self.params,
-            original_w=original_w, original_h=original_h,
+            raw_output,
+            self.params,
+            original_w=original_w,
+            original_h=original_h,
         )
 
     # --- Basic detection ---
@@ -249,7 +254,10 @@ class TestPostprocess:
     def test_single_high_confidence_detection_returned(self):
         """One anchor above threshold → one BoundingBox returned."""
         raw = make_raw_output(
-            cx=320, cy=320, w=100, h=100,
+            cx=320,
+            cy=320,
+            w=100,
+            h=100,
             class_scores=[0.0, 0.9, 0.0, 0.0],  # missing_component, conf=0.9
         )
         boxes = self._run_postprocess(raw)
@@ -260,7 +268,10 @@ class TestPostprocess:
     def test_box_with_confidence_below_threshold_filtered_out(self):
         """Anchor confidence below threshold → empty result."""
         raw = make_raw_output(
-            cx=320, cy=320, w=100, h=100,
+            cx=320,
+            cy=320,
+            w=100,
+            h=100,
             class_scores=[0.3, 0.0, 0.0, 0.0],  # 0.3 < default threshold 0.5
         )
         boxes = self._run_postprocess(raw)
@@ -269,7 +280,10 @@ class TestPostprocess:
     def test_box_exactly_at_threshold_is_included(self):
         """Boundary: confidence == threshold → included (>= comparison)."""
         raw = make_raw_output(
-            cx=320, cy=320, w=100, h=100,
+            cx=320,
+            cy=320,
+            w=100,
+            h=100,
             class_scores=[0.5, 0.0, 0.0, 0.0],
         )
         boxes = self._run_postprocess(raw)
@@ -319,8 +333,9 @@ class TestPostprocess:
         Expected: x1 = (320-100)*2 = 440, y1 = (320-50)*1.5 = 405
                   w = 200*2 = 400, h = 100*1.5 = 150
         """
-        raw = make_raw_output(cx=320, cy=320, w=200, h=100,
-                              class_scores=[0.9, 0.0, 0.0, 0.0])
+        raw = make_raw_output(
+            cx=320, cy=320, w=200, h=100, class_scores=[0.9, 0.0, 0.0, 0.0]
+        )
         boxes = self._run_postprocess(raw, original_w=1280, original_h=960)
         assert len(boxes) == 1
         b = boxes[0]
@@ -337,8 +352,9 @@ class TestPostprocess:
         compute negative x1 or x1+w > frame_width. Must be clamped.
         """
         # cx=10, cy=10 with w=100, h=100 → x1 = 10-50 = -40 → clamped to 0
-        raw = make_raw_output(cx=10, cy=10, w=100, h=100,
-                              class_scores=[0.9, 0.0, 0.0, 0.0])
+        raw = make_raw_output(
+            cx=10, cy=10, w=100, h=100, class_scores=[0.9, 0.0, 0.0, 0.0]
+        )
         boxes = self._run_postprocess(raw, original_w=640, original_h=640)
         # x1 and y1 must never be negative
         if boxes:
@@ -411,8 +427,8 @@ class TestPostprocess:
 # InferenceEngine.run() — integration (mocked infer request)
 # ===========================================================================
 
-class TestInferenceEngineRun:
 
+class TestInferenceEngineRun:
     def _make_engine_with_output(self, raw_output: np.ndarray, num_classes=4):
         """Build a fully mocked engine that returns `raw_output` on infer."""
         engine, mock_compiled = make_inference_engine_with_mocks(

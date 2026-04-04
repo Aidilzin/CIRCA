@@ -31,15 +31,14 @@ QApplication provided by tests/conftest.py (session scope).
 
 from __future__ import annotations
 
-from typing import Optional
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtGui import QImage
 from PyQt6.QtWidgets import QMainWindow
 
-from core.models import BoundingBox, DetectionResult, InferenceParams, PreprocessParams
+from core.models import BoundingBox, DetectionResult, InferenceParams
 from ui.control_panel import ControlPanel
 from ui.main_window import MainWindow, _DEFAULT_CONFIDENCE_THRESHOLD
 from ui.status_footer import StatusFooter
@@ -48,8 +47,6 @@ from ui.warning_banner import WarningBanner
 from ui.theme import (
     WINDOW_MIN_WIDTH,
     WINDOW_MIN_HEIGHT,
-    WINDOW_DEFAULT_WIDTH,
-    WINDOW_DEFAULT_HEIGHT,
 )
 
 
@@ -57,8 +54,10 @@ from ui.theme import (
 # Stub workers (no cv2, no OpenVINO, no threading)
 # ===========================================================================
 
+
 class _StubCameraWorker(QObject):
     """Minimal QObject with the same signal/slot interface as CameraWorker."""
+
     new_frame = pyqtSignal(QImage)
     frame_ready_for_inference = pyqtSignal(object)
     camera_error = pyqtSignal(str)
@@ -82,13 +81,19 @@ class _StubCameraWorker(QObject):
 
 class _StubInferenceWorker(QObject):
     """Minimal QObject with the same signal/slot interface as InferenceWorker."""
+
     new_detections = pyqtSignal(object)
     inference_error = pyqtSignal(str)
     model_loaded = pyqtSignal()
 
-    def process_frame(self, frame): pass
-    def update_params(self, params): pass
-    def load_model(self, path): pass
+    def process_frame(self, frame):
+        pass
+
+    def update_params(self, params):
+        pass
+
+    def load_model(self, path):
+        pass
 
 
 class _HeadlessMainWindow(MainWindow):
@@ -103,9 +108,9 @@ class _HeadlessMainWindow(MainWindow):
     def _create_workers(self) -> None:
         """Install stub workers with stub threads (never start())."""
         self.camera_thread = MagicMock(spec=QThread)
-        self.camera_thread.wait.return_value = True   # Simulate clean exit
+        self.camera_thread.wait.return_value = True  # Simulate clean exit
         self.camera_worker = _StubCameraWorker(device_index=0)
-        self.camera_worker.moveToThread = MagicMock()   # Prevent actual move
+        self.camera_worker.moveToThread = MagicMock()  # Prevent actual move
 
         self.inference_thread = MagicMock(spec=QThread)
         self.inference_thread.wait.return_value = True
@@ -131,8 +136,8 @@ def win() -> _HeadlessMainWindow:
 # Layout structure
 # ===========================================================================
 
-class TestMainWindowLayout:
 
+class TestMainWindowLayout:
     def test_is_qmainwindow(self, win):
         assert isinstance(win, QMainWindow)
 
@@ -169,8 +174,8 @@ class TestMainWindowLayout:
 # Signal routing — CameraWorker → UI
 # ===========================================================================
 
-class TestCameraWorkerRouting:
 
+class TestCameraWorkerRouting:
     def test_camera_error_calls_status_footer(self, win):
         """camera_error signal → StatusFooter shows red dot."""
         win.camera_worker.camera_error.emit("USB unplugged")
@@ -184,6 +189,7 @@ class TestCameraWorkerRouting:
     def test_new_frame_reaches_video_widget(self, win):
         """new_frame signal → VideoWidget stores a frame with matching dimensions."""
         from PyQt6.QtGui import QColor
+
         img = QImage(64, 64, QImage.Format.Format_RGB888)
         img.fill(QColor("#FF0000"))
         win.camera_worker.new_frame.emit(img)
@@ -198,32 +204,43 @@ class TestCameraWorkerRouting:
 # Signal routing — InferenceWorker → UI
 # ===========================================================================
 
-class TestInferenceWorkerRouting:
 
+class TestInferenceWorkerRouting:
     def test_model_loaded_sets_model_ready_dot(self, win):
         """model_loaded signal → StatusFooter shows green model dot."""
         from ui.theme import COLOR_STATUS_OK
+
         win.inference_worker.model_loaded.emit()
         assert win.status_footer._model_indicator.dot_color == COLOR_STATUS_OK
 
     def test_inference_error_sets_model_error_dot(self, win):
         """inference_error signal → StatusFooter shows red model dot."""
         from ui.theme import COLOR_STATUS_ERROR
+
         win.inference_worker.inference_error.emit("OpenVINO crash")
         assert win.status_footer._model_indicator.dot_color == COLOR_STATUS_ERROR
 
     def test_new_detections_reaches_video_widget(self, win):
         """new_detections signal → VideoWidget stores the DetectionResult."""
-        result = DetectionResult(boxes=[
-            BoundingBox(x=10, y=10, width=50, height=50,
-                        class_name="solder_bridge", confidence=0.9)
-        ])
+        result = DetectionResult(
+            boxes=[
+                BoundingBox(
+                    x=10,
+                    y=10,
+                    width=50,
+                    height=50,
+                    class_name="solder_bridge",
+                    confidence=0.9,
+                )
+            ]
+        )
         win.inference_worker.new_detections.emit(result)
         assert win.video_widget._detections is result
 
     def test_new_detections_updates_detection_count(self, win):
         """new_detections → StatusFooter detection count updated."""
         from ui.theme import COLOR_STATUS_OK
+
         result = DetectionResult(boxes=[])
         win.inference_worker.new_detections.emit(result)
         # 0 detections → green dot
@@ -231,12 +248,26 @@ class TestInferenceWorkerRouting:
 
     def test_new_detections_with_boxes_updates_count(self, win):
         """2 detections → StatusFooter shows '2 defects'."""
-        result = DetectionResult(boxes=[
-            BoundingBox(x=0, y=0, width=10, height=10,
-                        class_name="burnt_area", confidence=0.8),
-            BoundingBox(x=0, y=0, width=10, height=10,
-                        class_name="solder_bridge", confidence=0.7),
-        ])
+        result = DetectionResult(
+            boxes=[
+                BoundingBox(
+                    x=0,
+                    y=0,
+                    width=10,
+                    height=10,
+                    class_name="burnt_area",
+                    confidence=0.8,
+                ),
+                BoundingBox(
+                    x=0,
+                    y=0,
+                    width=10,
+                    height=10,
+                    class_name="solder_bridge",
+                    confidence=0.7,
+                ),
+            ]
+        )
         win.inference_worker.new_detections.emit(result)
         assert "2" in win.status_footer._detection_indicator.label_text
 
@@ -245,16 +276,24 @@ class TestInferenceWorkerRouting:
 # FR15 routing — _on_new_detections → WarningBanner
 # ===========================================================================
 
-class TestFR15Routing:
 
+class TestFR15Routing:
     def _make_result(self, avg_conf: float) -> DetectionResult:
         """Make a DetectionResult whose average_confidence equals avg_conf."""
         # average_confidence is computed as mean of box confidences.
         # Single box with target confidence gives exact average.
-        return DetectionResult(boxes=[
-            BoundingBox(x=0, y=0, width=10, height=10,
-                        class_name="solder_bridge", confidence=avg_conf)
-        ])
+        return DetectionResult(
+            boxes=[
+                BoundingBox(
+                    x=0,
+                    y=0,
+                    width=10,
+                    height=10,
+                    class_name="solder_bridge",
+                    confidence=avg_conf,
+                )
+            ]
+        )
 
     def test_low_confidence_shows_warning_banner(self, win):
         """avg_confidence < threshold → WarningBanner visible."""
@@ -273,6 +312,7 @@ class TestFR15Routing:
     def test_banner_auto_resets_after_cool_down(self, win):
         """30 consecutive high-confidence frames → banner auto-resets."""
         from ui.warning_banner import COOL_DOWN_FRAMES
+
         win._confidence_threshold = 0.50
         # First: show the banner
         win._on_new_detections(self._make_result(0.20))
@@ -288,7 +328,7 @@ class TestFR15Routing:
         This must NOT trigger the FR15 warning banner.
         """
         win._confidence_threshold = 0.50
-        clean = DetectionResult(boxes=[])   # average_confidence == 1.0
+        clean = DetectionResult(boxes=[])  # average_confidence == 1.0
         win._on_new_detections(clean)
         assert win.warning_banner.isHidden()
 
@@ -306,8 +346,8 @@ class TestFR15Routing:
 # Confidence threshold tracking
 # ===========================================================================
 
-class TestConfidenceThresholdTracking:
 
+class TestConfidenceThresholdTracking:
     def test_initial_threshold_is_default(self, win):
         assert abs(win._confidence_threshold - _DEFAULT_CONFIDENCE_THRESHOLD) < 1e-9
 
@@ -321,10 +361,18 @@ class TestConfidenceThresholdTracking:
         """After threshold update, low-confidence is evaluated against new value."""
         # With threshold=0.80, confidence=0.70 is LOW
         win._on_inference_params_changed(InferenceParams(confidence_threshold=0.80))
-        result = DetectionResult(boxes=[
-            BoundingBox(x=0, y=0, width=10, height=10,
-                        class_name="solder_bridge", confidence=0.70)
-        ])
+        result = DetectionResult(
+            boxes=[
+                BoundingBox(
+                    x=0,
+                    y=0,
+                    width=10,
+                    height=10,
+                    class_name="solder_bridge",
+                    confidence=0.70,
+                )
+            ]
+        )
         win._on_new_detections(result)
         assert not win.warning_banner.isHidden()
 
@@ -332,10 +380,18 @@ class TestConfidenceThresholdTracking:
         """Threshold lowered below current confidence → banner should not show."""
         # confidence = 0.70, threshold = 0.50 → good frame
         win._on_inference_params_changed(InferenceParams(confidence_threshold=0.50))
-        result = DetectionResult(boxes=[
-            BoundingBox(x=0, y=0, width=10, height=10,
-                        class_name="solder_bridge", confidence=0.70)
-        ])
+        result = DetectionResult(
+            boxes=[
+                BoundingBox(
+                    x=0,
+                    y=0,
+                    width=10,
+                    height=10,
+                    class_name="solder_bridge",
+                    confidence=0.70,
+                )
+            ]
+        )
         win._on_new_detections(result)
         # Good frame — banner stays hidden, counter increments
         assert win.warning_banner.isHidden()
@@ -345,35 +401,40 @@ class TestConfidenceThresholdTracking:
 # closeEvent safety
 # ===========================================================================
 
-class TestCloseEvent:
 
+class TestCloseEvent:
     def test_close_event_calls_camera_worker_stop(self, win):
         """stop() MUST be called on CameraWorker before thread.quit()."""
         from PyQt6.QtGui import QCloseEvent
+
         event = QCloseEvent()
         win.closeEvent(event)
         assert win.camera_worker.stop_called is True
 
     def test_close_event_calls_camera_thread_quit(self, win):
         from PyQt6.QtGui import QCloseEvent
+
         event = QCloseEvent()
         win.closeEvent(event)
         win.camera_thread.quit.assert_called_once()
 
     def test_close_event_calls_camera_thread_wait(self, win):
         from PyQt6.QtGui import QCloseEvent
+
         event = QCloseEvent()
         win.closeEvent(event)
         win.camera_thread.wait.assert_called()
 
     def test_close_event_calls_inference_thread_quit(self, win):
         from PyQt6.QtGui import QCloseEvent
+
         event = QCloseEvent()
         win.closeEvent(event)
         win.inference_thread.quit.assert_called_once()
 
     def test_close_event_calls_inference_thread_wait(self, win):
         from PyQt6.QtGui import QCloseEvent
+
         event = QCloseEvent()
         win.closeEvent(event)
         win.inference_thread.wait.assert_called()
@@ -381,6 +442,7 @@ class TestCloseEvent:
     def test_close_event_accepts_event(self, win):
         """closeEvent must call event.accept() — not event.ignore()."""
         from PyQt6.QtGui import QCloseEvent
+
         event = QCloseEvent()
         win.closeEvent(event)
         assert event.isAccepted()
@@ -392,7 +454,7 @@ class TestCloseEvent:
         Verified by tracking call insertion order on a combined mock.
         """
         from PyQt6.QtGui import QCloseEvent
-        from unittest.mock import MagicMock, call
+        from unittest.mock import MagicMock
 
         call_log: list[str] = []
         win.camera_worker.stop = lambda: call_log.append("stop")
@@ -411,8 +473,8 @@ class TestCloseEvent:
 # Default values and state
 # ===========================================================================
 
-class TestMainWindowDefaults:
 
+class TestMainWindowDefaults:
     def test_camera_worker_created(self, win):
         assert isinstance(win.camera_worker, _StubCameraWorker)
 
@@ -436,6 +498,7 @@ class TestMainWindowDefaults:
 # ControlPanel pinned toggle button (Change 1)
 # ===========================================================================
 
+
 class TestControlPanelPinnedToggle:
     """Verify QHBoxLayout design: toggle button permanently on left edge."""
 
@@ -455,6 +518,7 @@ class TestControlPanelPinnedToggle:
         minimumWidth and maximumWidth to n, so we verify via those.
         """
         from ui.theme import CONTROL_PANEL_WIDTH_COLLAPSED
+
         btn = win.control_panel._toggle_btn
         # setFixedWidth(28) sets both min and max to 28
         assert btn.minimumWidth() == CONTROL_PANEL_WIDTH_COLLAPSED
@@ -480,11 +544,13 @@ class TestControlPanelPinnedToggle:
 # USB hotplug via nativeEvent + QTimer debounce (Change 2)
 # ===========================================================================
 
+
 class TestUsbHotplug:
     """Verify WM_DEVICECHANGE intercept and debounce QTimer."""
 
     def test_usb_debounce_timer_exists_and_is_single_shot(self, win):
         from PyQt6.QtCore import QTimer
+
         assert hasattr(win, "_usb_debounce_timer")
         assert isinstance(win._usb_debounce_timer, QTimer)
         assert win._usb_debounce_timer.isSingleShot()
@@ -495,14 +561,14 @@ class TestUsbHotplug:
         mock_scan.assert_called_once_with(is_startup=False)
 
     def test_on_cameras_found_hotplug_updates_dropdown(self, win):
-        from unittest.mock import patch
         from ui.theme import COLOR_STATUS_OK
+
         # Mock currently empty dropdown
         win.control_panel.camera_combo.clear()
-        
+
         new_cameras = [(0, "New Camera")]
         win._on_cameras_found_hotplug(new_cameras)
-        
+
         assert win.control_panel.camera_combo.count() == 1
         assert win.control_panel.camera_combo.itemText(0) == "New Camera"
         assert win.status_footer._camera_indicator.dot_color == COLOR_STATUS_OK
@@ -514,7 +580,7 @@ class TestUsbHotplug:
     def test_on_cameras_found_hotplug_with_cameras_sets_connecting_text(self, win):
         # Start from "No camera found" state
         win.video_widget.set_status_text("Please connect a camera")
-        
+
         win._on_cameras_found_hotplug([(0, "USB Cam")])
         assert "Connecting" in win.video_widget._status_text
 
@@ -524,22 +590,40 @@ class TestUsbHotplug:
         assert not win._usb_debounce_timer.isActive()
 
     def test_native_event_non_devicechange_windows_msg_ignored(self, win):
-        import ctypes, ctypes.wintypes as wt
+        import ctypes
+        import ctypes.wintypes as wt
+
         class _MSG(ctypes.Structure):
-            _fields_ = [("hWnd", wt.HWND), ("message", wt.UINT), ("wParam", wt.WPARAM),
-                        ("lParam", wt.LPARAM), ("time", wt.DWORD), ("pt", wt.POINT)]
+            _fields_ = [
+                ("hWnd", wt.HWND),
+                ("message", wt.UINT),
+                ("wParam", wt.WPARAM),
+                ("lParam", wt.LPARAM),
+                ("time", wt.DWORD),
+                ("pt", wt.POINT),
+            ]
+
         win._usb_debounce_timer.stop()
         msg = _MSG()
-        msg.message = 0x0111   # WM_COMMAND — not WM_DEVICECHANGE
+        msg.message = 0x0111  # WM_COMMAND — not WM_DEVICECHANGE
         win.nativeEvent(b"windows_generic_MSG", ctypes.addressof(msg))
         assert not win._usb_debounce_timer.isActive()
 
     def test_native_event_devicechange_starts_timer(self, win):
         """WM_DEVICECHANGE (0x0219) \u2192 timer becomes active."""
-        import ctypes, ctypes.wintypes as wt
+        import ctypes
+        import ctypes.wintypes as wt
+
         class _MSG(ctypes.Structure):
-            _fields_ = [("hWnd", wt.HWND), ("message", wt.UINT), ("wParam", wt.WPARAM),
-                        ("lParam", wt.LPARAM), ("time", wt.DWORD), ("pt", wt.POINT)]
+            _fields_ = [
+                ("hWnd", wt.HWND),
+                ("message", wt.UINT),
+                ("wParam", wt.WPARAM),
+                ("lParam", wt.LPARAM),
+                ("time", wt.DWORD),
+                ("pt", wt.POINT),
+            ]
+
         win._usb_debounce_timer.stop()
         msg = _MSG()
         msg.message = 0x0219
@@ -548,10 +632,19 @@ class TestUsbHotplug:
 
     def test_native_event_burst_coalesces_to_500ms(self, win):
         """5 consecutive WM_DEVICECHANGE events \u2192 single 500ms timer window."""
-        import ctypes, ctypes.wintypes as wt
+        import ctypes
+        import ctypes.wintypes as wt
+
         class _MSG(ctypes.Structure):
-            _fields_ = [("hWnd", wt.HWND), ("message", wt.UINT), ("wParam", wt.WPARAM),
-                        ("lParam", wt.LPARAM), ("time", wt.DWORD), ("pt", wt.POINT)]
+            _fields_ = [
+                ("hWnd", wt.HWND),
+                ("message", wt.UINT),
+                ("wParam", wt.WPARAM),
+                ("lParam", wt.LPARAM),
+                ("time", wt.DWORD),
+                ("pt", wt.POINT),
+            ]
+
         win._usb_debounce_timer.stop()
         msg = _MSG()
         msg.message = 0x0219
@@ -564,6 +657,7 @@ class TestUsbHotplug:
 # ===========================================================================
 # VideoWidget status text wiring (Change 3)
 # ===========================================================================
+
 
 class TestVideoWidgetStatusTextWiring:
     """Verify MainWindow drives set_status_text() at correct lifecycle moments."""
@@ -579,13 +673,14 @@ class TestVideoWidgetStatusTextWiring:
     def test_usb_insert_with_cameras_shows_connecting_text(self, win):
         # Force a "No camera" state first
         win.video_widget.set_status_text("Please connect a camera")
-        
+
         win._on_cameras_found_hotplug([(0, "USB Cam")])
         assert "Connecting" in win.video_widget._status_text
 
     def test_clear_frame_and_set_status_text_independent(self, win):
         """clear_frame + set_status_text together produce correct idle state."""
         from PyQt6.QtGui import QImage, QColor
+
         img = QImage(4, 4, QImage.Format.Format_RGB888)
         img.fill(QColor("#00FF00"))
         win.video_widget.set_frame(img)

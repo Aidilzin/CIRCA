@@ -26,6 +26,7 @@ from core.preprocessor import apply_clahe, apply_gamma, compute_variance
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_bgr_frame(height: int = 64, width: int = 64, value: int = 128) -> np.ndarray:
     """Produce a flat (uniform colour) BGR frame."""
     return np.full((height, width, 3), value, dtype=np.uint8)
@@ -56,8 +57,8 @@ def make_default_params(**overrides) -> PreprocessParams:
 # apply_clahe — FR3
 # ===========================================================================
 
-class TestApplyClahe:
 
+class TestApplyClahe:
     def test_returns_same_shape_and_dtype(self):
         frame = make_bgr_frame(64, 64, 128)
         params = make_default_params()
@@ -125,8 +126,8 @@ class TestApplyClahe:
 # apply_gamma — FR4
 # ===========================================================================
 
-class TestApplyGamma:
 
+class TestApplyGamma:
     def test_returns_same_shape_and_dtype(self):
         frame = make_bgr_frame(64, 64, 128)
         params = make_default_params(gamma=1.0)
@@ -184,6 +185,7 @@ class TestApplyGamma:
         and must produce identical results (verifies cache consistency).
         """
         from core.preprocessor import _gamma_lut_cache
+
         frame = make_bgr_frame(64, 64, 120)
         params = make_default_params(gamma=1.5)
 
@@ -206,8 +208,8 @@ class TestApplyGamma:
 # compute_variance — FR5
 # ===========================================================================
 
-class TestComputeVariance:
 
+class TestComputeVariance:
     def test_returns_float(self):
         frame = make_checkerboard_frame()
         result = compute_variance(frame)
@@ -239,7 +241,9 @@ class TestComputeVariance:
         variance = compute_variance(frame)
         # 100.0 is the PreprocessParams default blur_threshold — sharp frames
         # must exceed this to pass through to inference.
-        assert variance > 100.0, f"Expected high variance for checkerboard; got {variance}"
+        assert variance > 100.0, (
+            f"Expected high variance for checkerboard; got {variance}"
+        )
 
     def test_sharp_frame_has_higher_variance_than_blurred(self):
         """
@@ -247,6 +251,7 @@ class TestComputeVariance:
         Validates the monotonic relationship the blur gate depends on.
         """
         import cv2 as _cv2
+
         sharp = make_checkerboard_frame(128, 128)
         blurred = _cv2.GaussianBlur(sharp, (21, 21), sigmaX=5)
 
@@ -275,8 +280,8 @@ class TestComputeVariance:
 # Integration — pipeline order (CLAHE → Gamma applied on the same frame)
 # ===========================================================================
 
-class TestPipelineIntegration:
 
+class TestPipelineIntegration:
     def test_clahe_then_gamma_preserves_shape_and_dtype(self):
         """Simulates the CameraWorker pipeline order: CLAHE → Gamma."""
         frame = make_checkerboard_frame(128, 128)

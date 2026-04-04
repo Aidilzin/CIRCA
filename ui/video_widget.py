@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from PyQt6.QtCore import QRect, QRectF, Qt, pyqtSlot
+from PyQt6.QtCore import QRect, Qt, pyqtSlot
 from PyQt6.QtGui import (
     QBrush,
     QColor,
@@ -43,6 +43,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QWidget
 
+from core.debug import trace_execution
 from core.models import BoundingBox, DetectionResult
 from ui.theme import (
     BBOX_INNER_WIDTH,
@@ -133,7 +134,7 @@ class VideoWidget(QWidget):
             image: RGB888 QImage from core.utils.bgr_frame_to_qimage().
         """
         self._current_frame = image
-        self.update()   # Schedules paintEvent — never triggers it directly.
+        self.update()  # Schedules paintEvent — never triggers it directly.
 
     @pyqtSlot(object)
     def set_detections(self, result: object) -> None:
@@ -176,6 +177,18 @@ class VideoWidget(QWidget):
         if self._current_frame is None:
             self.update()
 
+    @trace_execution
+    def clear_feed(self, status_text: str = "") -> None:
+        """
+        Drop the current frame AND update the status text in one atomic call.
+        This is the standard entry point for camera disconnect / loading states.
+        """
+        if status_text:
+            self._status_text = status_text
+        self._current_frame = None
+        self._detections = None
+        self.update()
+
     def clear_frame(self) -> None:
         """
         Drop the current frame (e.g. on camera disconnect) and return to
@@ -217,10 +230,7 @@ class VideoWidget(QWidget):
             painter.drawImage(letterbox, self._current_frame)
 
             # Stage 3: Draw bounding box overlays (if any detections)
-            if (
-                self._detections is not None
-                and self._detections.boxes
-            ):
+            if self._detections is not None and self._detections.boxes:
                 self._draw_detections(painter, letterbox)
 
         finally:
@@ -230,9 +240,7 @@ class VideoWidget(QWidget):
     # Private rendering helpers
     # ------------------------------------------------------------------
 
-    def _compute_letterbox_rect(
-        self, frame_w: int, frame_h: int
-    ) -> QRect:
+    def _compute_letterbox_rect(self, frame_w: int, frame_h: int) -> QRect:
         """
         Compute the rect within the widget where the frame should be drawn,
         maintaining the frame's original aspect ratio (letterboxing).
@@ -264,9 +272,7 @@ class VideoWidget(QWidget):
 
         return QRect(offset_x, offset_y, drawn_w, drawn_h)
 
-    def _draw_detections(
-        self, painter: QPainter, letterbox: QRect
-    ) -> None:
+    def _draw_detections(self, painter: QPainter, letterbox: QRect) -> None:
         """
         Draw all bounding boxes and label chips for self._detections.
 
@@ -279,13 +285,13 @@ class VideoWidget(QWidget):
             painter:   Active QPainter (rendering in progress).
             letterbox: The rect where the frame is drawn.
         """
-        frame_w = self._current_frame.width()   # type: ignore[union-attr]
+        frame_w = self._current_frame.width()  # type: ignore[union-attr]
         frame_h = self._current_frame.height()  # type: ignore[union-attr]
 
         if frame_w == 0 or frame_h == 0:
             return
 
-        scale_x = letterbox.width()  / frame_w
+        scale_x = letterbox.width() / frame_w
         scale_y = letterbox.height() / frame_h
 
         for box in self._detections.boxes:  # type: ignore[union-attr]
@@ -317,19 +323,17 @@ class VideoWidget(QWidget):
         # Transform bounding box into letterbox (widget) space.
         wx = letterbox.x() + int(round(box.x * scale_x))
         wy = letterbox.y() + int(round(box.y * scale_y))
-        ww = max(2, int(round(box.width  * scale_x)))
+        ww = max(2, int(round(box.width * scale_x)))
         wh = max(2, int(round(box.height * scale_y)))
 
         # Resolve class colour.
-        hex_color = DEFECT_CLASS_COLORS.get(
-            box.class_name, DEFECT_CLASS_COLOR_FALLBACK
-        )
+        hex_color = DEFECT_CLASS_COLORS.get(box.class_name, DEFECT_CLASS_COLOR_FALLBACK)
         class_color = QColor(hex_color)
 
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
 
         # ── Step 1: Outer shadow stroke ──────────────────────────────
-        outer_color = QColor(0, 0, 0, BBOX_OUTER_ALPHA)   # black, 70% opacity
+        outer_color = QColor(0, 0, 0, BBOX_OUTER_ALPHA)  # black, 70% opacity
         outer_pen = QPen(outer_color, BBOX_OUTER_WIDTH)
         outer_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(outer_pen)
@@ -464,11 +468,7 @@ class VideoWidget(QWidget):
 
         painter.setFont(font)
         painter.setPen(QColor(COLOR_TEXT_PRIMARY))
-        
+
         # Center text within the panel (accounting for the accent bar)
         text_rect = QRect(px + accent_w, py, pw - accent_w, ph)
-        painter.drawText(
-            text_rect,
-            Qt.AlignmentFlag.AlignCenter,
-            "camera unavailable"
-        )
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "camera unavailable")

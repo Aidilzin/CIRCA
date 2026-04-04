@@ -38,7 +38,6 @@ import pytest
 
 from ui.theme import (
     COLOR_STATUS_WARN,
-    COLOR_TEXT_SECONDARY,
     WARNING_BANNER_HEIGHT,
 )
 from ui.warning_banner import COOL_DOWN_FRAMES, WarningBanner
@@ -48,6 +47,7 @@ from ui.warning_banner import COOL_DOWN_FRAMES, WarningBanner
 # Fixtures
 # ===========================================================================
 
+
 @pytest.fixture()
 def banner() -> WarningBanner:
     """Fresh WarningBanner for each test."""
@@ -55,17 +55,17 @@ def banner() -> WarningBanner:
 
 
 # Convenience thresholds used across tests
-LOW_CONF  = 0.40   # avg_confidence BELOW threshold → bad frame
-HIGH_CONF = 0.90   # avg_confidence ABOVE threshold → good frame
-THRESHOLD = 0.50   # The configured threshold
+LOW_CONF = 0.40  # avg_confidence BELOW threshold → bad frame
+HIGH_CONF = 0.90  # avg_confidence ABOVE threshold → good frame
+THRESHOLD = 0.50  # The configured threshold
 
 
 # ===========================================================================
 # Initialisation
 # ===========================================================================
 
-class TestWarningBannerInit:
 
+class TestWarningBannerInit:
     def test_starts_hidden(self, banner: WarningBanner) -> None:
         """FR15: banner must not be visible at startup."""
         assert banner.isHidden()
@@ -94,7 +94,9 @@ class TestWarningBannerInit:
     def test_has_dismiss_button(self, banner: WarningBanner) -> None:
         assert hasattr(banner, "_dismiss_btn")
 
-    def test_dismiss_button_text_is_multiplication_sign(self, banner: WarningBanner) -> None:
+    def test_dismiss_button_text_is_multiplication_sign(
+        self, banner: WarningBanner
+    ) -> None:
         """
         UX spec: × character (U+00D7) — not ASCII 'x'. Visually distinct
         and more accessible for screen readers.
@@ -110,25 +112,31 @@ class TestWarningBannerInit:
 # update_confidence — bad frame (avg_confidence < threshold)
 # ===========================================================================
 
-class TestUpdateConfidenceBadFrame:
 
+class TestUpdateConfidenceBadFrame:
     def test_low_confidence_shows_banner(self, banner: WarningBanner) -> None:
         banner.update_confidence(LOW_CONF, THRESHOLD)
         assert not banner.isHidden()
 
-    def test_low_confidence_does_not_show_if_dismissed(self, banner: WarningBanner) -> None:
+    def test_low_confidence_does_not_show_if_dismissed(
+        self, banner: WarningBanner
+    ) -> None:
         """Path 1 dismissed: banner must stay hidden even on bad frames."""
         banner._dismissed_for_current_board = True
         banner.update_confidence(LOW_CONF, THRESHOLD)
         assert banner.isHidden()
 
-    def test_low_confidence_resets_good_frame_counter(self, banner: WarningBanner) -> None:
+    def test_low_confidence_resets_good_frame_counter(
+        self, banner: WarningBanner
+    ) -> None:
         """Bad frame must reset the continuous cool-down counter to 0."""
-        banner._good_frame_count = 15   # Simulate halfway through cool-down
+        banner._good_frame_count = 15  # Simulate halfway through cool-down
         banner.update_confidence(LOW_CONF, THRESHOLD)
         assert banner._good_frame_count == 0
 
-    def test_low_confidence_counter_reset_on_any_bad_frame(self, banner: WarningBanner) -> None:
+    def test_low_confidence_counter_reset_on_any_bad_frame(
+        self, banner: WarningBanner
+    ) -> None:
         """Counter resets on ANY bad frame — even during an ongoing cool-down."""
         # Build up 29 good frames then one bad frame
         for _ in range(COOL_DOWN_FRAMES - 1):
@@ -149,7 +157,9 @@ class TestUpdateConfidenceBadFrame:
         banner.update_confidence(THRESHOLD - epsilon, THRESHOLD)
         assert banner._good_frame_count == 0
 
-    def test_low_confidence_shows_banner_repeatedly(self, banner: WarningBanner) -> None:
+    def test_low_confidence_shows_banner_repeatedly(
+        self, banner: WarningBanner
+    ) -> None:
         """Multiple bad frames: banner stays visible (already shown)."""
         banner.update_confidence(LOW_CONF, THRESHOLD)
         banner.update_confidence(LOW_CONF, THRESHOLD)
@@ -161,26 +171,30 @@ class TestUpdateConfidenceBadFrame:
 # update_confidence — good frame (avg_confidence >= threshold)
 # ===========================================================================
 
-class TestUpdateConfidenceGoodFrame:
 
+class TestUpdateConfidenceGoodFrame:
     def test_single_good_frame_increments_counter(self, banner: WarningBanner) -> None:
         banner.update_confidence(HIGH_CONF, THRESHOLD)
         assert banner._good_frame_count == 1
 
-    def test_good_frames_do_not_hide_banner_below_threshold(self, banner: WarningBanner) -> None:
+    def test_good_frames_do_not_hide_banner_below_threshold(
+        self, banner: WarningBanner
+    ) -> None:
         """Banner visible from bad frame → stays visible during cool-down period."""
-        banner.update_confidence(LOW_CONF, THRESHOLD)   # show banner
+        banner.update_confidence(LOW_CONF, THRESHOLD)  # show banner
         for _ in range(COOL_DOWN_FRAMES - 1):
             banner.update_confidence(HIGH_CONF, THRESHOLD)
         # Not yet reached COOL_DOWN_FRAMES → still visible
         assert not banner.isHidden()
 
-    def test_good_frames_up_to_threshold_minus_1_does_not_auto_reset(self, banner: WarningBanner) -> None:
+    def test_good_frames_up_to_threshold_minus_1_does_not_auto_reset(
+        self, banner: WarningBanner
+    ) -> None:
         """29 good frames is NOT enough to trigger auto-reset (need 30)."""
         for _ in range(COOL_DOWN_FRAMES - 1):
             banner.update_confidence(HIGH_CONF, THRESHOLD)
         assert banner._good_frame_count == COOL_DOWN_FRAMES - 1
-        assert banner._dismissed_for_current_board is False   # Unchanged
+        assert banner._dismissed_for_current_board is False  # Unchanged
 
     def test_good_frames_start_from_hidden_banner(self, banner: WarningBanner) -> None:
         """
@@ -198,8 +212,8 @@ class TestUpdateConfidenceGoodFrame:
 # Auto-reset path (Path 2) — COOL_DOWN_FRAMES consecutive good frames
 # ===========================================================================
 
-class TestAutoReset:
 
+class TestAutoReset:
     def _trigger_banner(self, banner: WarningBanner) -> None:
         """Helper: make banner visible with a bad frame."""
         banner.update_confidence(LOW_CONF, THRESHOLD)
@@ -210,7 +224,9 @@ class TestAutoReset:
         for _ in range(n):
             banner.update_confidence(HIGH_CONF, THRESHOLD)
 
-    def test_exactly_cool_down_frames_triggers_auto_reset(self, banner: WarningBanner) -> None:
+    def test_exactly_cool_down_frames_triggers_auto_reset(
+        self, banner: WarningBanner
+    ) -> None:
         """
         Critical: EXACTLY COOL_DOWN_FRAMES (30) consecutive good frames must
         trigger the auto-reset — no more, no less.
@@ -229,7 +245,7 @@ class TestAutoReset:
         After auto-reset, _dismissed_for_current_board must be False so the
         banner can re-appear if the next board has low confidence.
         """
-        banner._dismissed_for_current_board = True   # Pre-set dismissed state
+        banner._dismissed_for_current_board = True  # Pre-set dismissed state
         self._drive_good_frames(banner, COOL_DOWN_FRAMES)
         assert banner._dismissed_for_current_board is False
 
@@ -248,26 +264,30 @@ class TestAutoReset:
         banner.update_confidence(LOW_CONF, THRESHOLD)
         assert not banner.isHidden()
 
-    def test_interrupted_cool_down_does_not_auto_reset(self, banner: WarningBanner) -> None:
+    def test_interrupted_cool_down_does_not_auto_reset(
+        self, banner: WarningBanner
+    ) -> None:
         """
         A bad frame during the cool-down window restarts the counter.
         29 good → 1 bad → 29 good must NOT trigger auto-reset.
         """
         self._trigger_banner(banner)
         self._drive_good_frames(banner, COOL_DOWN_FRAMES - 1)  # 29 good
-        banner.update_confidence(LOW_CONF, THRESHOLD)           # 1 bad — resets
+        banner.update_confidence(LOW_CONF, THRESHOLD)  # 1 bad — resets
         self._drive_good_frames(banner, COOL_DOWN_FRAMES - 1)  # 29 more
 
         # Total good frames since last reset = 29, not 30 → no auto-reset
         assert not banner.isHidden()
         assert banner._good_frame_count == COOL_DOWN_FRAMES - 1
 
-    def test_exactly_30_good_frames_after_interruption(self, banner: WarningBanner) -> None:
+    def test_exactly_30_good_frames_after_interruption(
+        self, banner: WarningBanner
+    ) -> None:
         """After interruption: need a FULL 30 new consecutive good frames."""
         self._trigger_banner(banner)
         self._drive_good_frames(banner, COOL_DOWN_FRAMES - 1)  # 29 good
-        banner.update_confidence(LOW_CONF, THRESHOLD)           # Reset counter
-        self._drive_good_frames(banner, COOL_DOWN_FRAMES)       # 30 fresh good
+        banner.update_confidence(LOW_CONF, THRESHOLD)  # Reset counter
+        self._drive_good_frames(banner, COOL_DOWN_FRAMES)  # 30 fresh good
         assert banner.isHidden()
 
 
@@ -275,10 +295,10 @@ class TestAutoReset:
 # Manual dismissal path (Path 1) — × button
 # ===========================================================================
 
-class TestManualDismissal:
 
+class TestManualDismissal:
     def test_dismiss_button_hides_banner(self, banner: WarningBanner) -> None:
-        banner.update_confidence(LOW_CONF, THRESHOLD)   # show
+        banner.update_confidence(LOW_CONF, THRESHOLD)  # show
         assert not banner.isHidden()
         banner._dismiss_btn.click()
         assert banner.isHidden()
@@ -300,8 +320,10 @@ class TestManualDismissal:
             banner.update_confidence(LOW_CONF, THRESHOLD)
         assert banner.isHidden()
 
-    def test_dismissed_flag_persists_across_bad_frames(self, banner: WarningBanner) -> None:
-        banner._on_dismiss_clicked()   # Direct call (internal method)
+    def test_dismissed_flag_persists_across_bad_frames(
+        self, banner: WarningBanner
+    ) -> None:
+        banner._on_dismiss_clicked()  # Direct call (internal method)
         banner.update_confidence(LOW_CONF, THRESHOLD)
         assert banner._dismissed_for_current_board is True
 
@@ -312,7 +334,9 @@ class TestManualDismissal:
         assert banner.isHidden()
         assert banner._dismissed_for_current_board is True
 
-    def test_dismissal_does_not_affect_good_frame_counter(self, banner: WarningBanner) -> None:
+    def test_dismissal_does_not_affect_good_frame_counter(
+        self, banner: WarningBanner
+    ) -> None:
         """× click must not touch _good_frame_count."""
         banner._good_frame_count = 15
         banner._on_dismiss_clicked()
@@ -323,8 +347,8 @@ class TestManualDismissal:
 # reset_board_state()
 # ===========================================================================
 
-class TestResetBoardState:
 
+class TestResetBoardState:
     def test_reset_clears_dismissed_flag(self, banner: WarningBanner) -> None:
         banner._dismissed_for_current_board = True
         banner.reset_board_state()
@@ -335,7 +359,9 @@ class TestResetBoardState:
         banner.reset_board_state()
         assert banner._good_frame_count == 0
 
-    def test_reset_does_not_change_visibility_when_hidden(self, banner: WarningBanner) -> None:
+    def test_reset_does_not_change_visibility_when_hidden(
+        self, banner: WarningBanner
+    ) -> None:
         """reset_board_state() must not alter visibility — next update_confidence decides."""
         assert banner.isHidden()
         banner.reset_board_state()
@@ -355,11 +381,11 @@ class TestResetBoardState:
         Flow: low conf → banner shows → Leo clicks × → new board placed
         → reset_board_state() → low conf again → banner re-shows.
         """
-        banner.update_confidence(LOW_CONF, THRESHOLD)   # Step 1: show
-        banner._dismiss_btn.click()                      # Step 2: dismiss
+        banner.update_confidence(LOW_CONF, THRESHOLD)  # Step 1: show
+        banner._dismiss_btn.click()  # Step 2: dismiss
         assert banner.isHidden()
-        banner.reset_board_state()                       # Step 3: new board
-        banner.update_confidence(LOW_CONF, THRESHOLD)   # Step 4: low conf on new board
+        banner.reset_board_state()  # Step 3: new board
+        banner.update_confidence(LOW_CONF, THRESHOLD)  # Step 4: low conf on new board
         assert not banner.isHidden()
 
     def test_reset_allows_auto_reset_to_trigger_after_dismissal(
@@ -382,9 +408,11 @@ class TestResetBoardState:
 # Full end-to-end state machine flows
 # ===========================================================================
 
-class TestStateMachineFlows:
 
-    def test_full_manual_dismiss_and_auto_recover_flow(self, banner: WarningBanner) -> None:
+class TestStateMachineFlows:
+    def test_full_manual_dismiss_and_auto_recover_flow(
+        self, banner: WarningBanner
+    ) -> None:
         """
         Full UX flow:
           1. Board A: low confidence → banner shows
@@ -410,7 +438,7 @@ class TestStateMachineFlows:
         for _ in range(COOL_DOWN_FRAMES):
             banner.update_confidence(0.95, THRESHOLD)
         assert banner.isHidden()
-        assert banner._dismissed_for_current_board is False   # Ready for Board B
+        assert banner._dismissed_for_current_board is False  # Ready for Board B
 
         # 5. Board B: low confidence → banner re-shows
         banner.update_confidence(0.25, THRESHOLD)
@@ -440,7 +468,9 @@ class TestStateMachineFlows:
         banner.update_confidence(0.0, THRESHOLD)
         assert not banner.isHidden()
 
-    def test_full_confidence_always_good_and_auto_resets(self, banner: WarningBanner) -> None:
+    def test_full_confidence_always_good_and_auto_resets(
+        self, banner: WarningBanner
+    ) -> None:
         """avg_confidence=1.0 (DetectionResult.average_confidence clean-board sentinel)."""
         for _ in range(COOL_DOWN_FRAMES):
             banner.update_confidence(1.0, THRESHOLD)

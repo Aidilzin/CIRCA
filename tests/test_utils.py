@@ -28,7 +28,7 @@ No PyQt6.QtWidgets import (validates core/ boundary rule).
 import gc
 import numpy as np
 import pytest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 from PyQt6.QtGui import QImage
 
@@ -39,7 +39,10 @@ from core.utils import bgr_frame_to_qimage, enumerate_cameras
 # Helpers
 # ===========================================================================
 
-def make_bgr(height: int = 64, width: int = 64, bgr: tuple = (128, 128, 128)) -> np.ndarray:
+
+def make_bgr(
+    height: int = 64, width: int = 64, bgr: tuple = (128, 128, 128)
+) -> np.ndarray:
     """Create a solid-colour BGR frame."""
     frame = np.zeros((height, width, 3), dtype=np.uint8)
     frame[:, :, 0] = bgr[0]  # Blue
@@ -52,8 +55,8 @@ def make_bgr(height: int = 64, width: int = 64, bgr: tuple = (128, 128, 128)) ->
 # bgr_frame_to_qimage — FR12
 # ===========================================================================
 
-class TestBgrFrameToQimage:
 
+class TestBgrFrameToQimage:
     # --- Input validation ---
 
     def test_raises_on_none_frame(self):
@@ -176,7 +179,7 @@ class TestBgrFrameToQimage:
         """
         large_frame = np.random.randint(0, 256, (128, 64, 3), dtype=np.uint8)
         # Slice every other row → produces a non-contiguous array
-        sliced = large_frame[::2, :, :]   # shape (64, 64, 3), non-contiguous
+        sliced = large_frame[::2, :, :]  # shape (64, 64, 3), non-contiguous
         assert not sliced.flags["C_CONTIGUOUS"], "Slice should be non-contiguous"
 
         result = bgr_frame_to_qimage(sliced)
@@ -227,6 +230,7 @@ class TestBgrFrameToQimage:
 # enumerate_cameras — FR2
 # ===========================================================================
 
+
 class TestEnumerateCameras:
     """
     All tests mock cv2.VideoCapture to avoid requiring real USB hardware.
@@ -254,7 +258,7 @@ class TestEnumerateCameras:
 
         # Mock QtMultimedia to return a known name
         qt_names = ["Mock Camera 0"]
-        
+
         with patch("cv2.VideoCapture", side_effect=fake_cap):
             result = enumerate_cameras(qt_names=qt_names)
 
@@ -269,7 +273,9 @@ class TestEnumerateCameras:
 
         # Mock QtMultimedia to raise an error
         with patch("cv2.VideoCapture", side_effect=fake_cap):
-            with patch("PyQt6.QtMultimedia.QMediaDevices.videoInputs", side_effect=ImportError):
+            with patch(
+                "PyQt6.QtMultimedia.QMediaDevices.videoInputs", side_effect=ImportError
+            ):
                 result = enumerate_cameras()
 
         assert len(result) == 1
@@ -279,6 +285,7 @@ class TestEnumerateCameras:
 
     def test_returns_multiple_cameras_at_correct_indices(self):
         """Cameras at index 0 and 2 present; 1, 3, 4, 5 absent."""
+
         def fake_cap(index, backend):
             return self._make_mock_cap(is_opened=(index in {0, 2}))
 
@@ -290,6 +297,7 @@ class TestEnumerateCameras:
 
     def test_filters_out_cameras_that_fail_read(self):
         """Camera at index 0 opens but fails read(); Camera at index 1 opens and succeeds."""
+
         def fake_cap(index, backend):
             if index == 0:
                 return self._make_mock_cap(is_opened=True, can_read=False)
@@ -318,6 +326,7 @@ class TestEnumerateCameras:
 
     def test_label_contains_camera_index(self):
         """Label must include the camera index for user-readable identification."""
+
         def fake_cap(index, backend):
             return self._make_mock_cap(is_opened=(index == 3))
 
@@ -345,6 +354,7 @@ class TestEnumerateCameras:
 
         # Every call must use cv2.CAP_DSHOW (value = 700 in OpenCV)
         import cv2 as _cv2
+
         for _, backend in calls_made:
             assert backend == _cv2.CAP_DSHOW, (
                 f"Expected CAP_DSHOW ({_cv2.CAP_DSHOW}); got {backend}"
@@ -433,6 +443,7 @@ class TestEnumerateCameras:
 
     def test_result_is_sorted_by_index(self):
         """Result list must be ordered by camera index ascending."""
+
         def fake_cap(index, backend):
             return self._make_mock_cap(is_opened=(index in {0, 2, 4}))
 

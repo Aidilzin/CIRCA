@@ -29,7 +29,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QScrollArea,
     QSlider,
     QSizePolicy,
     QVBoxLayout,
@@ -41,7 +40,6 @@ from ui.theme import (
     COLOR_ACCENT_CYAN,
     COLOR_BG_SURFACE,
     COLOR_BORDER,
-    COLOR_TEXT_DISABLED,
     COLOR_TEXT_PRIMARY,
     COLOR_TEXT_SECONDARY,
     CONTROL_PANEL_WIDTH_COLLAPSED,
@@ -53,7 +51,6 @@ from ui.theme import (
     FONT_SIZE_MONO_LIVE,
     FONT_UI,
     FONT_UI_FALLBACKS,
-    SPACING_MD,
     SPACING_SM,
     SPACING_XS,
 )
@@ -64,6 +61,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # PreprocessingSlider
 # ---------------------------------------------------------------------------
+
 
 class PreprocessingSlider(QWidget):
     """
@@ -113,7 +111,7 @@ class PreprocessingSlider(QWidget):
         super().__init__(parent)
 
         self._precision = precision
-        self._scale = 10 ** precision
+        self._scale = 10**precision
         self._suffix = suffix
         self._min_val = min_val
         self._max_val = max_val
@@ -245,6 +243,7 @@ class PreprocessingSlider(QWidget):
 # ControlPanel
 # ---------------------------------------------------------------------------
 
+
 class ControlPanel(QWidget):
     """
     Collapsible right-sidebar housing all camera and preprocessing controls.
@@ -337,11 +336,11 @@ class ControlPanel(QWidget):
         self.camera_combo = QComboBox()
         self.camera_combo.setAccessibleName("Camera source selector")
         self.camera_combo.setToolTip("Select USB camera device")
-        
+
         # Initial state: disabled until first hardware scan completes.
         self.camera_combo.addItem("No cameras found", -1)
         self.camera_combo.setEnabled(False)
-        
+
         content_layout.addWidget(self.camera_combo)
         content_layout.addWidget(self._divider())
 
@@ -434,7 +433,7 @@ class ControlPanel(QWidget):
         """
         self.camera_combo.blockSignals(True)
         self.camera_combo.clear()
-        
+
         if cameras:
             for device_index, name in cameras:
                 self.camera_combo.addItem(name, device_index)
@@ -442,13 +441,11 @@ class ControlPanel(QWidget):
         else:
             self.camera_combo.addItem("No cameras found", -1)
             self.camera_combo.setEnabled(False)
-            
+
         self.camera_combo.blockSignals(False)
 
-        # Emit for the first selection only if real cameras are found.
-        # This triggers the initial worker start in MainWindow.
-        if cameras:
-            self.camera_selected.emit(cameras[0][0])
+        # Removed redundant camera_selected.emit(cameras[0][0])
+        # MainWindow handles recovery/initialisation logic explicitly.
 
     @pyqtSlot(object)
     def apply_preprocessing_params(self, params: PreprocessParams) -> None:

@@ -20,20 +20,19 @@ No cv2 import (validates workers/ boundary rule — cv2 belongs in core/ only).
 """
 
 import threading
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 # QApplication provided by tests/conftest.py (session scope).
 
 from core.models import BoundingBox, DetectionResult, InferenceParams
 from workers.inference_worker import InferenceWorker
 
 
-
 # ===========================================================================
 # Helpers
 # ===========================================================================
+
 
 def make_bgr_frame(h: int = 64, w: int = 64) -> np.ndarray:
     return np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
@@ -43,7 +42,10 @@ def make_detection_result(confidence: float = 0.85) -> DetectionResult:
     return DetectionResult(
         boxes=[
             BoundingBox(
-                x=10, y=10, width=50, height=50,
+                x=10,
+                y=10,
+                width=50,
+                height=50,
                 class_name="solder_bridge",
                 confidence=confidence,
             )
@@ -70,8 +72,8 @@ def inject_mock_engine(worker: InferenceWorker, result: DetectionResult) -> Magi
 # Initialisation & type tests
 # ===========================================================================
 
-class TestInferenceWorkerInit:
 
+class TestInferenceWorkerInit:
     def test_engine_is_none_before_load_model(self):
         worker = InferenceWorker()
         assert worker._engine is None
@@ -89,6 +91,7 @@ class TestInferenceWorkerInit:
 
     def test_is_qobject_not_qthread(self):
         from PyQt6.QtCore import QThread, QObject
+
         worker = InferenceWorker()
         assert isinstance(worker, QObject)
         assert not isinstance(worker, QThread)
@@ -100,17 +103,17 @@ class TestInferenceWorkerInit:
         """
         worker = InferenceWorker()
         # QObject has no 'run' by default; InferenceWorker must not add one
-        assert not hasattr(InferenceWorker, "run") or \
-               InferenceWorker.run is getattr(type(worker).__mro__[-2], "run", None), \
-               "InferenceWorker must not define its own run() method"
+        assert not hasattr(InferenceWorker, "run") or InferenceWorker.run is getattr(
+            type(worker).__mro__[-2], "run", None
+        ), "InferenceWorker must not define its own run() method"
 
 
 # ===========================================================================
 # Signal declarations
 # ===========================================================================
 
-class TestSignalDeclarations:
 
+class TestSignalDeclarations:
     def test_new_detections_signal_exists(self):
         worker = InferenceWorker()
         assert hasattr(worker, "new_detections")
@@ -134,8 +137,8 @@ class TestSignalDeclarations:
 # load_model — FR6 model initialisation
 # ===========================================================================
 
-class TestLoadModel:
 
+class TestLoadModel:
     def test_emits_model_loaded_on_success(self):
         worker = InferenceWorker()
         fired: list[bool] = []
@@ -219,8 +222,8 @@ class TestLoadModel:
 # update_params — thread-safe param updates
 # ===========================================================================
 
-class TestUpdateParams:
 
+class TestUpdateParams:
     def test_update_params_stores_new_params(self):
         worker = InferenceWorker()
         new_params = InferenceParams(confidence_threshold=0.75)
@@ -245,8 +248,8 @@ class TestUpdateParams:
 # process_frame — backpressure (NFR4)
 # ===========================================================================
 
-class TestProcessFrameBackpressure:
 
+class TestProcessFrameBackpressure:
     def test_frame_dropped_when_model_not_loaded(self):
         """
         Before load_model() succeeds, process_frame() must silently drop
@@ -381,8 +384,8 @@ class TestProcessFrameBackpressure:
 # process_frame — successful inference path
 # ===========================================================================
 
-class TestProcessFrameSuccess:
 
+class TestProcessFrameSuccess:
     def test_emits_new_detections_on_successful_inference(self):
         worker = InferenceWorker()
         result = make_detection_result(confidence=0.90)
@@ -447,7 +450,9 @@ class TestProcessFrameSuccess:
 
         assert len(received) == 1
         assert received[0].boxes == []
-        assert received[0].average_confidence == 1.0  # Clean board → 1.0 (per models.py)
+        assert (
+            received[0].average_confidence == 1.0
+        )  # Clean board → 1.0 (per models.py)
 
     def test_confidence_threshold_from_params_passed_to_engine(self):
         """
@@ -474,8 +479,8 @@ class TestProcessFrameSuccess:
 # process_frame — error handling path
 # ===========================================================================
 
-class TestProcessFrameErrorHandling:
 
+class TestProcessFrameErrorHandling:
     def test_emits_inference_error_on_engine_exception(self):
         worker = InferenceWorker()
         mock_engine = MagicMock()

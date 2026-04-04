@@ -1,33 +1,37 @@
-16:21:17 [INFO] __main__ — CIRCA starting up…
-16:21:17 [INFO] __main__ — Model path resolved: D:\FYP\CIRCA\models\yolov12_int8.xml
-16:21:17 [WARNING] __main__ — Model file not found at '%s'.
-16:21:19 [INFO] __main__ — MainWindow shown — entering Qt event loop.
-16:21:19 [INFO] ui.main_window — MainWindow: starting Inference Thread…
-16:21:20 [INFO] ui.main_window — MainWindow: 1 camera(s) found.
-16:21:20 [INFO] ui.main_window — MainWindow: starting Camera Thread (device_index=0)…
-16:21:20 [WARNING] ui.main_window — MainWindow: model file not found at 'D:\FYP\CIRCA\models\yolov12_int8.xml'. Inference disabled.
-16:21:20 [INFO] workers.camera_worker — CameraWorker started — device_index=0
-16:21:20 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
-16:21:27 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
-16:21:32 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
-16:21:32 [INFO] ui.main_window — MainWindow: camera selected — device_index=0
-16:21:33 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
-16:21:33 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
-16:21:33 [INFO] ui.main_window — MainWindow: CameraWorker restarted on device_index=0.
-16:21:33 [INFO] ui.main_window — MainWindow: background scan — 1 camera(s) found.
-16:21:33 [INFO] workers.camera_worker — CameraWorker started — device_index=0
-16:21:34 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
-16:21:47 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
-16:21:47 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
-16:21:47 [INFO] ui.main_window — MainWindow: camera selected — device_index=0
-16:21:47 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
-16:21:47 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
-16:21:47 [INFO] ui.main_window — MainWindow: CameraWorker restarted on device_index=0.
-16:21:47 [INFO] ui.main_window — MainWindow: background scan — 1 camera(s) found.
-16:21:47 [INFO] workers.camera_worker — CameraWorker started — device_index=0
-16:21:47 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
-16:21:57 [INFO] ui.main_window — MainWindow: closeEvent — beginning safe shutdown.
-16:21:57 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
-16:21:57 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
-16:21:57 [INFO] ui.main_window — MainWindow: all threads stopped — accepting close event.
-16:21:57 [INFO] __main__ — CIRCA exiting — code 0.
+23:58:33 [INFO] __main__ — CIRCA starting up…
+23:58:33 [INFO] __main__ — Model path resolved: D:\FYP\CIRCA\models\yolov12_int8.xml
+23:58:33 [WARNING] __main__ — Model file not found at 'D:\FYP\CIRCA\models\yolov12_int8.xml'.
+23:58:34 [INFO] __main__ — MainWindow shown — entering Qt event loop.
+23:58:34 [INFO] ui.main_window — MainWindow: starting Inference Thread…
+23:58:36 [INFO] core.utils — enumerate_cameras: index 0 ('Camera 0 (USB)') diagnostics: std=0.6637, mean=0.0028
+23:58:36 [WARNING] core.utils — enumerate_cameras: generic device 0 rejected as dead buffer (std < 1.0).
+23:58:36 [WARNING] core.utils — enumerate_cameras: no valid UVC cameras found.
+23:58:36 [WARNING] ui.main_window — MainWindow: no cameras found during startup.
+23:58:39 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
+23:58:45 [INFO] core.utils — enumerate_cameras: index 0 ('Integrated Camera') diagnostics: std=0.3949, mean=0.1348
+23:58:45 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
+23:58:45 [INFO] ui.main_window — MainWindow: Hot-recovery — starting camera index 0.
+23:58:45 [INFO] ui.main_window — MainWindow: camera selected — device_index=0
+23:58:45 [INFO] workers.camera_worker — CameraWorker started — device_index=0
+23:58:46 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
+23:58:51 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
+23:58:51 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
+23:58:52 [WARNING] workers.camera_worker — Camera 0 read() failed — device lost. (UJ-03)
+23:58:52 [WARNING] ui.main_window — MainWindow: camera error — Camera disconnected
+23:58:52 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
+23:58:52 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
+23:58:57 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
+23:59:02 [INFO] core.utils — enumerate_cameras: index 0 ('Integrated Camera') diagnostics: std=0.4000, mean=0.1370
+23:59:03 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
+23:59:03 [INFO] ui.main_window — MainWindow: Hot-recovery — starting camera index 0.
+23:59:03 [INFO] ui.main_window — MainWindow: camera selected — device_index=0
+23:59:03 [INFO] workers.camera_worker — CameraWorker started — device_index=0
+23:59:03 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
+23:59:09 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
+23:59:09 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
+23:59:09 [WARNING] workers.camera_worker — Camera 0 read() failed — device lost. (UJ-03)
+23:59:09 [WARNING] ui.main_window — MainWindow: camera error — Camera disconnected
+23:59:09 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
+23:59:09 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
+23:59:16 [INFO] ui.main_window — MainWindow: closeEvent — beginning safe shutdown.
+23:59:17 [INFO] __main__ — CIRCA exiting — code 0.

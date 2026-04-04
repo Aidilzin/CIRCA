@@ -22,22 +22,22 @@ from __future__ import annotations
 # ===========================================================================
 
 # Background layers (dark theme hierarchy)
-COLOR_BG_BASE     = "#121212"   # Main window BG, viewport letterbox fill
-COLOR_BG_SURFACE  = "#1E1E1E"   # Control panel BG, card surfaces
-COLOR_BG_ELEVATED = "#2A2A2A"   # Slider tracks, input field BG, hover states
-COLOR_BORDER      = "#3A3A3A"   # Panel dividers, slider borders
+COLOR_BG_BASE = "#121212"  # Main window BG, viewport letterbox fill
+COLOR_BG_SURFACE = "#1E1E1E"  # Control panel BG, card surfaces
+COLOR_BG_ELEVATED = "#2A2A2A"  # Slider tracks, input field BG, hover states
+COLOR_BORDER = "#3A3A3A"  # Panel dividers, slider borders
 
 # Text tiers
-COLOR_TEXT_PRIMARY   = "#E8E8E8"  # All primary labels, headings
+COLOR_TEXT_PRIMARY = "#E8E8E8"  # All primary labels, headings
 COLOR_TEXT_SECONDARY = "#9E9E9E"  # Slider sub-labels, status descriptions
-COLOR_TEXT_DISABLED  = "#4A4A4A"  # Inactive controls (not read-critical)
+COLOR_TEXT_DISABLED = "#4A4A4A"  # Inactive controls (not read-critical)
 
 # Interactive accent
-COLOR_ACCENT_CYAN = "#00BCD4"   # Slider thumb, active state, panel toggle
+COLOR_ACCENT_CYAN = "#00BCD4"  # Slider thumb, active state, panel toggle
 
 # Status tier — each maps to exactly one UI state
-COLOR_STATUS_OK    = "#4CAF50"  # Camera Active, Model Ready (green dot)
-COLOR_STATUS_WARN  = "#FFC107"  # Low-confidence warning (AMBER TIER — EXCLUSIVE)
+COLOR_STATUS_OK = "#4CAF50"  # Camera Active, Model Ready (green dot)
+COLOR_STATUS_WARN = "#FFC107"  # Low-confidence warning (AMBER TIER — EXCLUSIVE)
 COLOR_STATUS_ERROR = "#F44336"  # Camera/inference failure (red dot)
 
 # Amber tier rule (enforced at review level):
@@ -52,10 +52,10 @@ COLOR_STATUS_ERROR = "#F44336"  # Camera/inference failure (red dot)
 # ===========================================================================
 
 DEFECT_CLASS_COLORS: dict[str, str] = {
-    "solder_bridge":        "#FF5252",   # Red
-    "missing_component":    "#FF9800",   # Orange
-    "misaligned_component": "#FFEB3B",   # Yellow
-    "burnt_area":           "#9C27B0",   # Purple
+    "solder_bridge": "#FF5252",  # Red
+    "missing_component": "#FF9800",  # Orange
+    "misaligned_component": "#FFEB3B",  # Yellow
+    "burnt_area": "#9C27B0",  # Purple
 }
 
 # Fallback colour for any class not in DEFECT_CLASS_COLORS
@@ -63,7 +63,7 @@ DEFECT_CLASS_COLORS: dict[str, str] = {
 DEFECT_CLASS_COLOR_FALLBACK = COLOR_ACCENT_CYAN
 
 # Label chip text colour — always light on the semi-opaque chip background
-DEFECT_CHIP_TEXT_COLOR = COLOR_TEXT_PRIMARY   # "#E8E8E8"
+DEFECT_CHIP_TEXT_COLOR = COLOR_TEXT_PRIMARY  # "#E8E8E8"
 
 # Label chip background opacity (80% = 204/255)
 DEFECT_CHIP_ALPHA = 204
@@ -74,11 +74,11 @@ DEFECT_CHIP_ALPHA = 204
 # ===========================================================================
 
 # Outer shadow stroke — universally visible against any PCB substrate colour
-BBOX_OUTER_WIDTH   = 4    # px — wider outer draw that bleeds around inner line
-BBOX_OUTER_ALPHA   = 179  # 70% of 255 — semi-transparent black shadow
+BBOX_OUTER_WIDTH = 4  # px — wider outer draw that bleeds around inner line
+BBOX_OUTER_ALPHA = 179  # 70% of 255 — semi-transparent black shadow
 
 # Inner signal stroke — carries semantic colour coding per defect class
-BBOX_INNER_WIDTH   = 2    # px — thinner coloured inner stroke
+BBOX_INNER_WIDTH = 2  # px — thinner coloured inner stroke
 
 # ===========================================================================
 # Typography
@@ -86,7 +86,7 @@ BBOX_INNER_WIDTH   = 2    # px — thinner coloured inner stroke
 # ===========================================================================
 
 # UI font — Inter for all labels, headings, panel text
-FONT_UI   = "Inter"           # Fallback: "Segoe UI"
+FONT_UI = "Inter"  # Fallback: "Segoe UI"
 FONT_UI_FALLBACKS = ["Segoe UI", "Arial"]
 
 # Monospace font — JetBrains Mono for ALL live-updating numerical values
@@ -94,52 +94,53 @@ FONT_MONO = "JetBrains Mono"  # Fallback: "Roboto Mono", "Consolas"
 FONT_MONO_FALLBACKS = ["Roboto Mono", "Consolas", "Courier New"]
 
 # Typography scale (size in px)
-FONT_SIZE_TITLE   = 14   # Inter 600 — window title, section headings
-FONT_SIZE_LABEL   = 12   # Inter 500 — slider labels, control group headers
-FONT_SIZE_BODY    = 11   # Inter 400 — status descriptions, helper text
-FONT_SIZE_STATUS  = 11   # Inter 500 — status dot labels
-FONT_SIZE_MONO_LIVE  = 12  # JetBrains Mono 400 — confidence scores, FPS, latency
-FONT_SIZE_MONO_CHIP  = 11  # JetBrains Mono 500 — bounding box label chips
+FONT_SIZE_TITLE = 14  # Inter 600 — window title, section headings
+FONT_SIZE_LABEL = 12  # Inter 500 — slider labels, control group headers
+FONT_SIZE_BODY = 11  # Inter 400 — status descriptions, helper text
+FONT_SIZE_STATUS = 11  # Inter 500 — status dot labels
+FONT_SIZE_MONO_LIVE = 12  # JetBrains Mono 400 — confidence scores, FPS, latency
+FONT_SIZE_MONO_CHIP = 11  # JetBrains Mono 500 — bounding box label chips
 
 # ===========================================================================
 # Spacing System (base unit: 8px)
 # UX Spec: §Spacing & Layout Foundation
 # ===========================================================================
 
-SPACING_XS = 4    # px — icon-to-text gap, status dot margin
-SPACING_SM = 8    # px — intra-group padding (label to slider)
-SPACING_MD = 16   # px — between control groups within panel
-SPACING_LG = 24   # px — panel section dividers
-SPACING_XL = 32   # px — major layout region separation
+SPACING_XS = 4  # px — icon-to-text gap, status dot margin
+SPACING_SM = 8  # px — intra-group padding (label to slider)
+SPACING_MD = 16  # px — between control groups within panel
+SPACING_LG = 24  # px — panel section dividers
+SPACING_XL = 32  # px — major layout region separation
 
 # ===========================================================================
 # Layout Constants
 # UX Spec: §Spacing & Layout Foundation, §Window Constraint Strategy
 # ===========================================================================
 
-WINDOW_MIN_WIDTH      = 1024  # px — below this, detection chips become unreadable
-WINDOW_MIN_HEIGHT     = 600   # px — below this, footer + banner occlude viewport
-WINDOW_DEFAULT_WIDTH  = 1280  # px — safe for 1366×768 monitors with taskbar
-WINDOW_DEFAULT_HEIGHT = 800   # px
+WINDOW_MIN_WIDTH = 1024  # px — below this, detection chips become unreadable
+WINDOW_MIN_HEIGHT = 600  # px — below this, footer + banner occlude viewport
+WINDOW_DEFAULT_WIDTH = 1280  # px — safe for 1366×768 monitors with taskbar
+WINDOW_DEFAULT_HEIGHT = 800  # px
 
-CONTROL_PANEL_WIDTH_EXPANDED  = 280  # px — all controls visible
-CONTROL_PANEL_WIDTH_COLLAPSED = 28   # px — toggle arrow only
+CONTROL_PANEL_WIDTH_EXPANDED = 280  # px — all controls visible
+CONTROL_PANEL_WIDTH_COLLAPSED = 28  # px — toggle arrow only
 
-WARNING_BANNER_HEIGHT = 32   # px — FR15 amber advisory bar above viewport
-STATUS_FOOTER_HEIGHT  = 48   # px — persistent system health bar
-TITLE_BAR_HEIGHT      = 36   # px — application title bar
+WARNING_BANNER_HEIGHT = 32  # px — FR15 amber advisory bar above viewport
+STATUS_FOOTER_HEIGHT = 48  # px — persistent system health bar
+TITLE_BAR_HEIGHT = 36  # px — application title bar
 
 # Status dot dimensions (8px filled circle for ● indicators)
-STATUS_DOT_SIZE = 8   # px — QLabel with border-radius: 4px QSS
+STATUS_DOT_SIZE = 8  # px — QLabel with border-radius: 4px QSS
 
 # Label chip padding inside bounding box chips
-CHIP_PADDING_H = 6   # px — horizontal padding left/right of chip text
-CHIP_PADDING_V = 3   # px — vertical padding above/below chip text
+CHIP_PADDING_H = 6  # px — horizontal padding left/right of chip text
+CHIP_PADDING_V = 3  # px — vertical padding above/below chip text
 
 # ===========================================================================
 # QSS Stylesheet helper — full application dark theme
 # Applied once in main.py via QApplication.setStyleSheet(build_qss())
 # ===========================================================================
+
 
 def build_qss() -> str:
     """
