@@ -1,0 +1,42 @@
+15:55:24 [INFO] __main__ — CIRCA starting up…
+15:55:24 [INFO] __main__ — Model path resolved: D:\FYP\CIRCA\models\yolov12_int8.xml
+15:55:24 [WARNING] __main__ — Model file not found at '%s'.
+15:55:25 [INFO] __main__ — MainWindow shown — entering Qt event loop.
+15:55:25 [INFO] ui.main_window — MainWindow: starting Inference Thread…
+15:55:29 [INFO] ui.main_window — MainWindow: 2 camera(s) found.
+15:55:29 [INFO] ui.main_window — MainWindow: starting Camera Thread (device_index=0)…
+15:55:29 [WARNING] ui.main_window — MainWindow: model file not found at 'D:\FYP\CIRCA\models\yolov12_int8.xml'. Inference disabled.
+15:55:29 [INFO] workers.camera_worker — CameraWorker started — device_index=0
+15:55:29 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
+15:55:36 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
+15:55:36 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
+15:55:36 [INFO] ui.main_window — MainWindow: camera selected — device_index=0
+15:55:36 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
+15:55:36 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
+15:55:36 [INFO] ui.main_window — MainWindow: CameraWorker restarted on device_index=0.
+15:55:36 [INFO] ui.main_window — MainWindow: background scan — 1 camera(s) found.
+15:55:36 [INFO] workers.camera_worker — CameraWorker started — device_index=0
+15:55:37 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
+15:55:45 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
+15:55:51 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
+15:55:51 [INFO] ui.main_window — MainWindow: camera selected — device_index=0
+15:55:52 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
+15:55:52 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
+15:55:52 [INFO] ui.main_window — MainWindow: CameraWorker restarted on device_index=0.
+15:55:52 [INFO] ui.main_window — MainWindow: background scan — 2 camera(s) found.
+15:55:52 [INFO] workers.camera_worker — CameraWorker started — device_index=0
+15:55:52 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
+15:56:07 [INFO] ui.main_window — MainWindow: USB change detected — launching background scan.
+15:56:07 [INFO] ui.main_window — MainWindow: camera list changed; updating dropdown.
+15:56:07 [INFO] ui.main_window — MainWindow: camera selected — device_index=0
+15:56:08 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
+15:56:08 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
+15:56:08 [INFO] ui.main_window — MainWindow: CameraWorker restarted on device_index=0.
+15:56:08 [INFO] ui.main_window — MainWindow: background scan — 1 camera(s) found.
+15:56:08 [INFO] workers.camera_worker — CameraWorker started — device_index=0
+15:56:08 [INFO] workers.camera_worker — Camera opened at index 0 (DirectShow).
+15:56:16 [INFO] ui.main_window — MainWindow: closeEvent — beginning safe shutdown.
+15:56:16 [INFO] workers.camera_worker — CameraWorker: VideoCapture released on shutdown.
+15:56:16 [INFO] workers.camera_worker — CameraWorker.run() exited cleanly.
+15:56:16 [INFO] ui.main_window — MainWindow: all threads stopped — accepting close event.
+15:56:16 [INFO] __main__ — CIRCA exiting — code 0.

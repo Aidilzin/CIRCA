@@ -1,0 +1,12 @@
+# Python environments
+.venv/
+__pycache__/
+
+# Logs
+*.log
+crash_report.log
+execution_trace.log
+
+# AI Agent folders
+.aider/
+.aider.tags.cache.v3
