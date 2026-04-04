@@ -1,10 +1,11 @@
+import faulthandler
 import logging
 import os
 import sys
-import faulthandler
 
 # C-Level crash reporting: enables traceback for segfaults
-faulthandler.enable(file=open("crash_report.log", "w"))
+with open('crash_report.log', 'w') as f:
+    faulthandler.enable(file=f)
 
 from core.debug import trace_execution
 
@@ -33,8 +34,8 @@ def _configure_logging() -> None:
         datefmt="%H:%M:%S",
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler("execution_trace.log", mode="w"),
-        ],
+            logging.FileHandler("execution_trace.log", mode="w")
+        ]
     )
     logging.getLogger("circa").setLevel(level)
 
@@ -66,7 +67,6 @@ def main() -> int:
 
         # Must create QApplication before any QWidget
         from PyQt6.QtWidgets import QApplication
-
         logger.debug("[TRIPWIRE] About to instantiate QApplication")
         app = QApplication(sys.argv)
         logger.debug("[TRIPWIRE] QApplication instantiated")
@@ -77,7 +77,6 @@ def main() -> int:
 
         # Apply global dark theme QSS (all tokens from ui/theme.py)
         from ui.theme import build_qss
-
         logger.debug("[TRIPWIRE] About to apply QSS theme")
         app.setStyleSheet(build_qss())
         logger.debug("Global QSS theme applied.")
@@ -87,11 +86,10 @@ def main() -> int:
         model_path = _get_model_path()
         logger.info("Model path resolved: %s", model_path)
         if not os.path.isfile(model_path):
-            logger.warning("Model file not found at '%s'.", model_path)
+            logger.warning("Model file not found at '%s'.")
 
         # Build and show the main window
         from ui.main_window import MainWindow
-
         logger.debug("[TRIPWIRE] About to instantiate MainWindow")
         window = MainWindow(model_path=model_path)
         logger.debug("[TRIPWIRE] MainWindow instantiated")
@@ -114,3 +112,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
