@@ -8,5 +8,9 @@ crash_report.log
 execution_trace.log
 
 # AI Agent folders
-.aider/
-.aider.tags.cache.v3
+_bmad
+_bmad-output
+.agent
+.claude
+.gemini
+bmad_custom
