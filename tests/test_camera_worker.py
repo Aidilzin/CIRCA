@@ -47,8 +47,16 @@ from workers.camera_worker import (
 
 
 def make_flat_frame(value: int = 128, size: int = 64) -> np.ndarray:
-    """Create a uniform (blurry) BGR frame — Laplacian variance ~0."""
-    return np.full((size, size, 3), value, dtype=np.uint8)
+    """Create a near-uniform (blurry) BGR frame.
+
+    We add tiny gaussian noise (std=2) so the frame passes the dead-sensor
+    guard (frame_std > 0.1) but still has very low Laplacian variance,
+    causing it to be treated as a blurry/motion frame by the sharpness gate.
+    """
+    rng = np.random.default_rng(42)
+    base = np.full((size, size, 3), value, dtype=np.float32)
+    noisy = np.clip(base + rng.normal(0, 2, base.shape), 0, 255).astype(np.uint8)
+    return noisy
 
 
 def make_sharp_frame(size: int = 64) -> np.ndarray:
@@ -221,7 +229,7 @@ class TestWaitForRetry:
     def test_exits_immediately_when_running_is_false(self):
         worker = CameraWorker()
         worker._running = False
-                with patch("time.sleep") as mock_sleep:
+        with patch("time.sleep") as mock_sleep:
             worker._wait_for_retry()
         # Should exit on first poll check without sleeping
         assert mock_sleep.call_count == 0
@@ -509,7 +517,7 @@ class TestRunSharpFrame:
         """
         The numpy array emitted to InferenceWorker must be a copy —
         not a reference to the internal frame buffer. Verified by checking
-        the emitted array is not the same object as the one read from the cap.
+        the emitted array is not the same object as the source sharp frame.
         """
         worker = CameraWorker()
         sharp = make_sharp_frame(64)
@@ -520,10 +528,14 @@ class TestRunSharpFrame:
 
         mock_cap = make_mock_cap(opened=True)
         read_frames: list[np.ndarray] = []
+        call_count = [0]
 
         def spy_read():
+            call_count[0] += 1
+            if call_count[0] > 1:
+                worker.stop()
+                return False, None
             read_frames.append(sharp.copy())
-            worker.stop()
             return True, read_frames[-1]
 
         mock_cap.read.side_effect = spy_read

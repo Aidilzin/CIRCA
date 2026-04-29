@@ -26,10 +26,21 @@ from core.models import PreprocessParams
 
 
 # ---------------------------------------------------------------------------
-# Pre-built gamma LUT cache — computed once per unique gamma value at runtime.
-# Avoids re-allocating a 256-element uint8 array on every frame (NFR1).
+# Pre-built gamma LUT cache and CLAHE object cache.
+# Avoids re-allocating heavy objects on every frame (NFR1).
 # ---------------------------------------------------------------------------
 _gamma_lut_cache: dict[float, np.ndarray] = {}
+_clahe_cache: dict[float, cv2.CLAHE] = {}
+
+
+def clear_gamma_lut_cache() -> None:
+    """Clear the pre-built gamma LUT cache (primarily for test isolation)."""
+    _gamma_lut_cache.clear()
+
+
+def clear_clahe_cache() -> None:
+    """Clear the CLAHE object cache (primarily for test isolation)."""
+    _clahe_cache.clear()
 
 
 def _build_gamma_lut(gamma: float) -> np.ndarray:
@@ -61,31 +72,13 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     Apply CLAHE (Contrast Limited Adaptive Histogram Equalisation) to the
     luminance channel of the input BGR frame.
 
-    This enhances local contrast and suppresses specular glare from solder
-    joints and component leads — critical for consistent detection under the
-    bright directional lighting common in PCB repair environments.
+    ... (rest of docstring)
 
     Implementation strategy:
-      1. Convert BGR → LAB colour space (lossless, perceptually uniform).
-      2. Apply CLAHE to the L (lightness) channel only, preserving hue/saturation.
-      3. Convert LAB → BGR and return the result.
-
-      Operating on LAB rather than all-channel BGR prevents the colour
-      distortion that would occur from equalising R, G, B independently.
-
-    Args:
-        frame:  Input BGR frame as a (H, W, 3) uint8 numpy array.
-                Must not be None; caller (CameraWorker) is responsible for
-                dropping empty frames before calling this function.
-        params: Live preprocessing parameters from the GUI slider state.
-                Only params.clahe_clip_limit is consumed here.
-
-    Returns:
-        CLAHE-enhanced BGR frame as a (H, W, 3) uint8 numpy array.
-        The output array is a new allocation (cv2.merge produces a copy).
-
-    Raises:
-        ValueError: If frame is empty or not a 3-channel BGR image.
+      1. Convert BGR → YUV colour space (faster than LAB for NFR1).
+      2. Apply CLAHE to the Y (luminance) channel only.
+      3. Convert YUV → BGR and return the result.
+    ...
     """
     if frame is None or frame.size == 0:
         raise ValueError("apply_clahe received an empty frame.")
@@ -94,20 +87,23 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
             f"apply_clahe expects a 3-channel BGR frame; got shape {frame.shape}."
         )
 
-    # tile_grid_size=(8, 8) is the OpenCV default and a well-validated choice
-    # for PCB image sizes (640x640 → 80x80 px per tile).
-    clahe = cv2.createCLAHE(
-        clipLimit=params.clahe_clip_limit,
-        tileGridSize=(8, 8),
-    )
+    # NFR1 Optimization: Reuse CLAHE object if clipLimit hasn't changed.
+    clip_limit = params.clahe_clip_limit
+    if clip_limit not in _clahe_cache:
+        _clahe_cache[clip_limit] = cv2.createCLAHE(
+            clipLimit=clip_limit,
+            tileGridSize=(8, 8),
+        )
+    clahe = _clahe_cache[clip_limit]
 
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l_channel, a_channel, b_channel = cv2.split(lab)
+    # NFR1 Optimization: BGR -> YUV is faster than BGR -> LAB.
+    yuv = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV)
+    y_channel, u_channel, v_channel = cv2.split(yuv)
 
-    l_enhanced = clahe.apply(l_channel)
+    y_enhanced = clahe.apply(y_channel)
 
-    lab_enhanced = cv2.merge([l_enhanced, a_channel, b_channel])
-    return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
+    yuv_enhanced = cv2.merge([y_enhanced, u_channel, v_channel])
+    return cv2.cvtColor(yuv_enhanced, cv2.COLOR_YUV2BGR)
 
 
 # ---------------------------------------------------------------------------
@@ -173,21 +169,13 @@ def compute_variance(frame: np.ndarray) -> float:
     high values indicate sharp edges (clear, still board); low values indicate
     uniform intensity (motion blur or out-of-focus board).
 
-    This value is used in workers/camera_worker.py as the gate condition:
-
-        if compute_variance(frame) < params.blur_threshold:
-            emit frame_dropped()
-            continue  # Skip this frame entirely — do not run inference
-
-    The threshold (params.blur_threshold, default 100.0) is user-tunable
-    via the 'Motion Sensitivity' slider (FR18) to account for different
-    camera optics and working distances.
+    ... (rest of docstring)
 
     Implementation:
       1. Convert to greyscale (Laplacian is defined on single-channel images).
-      2. Apply cv2.Laplacian(grey, cv2.CV_64F) — 64-bit float prevents
-         integer overflow on high-contrast edges.
-      3. Return the variance (std²) of the Laplacian output.
+      2. Apply cv2.Laplacian(grey, cv2.CV_32F) — 32-bit float is significantly
+         faster than CV_64F while providing sufficient range for variance.
+      3. Use cv2.meanStdDev for high-performance variance calculation.
 
     Args:
         frame: Input frame — BGR or greyscale, any resolution.
@@ -195,11 +183,6 @@ def compute_variance(frame: np.ndarray) -> float:
 
     Returns:
         A float representing the sharpness of the frame.
-        Higher values → sharper / more detail → pass through inference.
-        Lower values  → blurry / motion → should be dropped by the caller.
-
-    Raises:
-        ValueError: If frame is None or empty.
     """
     if frame is None or frame.size == 0:
         raise ValueError("compute_variance received an empty frame.")
@@ -210,5 +193,13 @@ def compute_variance(frame: np.ndarray) -> float:
     else:
         grey = frame
 
-    laplacian = cv2.Laplacian(grey, cv2.CV_64F)
-    return float(laplacian.var())
+    # NFR1 Optimization: Downsample to half-res for variance calculation.
+    # 1080p -> 540p reduces pixel count 4x. INTER_NEAREST is fastest.
+    small = cv2.resize(grey, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_NEAREST)
+
+    # NFR1 Optimization: Use CV_32F instead of CV_64F for speed.
+    laplacian = cv2.Laplacian(small, cv2.CV_32F)
+    
+    # NFR1 Optimization: cv2.meanStdDev is faster than laplacian.var().
+    _, stddev = cv2.meanStdDev(laplacian)
+    return float(stddev[0, 0] ** 2)

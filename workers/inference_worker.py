@@ -62,6 +62,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Optional
 
 from PyQt6.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal, pyqtSlot
@@ -219,12 +220,15 @@ class InferenceWorker(QObject):
 
             params = self._snapshot_params()
 
+            start_inference = time.perf_counter()
             result: DetectionResult = self._engine.run(frame, params)
+            inference_duration_ms = (time.perf_counter() - start_inference) * 1000.0
 
             logger.debug(
-                "InferenceWorker: %d detection(s), avg_conf=%.2f",
+                "InferenceWorker: %d detection(s), avg_conf=%.2f, took %.2fms",
                 len(result.boxes),
                 result.average_confidence,
+                inference_duration_ms,
             )
             self.new_detections.emit(result)
 

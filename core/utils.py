@@ -18,7 +18,7 @@ Functions:
                            emitting preview_frame_ready signal.
   enumerate_cameras()    — discovers available UVC devices via Windows DirectShow
                            and retrieves human-readable names via QtMultimedia.
-                           Used by ui/settings_panel.py to populate QComboBox.
+                           Used by ui/sidebar.py to populate the camera QComboBox.
 
 Functional requirements covered:
   FR2  — Camera device enumeration  → enumerate_cameras()
@@ -138,8 +138,8 @@ def enumerate_cameras(
     PyQt6.QtMultimedia on the Main GUI Thread and passed in via qt_names.
 
     Active Frame Validation (Robustified):
-      Every detected device is briefly opened and a frame is captured via 
-      cap.read(). Only devices that yield a valid, non-empty, and non-flat 
+      Every detected device is briefly opened and a frame is captured via
+      cap.read(). Only devices that yield a valid, non-empty, and non-flat
       frame are returned. This filters out virtual ghost cameras, driver
       placeholders (grey/black), and Windows Hello IR sources.
 
@@ -166,7 +166,7 @@ def enumerate_cameras(
     names = qt_names if qt_names is not None else []
     available: List[Tuple[int, str]] = []
 
-    # String Denylist: items to ignore if present in the device name.
+    # String denylist: items to ignore if present in the device name.
     denylist = ["Camera 1", "Virtual", "OBS"]
 
     for index in range(max_index + 1):
@@ -177,9 +177,9 @@ def enumerate_cameras(
         else:
             label = f"Camera {index} (USB)"
 
-        # ── String Denylist check ──
+        # ── String denylist check ──
         if any(bad_str in label for bad_str in denylist):
-            logger.debug("enumerate_cameras: skipping blacklisted device: '%s'", label)
+            logger.debug("enumerate_cameras: skipping denylisted device: '%s'", label)
             continue
 
         # ── Collision avoidance ──
@@ -194,22 +194,22 @@ def enumerate_cameras(
             if cap.isOpened():
                 # Verify the camera actually produces a functional data stream.
                 ret, frame = cap.read()
-                
+
                 # Check 1: Did the read succeed?
                 if not ret or frame is None or frame.size == 0:
                     logger.debug("enumerate_cameras: index %d read() failed or empty.", index)
                     continue
-                
-                # Check 2: Statistical Validation (reject placeholders/noise)
+
+                # Check 2: Statistical validation (reject placeholders/noise)
                 # CALIBRATION (Lenovo):
                 # Ghost noise (switch off): std ~6.0, mean ~0.2 (Generic Fallback Name)
                 # Real dark sensor: std ~2.4, mean ~0.03 (Proper Name: "Integrated Camera")
                 frame_std = np.std(frame)
                 frame_mean = np.mean(frame)
-                
+
                 logger.info("enumerate_cameras: index %d ('%s') diagnostics: std=%.4f, mean=%.4f", index, label, frame_std, frame_mean)
-                
-                # Use Name Trust: Generic fallback labels must pass stricter tests.
+
+                # Use name trust: generic fallback labels must pass stricter tests.
                 if has_real_name:
                     # Named hardware: only reject if completely dead/flat.
                     if frame_std < 0.1:

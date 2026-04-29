@@ -268,6 +268,7 @@ class CameraWorker(QObject):
             # ----------------------------------------------------------
             # Stage 4: FR5 — Motion / blur gate (Laplacian variance)
             # ----------------------------------------------------------
+            start_preprocess = time.perf_counter()
             variance = compute_variance(frame)
 
             if variance < params.blur_threshold:
@@ -284,6 +285,10 @@ class CameraWorker(QObject):
             # ----------------------------------------------------------
             processed = apply_clahe(frame, params)  # FR3: CLAHE contrast enhance
             processed = apply_gamma(processed, params)  # FR4: Gamma shadow lift
+            
+            preprocess_duration_ms = (time.perf_counter() - start_preprocess) * 1000.0
+            logger.debug("CameraWorker: Preprocessing took %.2fms (variance=%.1f)", 
+                         preprocess_duration_ms, variance)
 
             # Emit to GUI (FR12 live display, FR19 real-time preprocessing preview).
             if self._running:

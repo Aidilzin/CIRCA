@@ -117,23 +117,30 @@ def make_default_params(**overrides) -> InferenceParams:
 
 
 class TestClassLabels:
-    def test_has_four_classes(self):
-        assert len(CLASS_LABELS) == 4
+    def test_has_six_classes(self):
+        """CIRCA uses the standard 6-class PCB defect taxonomy."""
+        assert len(CLASS_LABELS) == 6
 
-    def test_solder_bridge_at_index_0(self):
-        assert CLASS_LABELS[0] == "solder_bridge"
+    def test_missing_hole_at_index_0(self):
+        assert CLASS_LABELS[0] == "missing_hole"
 
-    def test_missing_component_at_index_1(self):
-        assert CLASS_LABELS[1] == "missing_component"
+    def test_mouse_bite_at_index_1(self):
+        assert CLASS_LABELS[1] == "mouse_bite"
 
-    def test_misaligned_component_at_index_2(self):
-        assert CLASS_LABELS[2] == "misaligned_component"
+    def test_open_circuit_at_index_2(self):
+        assert CLASS_LABELS[2] == "open_circuit"
 
-    def test_burnt_area_at_index_3(self):
-        assert CLASS_LABELS[3] == "burnt_area"
+    def test_short_at_index_3(self):
+        assert CLASS_LABELS[3] == "short"
+
+    def test_spur_at_index_4(self):
+        assert CLASS_LABELS[4] == "spur"
+
+    def test_spurious_copper_at_index_5(self):
+        assert CLASS_LABELS[5] == "spurious_copper"
 
     def test_indices_are_zero_based_integers(self):
-        assert list(CLASS_LABELS.keys()) == [0, 1, 2, 3]
+        assert list(CLASS_LABELS.keys()) == [0, 1, 2, 3, 4, 5]
 
 
 # ===========================================================================
@@ -238,7 +245,7 @@ class TestPreprocessFrame:
 
 class TestPostprocess:
     def setup_method(self):
-        self.engine, _ = make_inference_engine_with_mocks(num_classes=4)
+        self.engine, _ = make_inference_engine_with_mocks(num_classes=6)
         self.params = make_default_params(confidence_threshold=0.5)
 
     def _run_postprocess(self, raw_output, original_w=640, original_h=640):
@@ -258,11 +265,11 @@ class TestPostprocess:
             cy=320,
             w=100,
             h=100,
-            class_scores=[0.0, 0.9, 0.0, 0.0],  # missing_component, conf=0.9
+            class_scores=[0.0, 0.9, 0.0, 0.0, 0.0, 0.0],  # mouse_bite, conf=0.9
         )
         boxes = self._run_postprocess(raw)
         assert len(boxes) == 1
-        assert boxes[0].class_name == "missing_component"
+        assert boxes[0].class_name == "mouse_bite"
         assert abs(boxes[0].confidence - 0.9) < 1e-4
 
     def test_box_with_confidence_below_threshold_filtered_out(self):
@@ -297,32 +304,32 @@ class TestPostprocess:
 
     # --- Class label assignment (FR7-FR10) ---
 
-    def test_class_0_maps_to_solder_bridge(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0])
+    def test_class_0_maps_to_missing_hole(self):
+        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
-        assert boxes[0].class_name == "solder_bridge"
+        assert boxes[0].class_name == "missing_hole"
 
-    def test_class_1_maps_to_missing_component(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.9, 0.0, 0.0])
+    def test_class_1_maps_to_mouse_bite(self):
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.9, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
-        assert boxes[0].class_name == "missing_component"
+        assert boxes[0].class_name == "mouse_bite"
 
-    def test_class_2_maps_to_misaligned_component(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.9, 0.0])
+    def test_class_2_maps_to_open_circuit(self):
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.9, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
-        assert boxes[0].class_name == "misaligned_component"
+        assert boxes[0].class_name == "open_circuit"
 
-    def test_class_3_maps_to_burnt_area(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.9])
+    def test_class_3_maps_to_short(self):
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.9, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
-        assert boxes[0].class_name == "burnt_area"
+        assert boxes[0].class_name == "short"
 
     def test_unknown_class_id_falls_back_to_class_n_label(self):
         """If num_classes > len(CLASS_LABELS), fallback label is used."""
-        engine, _ = make_inference_engine_with_mocks(num_classes=5)
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.0, 0.9])
+        engine, _ = make_inference_engine_with_mocks(num_classes=7)
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9])
         boxes = engine._postprocess(raw, self.params, 640, 640)
-        assert boxes[0].class_name == "class_4"
+        assert boxes[0].class_name == "class_6"
 
     # --- Coordinate scaling ---
 
@@ -334,7 +341,7 @@ class TestPostprocess:
                   w = 200*2 = 400, h = 100*1.5 = 150
         """
         raw = make_raw_output(
-            cx=320, cy=320, w=200, h=100, class_scores=[0.9, 0.0, 0.0, 0.0]
+            cx=320, cy=320, w=200, h=100, class_scores=[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]
         )
         boxes = self._run_postprocess(raw, original_w=1280, original_h=960)
         assert len(boxes) == 1
@@ -353,7 +360,7 @@ class TestPostprocess:
         """
         # cx=10, cy=10 with w=100, h=100 → x1 = 10-50 = -40 → clamped to 0
         raw = make_raw_output(
-            cx=10, cy=10, w=100, h=100, class_scores=[0.9, 0.0, 0.0, 0.0]
+            cx=10, cy=10, w=100, h=100, class_scores=[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]
         )
         boxes = self._run_postprocess(raw, original_w=640, original_h=640)
         # x1 and y1 must never be negative
@@ -398,20 +405,20 @@ class TestPostprocess:
     # --- DetectionResult integration ---
 
     def test_result_boxes_are_bounding_box_instances(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         for box in boxes:
             assert isinstance(box, BoundingBox)
 
     def test_confidence_preserved_to_float(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.75, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.75, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         assert isinstance(boxes[0].confidence, float)
         assert abs(boxes[0].confidence - 0.75) < 1e-4
 
     def test_custom_confidence_threshold_applied(self):
         """Lowering threshold to 0.3 should surface previously-filtered boxes."""
-        raw = make_raw_output(320, 320, 100, 100, [0.45, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.45, 0.0, 0.0, 0.0, 0.0, 0.0])
         # Default threshold 0.5 → filtered out
         high_thresh = make_default_params(confidence_threshold=0.5)
         boxes_high = self.engine._postprocess(raw, high_thresh, 640, 640)
@@ -453,13 +460,13 @@ class TestInferenceEngineRun:
         assert isinstance(result, DetectionResult)
 
     def test_run_returns_detections_for_high_confidence_tensor(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.85, 0.0, 0.0])
-        engine = self._make_engine_with_output(raw)
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.85, 0.0, 0.0, 0.0, 0.0])
+        engine = self._make_engine_with_output(raw, num_classes=6)
         frame = np.zeros((640, 640, 3), dtype=np.uint8)
         params = make_default_params()
         result = engine.run(frame, params)
         assert len(result.boxes) == 1
-        assert result.boxes[0].class_name == "missing_component"
+        assert result.boxes[0].class_name == "mouse_bite"
 
     def test_run_returns_empty_for_all_low_confidence_tensor(self):
         raw = np.zeros((1, 8, 8400), dtype=np.float32)

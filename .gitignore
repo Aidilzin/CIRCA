@@ -1,16 +1,31 @@
 # Python environments
 .venv/
+venv/
+env/
 __pycache__/
+*.py[cod]
+*$py.class
 
 # Logs
 *.log
 crash_report.log
 execution_trace.log
 
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+
+# AI / ML outputs
+runs/
+datasets/
+*.pt
+*.onnx
+
 # AI Agent folders
-_bmad
-_bmad-output
-.agent
-.claude
-.gemini
-bmad_custom
+_bmad/
+_bmad-output/
+.agent/
+.claude/
+.gemini/
+bmad_custom/

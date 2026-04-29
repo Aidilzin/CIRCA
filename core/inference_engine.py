@@ -61,10 +61,12 @@ logger = logging.getLogger(__name__)
 # Index order MUST match the YOLOv12 training configuration class order.
 # ---------------------------------------------------------------------------
 CLASS_LABELS: dict[int, str] = {
-    0: "solder_bridge",
-    1: "missing_component",
-    2: "misaligned_component",
-    3: "burnt_area",
+    0: "missing_hole",
+    1: "mouse_bite",
+    2: "open_circuit",
+    3: "short",
+    4: "spur",
+    5: "spurious_copper",
 }
 
 # ---------------------------------------------------------------------------
