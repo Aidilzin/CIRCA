@@ -60,6 +60,7 @@ weights/
 *.zip
 *.tar.gz
 *.rar
+*.pdf
 
 # Jupyter
 .ipynb_checkpoints/
