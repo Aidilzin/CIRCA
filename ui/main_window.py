@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
         logger.error("Camera error signal received: %s", message)
         self.status_footer.set_camera_error(message)
         self._camera_thread_started = False
-        self.video_widget.clear_feed("camera unavailable")
+        self.video_widget.clear_feed("Please connect a camera")
 
     @pyqtSlot()
     def _on_model_loaded(self) -> None:

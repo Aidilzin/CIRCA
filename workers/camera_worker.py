@@ -304,7 +304,10 @@ class CameraWorker(QObject):
         # Cleanup on loop exit
         # ------------------------------------------------------------------
         if cap is not None:
-            cap.release()
+            try:
+                cap.release()
+            except Exception as exc:  # pragma: no cover — DirectShow driver bug on disconnect
+                logger.debug("CameraWorker: cap.release() raised (driver bug, safe to ignore): %s", exc)
             logger.info("CameraWorker: VideoCapture released on shutdown.")
 
         logger.info("CameraWorker.run() exited cleanly.")

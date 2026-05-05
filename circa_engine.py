@@ -272,7 +272,7 @@ def run_experiment():
     parser.add_argument("--iterations", type=int, default=50, help="Number of iterations for tuning mode")
     parser.add_argument("--imgsz", type=int, default=640, help="Image size (640 recommended for stability)")
     parser.add_argument("--batch", type=int, default=12, help="Batch size (12 recommended for 6GB VRAM)")
-    parser.add_argument("--data", type=str, default="datasets/unified_pcb_v2/data.yaml", help="Path to data.yaml (v2 = 15-class IPC corpus)")
+    parser.add_argument("--data", type=str, default="datasets/unified_pcb_v2/data.yaml", help="Path to data.yaml (v2 = 12-class IPC corpus)")
     parser.add_argument("--cfg", type=str, default=None, help="Optional path to best_hyperparameters.yaml from HPO")
     parser.add_argument("--preproc", action="store_true", help="Apply CIRCA preprocessing (CLAHE + Gamma)")
     parser.add_argument("--force-preproc", action="store_true", help="Regenerate preprocessed dataset even if cached")

@@ -154,21 +154,19 @@ class VideoWidget(QWidget):
     def _draw_status_label(self, painter: QPainter, palette: dict) -> None:
         if not self._status_text:
             return
-        if self._status_text.lower() == "camera unavailable":
-            self._draw_unavailable_panel(painter, palette)
-            return
-        painter.setFont(QFont(FONT_MONO, FONT_SIZE_LABEL))
-        painter.setPen(QColor(palette["TEXT_SECONDARY"]))
-        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._status_text)
+        self._draw_status_panel(painter, palette)
 
-    def _draw_unavailable_panel(self, painter, palette):
-        pw, ph = 260, 80
-        px, py = (self.width() - pw) // 2, (self.height() - ph) // 2
+    def _draw_status_panel(self, painter: QPainter, palette: dict) -> None:
+        """Render a centered, rounded-rect panel with the current status text."""
+        pw, ph = 300, 72
+        px = (self.width() - pw) // 2
+        py = (self.height() - ph) // 2
         panel_rect = QRect(px, py, pw, ph)
+
         painter.setBrush(QBrush(QColor(palette["BG_SURFACE"])))
         painter.setPen(QPen(QColor(palette["BORDER"]), 1))
         painter.drawRoundedRect(panel_rect, 12, 12)
-        painter.fillRect(QRect(px, py, 6, ph), QColor("#F44336"))  # Error Red
+
         painter.setFont(QFont(FONT_UI, FONT_SIZE_LABEL, QFont.Weight.Bold))
         painter.setPen(QColor(palette["TEXT_PRIMARY"]))
-        painter.drawText(QRect(px + 12, py, pw - 12, ph), Qt.AlignmentFlag.AlignCenter, "CAMERA UNAVAILABLE")
+        painter.drawText(panel_rect, Qt.AlignmentFlag.AlignCenter, self._status_text)
