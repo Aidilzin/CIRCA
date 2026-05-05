@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
+
 def _format_arg(arg: Any) -> str:
     """Format an argument for logging, truncated if necessary, and avoiding bulky data."""
     try:
@@ -26,6 +27,7 @@ def _format_arg(arg: Any) -> str:
         return s
     except Exception:
         return "<unformattable>"
+
 
 def trace_execution(func: Callable) -> Callable:
     """

@@ -32,12 +32,21 @@ COLOR_STATUS_WARN = "#FFC107"
 COLOR_STATUS_ERROR = "#F44336"
 
 DEFECT_CLASS_COLORS: dict[str, str] = {
+    # IPC-A-600 bare-board defects (classes 0–5)
     "missing_hole": "#FF5252",
     "mouse_bite": "#FF9800",
     "open_circuit": "#FFEB3B",
     "short": "#00BCD4",
     "spur": "#4CAF50",
     "spurious_copper": "#9C27B0",
+    # IPC-A-610 assembly-stage solder defects (classes 6–9)
+    "excess_solder": "#FF6F00",
+    "insufficient_solder": "#F06292",
+    "solder_spike": "#CE93D8",
+    "cold_solder_joint": "#EF9A9A",
+    # IPC-A-600 surface defects (classes 10–11)
+    "scratch": "#80DEEA",
+    "pinhole": "#B0BEC5",
 }
 
 FONT_UI = "Inter"

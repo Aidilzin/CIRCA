@@ -18,8 +18,8 @@ flowchart TD
     classDef decision fill:#cf6679,stroke:#7a2c3a,color:#ffffff
 
     %% Phase 0
-    P0["<b>Phase 0</b><br/>Environment + Dataset Setup<br/>5 sources → unified_pcb_v2<br/>15-class IPC taxonomy, 70/15/15 split"]:::phase
-    A0[("data.yaml (nc=15)<br/>class_mapping.md")]:::artifact
+    P0["<b>Phase 0</b><br/>Environment + Dataset Setup<br/>8 sources → unified_pcb_v2<br/>12-class IPC taxonomy, 70/15/15 split"]:::phase
+    A0[("data.yaml (nc=12)<br/>class_mapping.md")]:::artifact
 
     %% Phase 1 (vanilla baseline / ablation control)
     P1["<b>Phase 1</b><br/>Vanilla Baseline (YOLOv12-S)<br/>no preprocessing, 50 epochs"]:::phase
@@ -33,7 +33,7 @@ flowchart TD
     G_ABL{"mAP_c &ge; mAP_v ?<br/>(preproc lift confirmed)"}:::gate
 
     %% Phase 3 HPO
-    P3["<b>Phase 3</b><br/>Hyperparameter Optimisation<br/>--mode tune, 150 iterations"]:::phase
+    P3["<b>Phase 3</b><br/>Hyperparameter Optimisation<br/>--mode tune, 50 iterations"]:::phase
     A3[("CIRCA_V12S_003<br/>best_hyperparameters.yaml")]:::artifact
 
     %% Phase 4 (three variants final training)
@@ -177,7 +177,7 @@ flowchart TD
 |---|---|
 | Phase 1 | `--mode train --variant s --id 001 --desc Baseline_Vanilla` |
 | Phase 2 | `--mode train --variant s --id 002 --desc Baseline_CIRCA --preproc` |
-| Phase 3 | `--mode tune --variant s --id 003 --desc HPO --preproc --iterations 150` |
+| Phase 3 | `--mode tune --variant s --id 003 --desc HPO --preproc --iterations 50` |
 | Phase 4-N | `--mode train --variant n --id 004 --desc Final_HPO --preproc --cfg ...` |
 | Phase 4-S | `--mode train --variant s --id 005 --desc Final_HPO --preproc --cfg ...` |
 | Phase 4-M | `--mode train --variant m --id 006 --desc Final_HPO --preproc --cfg ...` |

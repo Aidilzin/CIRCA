@@ -50,6 +50,20 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# --- Kaggle Bootstrap ---
+if 'KAGGLE_URL_BASE' in os.environ:
+    log.info("[KAGGLE] Environment detected. Configuring paths...")
+    try:
+        from kaggle_secrets import UserSecretsClient
+        user_secrets = UserSecretsClient()
+        os.environ["WANDB_API_KEY"] = user_secrets.get_secret("WANDB_API_KEY")
+    except Exception as e:
+        log.warning("[KAGGLE] W&B Secret not found. Cloud logging may fail.")
+
+    # Redirect Ultralytics settings to working directory
+    os.environ["YOLO_CONFIG_DIR"] = "/kaggle/working/config"
+    os.environ["YOLO_SETTINGS_PATH"] = "/kaggle/working/config/settings.yaml"
+
 # Image extensions (case-insensitive on case-sensitive filesystems)
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp"}
 
@@ -168,7 +182,8 @@ def preprocess_dataset(data_yaml_path: str, force: bool = False) -> str:
         data = yaml.safe_load(f)
 
     base_path = Path(data["path"]).resolve()
-    preproc_base = base_path.parent / (base_path.name + "_preproc")
+    # Kaggle specific: Always output to the working directory
+    preproc_base = Path("/kaggle/working") / (base_path.name + "_preproc")
 
     if preproc_base.exists() and not force:
         log.info("[PREPROC] Reusing existing preprocessed dataset: %s", preproc_base)
@@ -257,7 +272,7 @@ def run_experiment():
     parser.add_argument("--iterations", type=int, default=50, help="Number of iterations for tuning mode")
     parser.add_argument("--imgsz", type=int, default=640, help="Image size (640 recommended for stability)")
     parser.add_argument("--batch", type=int, default=12, help="Batch size (12 recommended for 6GB VRAM)")
-    parser.add_argument("--data", type=str, default="datasets/unified_pcb_v2/data.yaml", help="Path to data.yaml (v2 = 12-class IPC corpus)")
+    parser.add_argument("--data", type=str, default="datasets/unified_pcb_v2/data.yaml", help="Path to data.yaml (v2 = 15-class IPC corpus)")
     parser.add_argument("--cfg", type=str, default=None, help="Optional path to best_hyperparameters.yaml from HPO")
     parser.add_argument("--preproc", action="store_true", help="Apply CIRCA preprocessing (CLAHE + Gamma)")
     parser.add_argument("--force-preproc", action="store_true", help="Regenerate preprocessed dataset even if cached")
@@ -346,8 +361,22 @@ def run_experiment():
     log.info("[LOAD] Initializing model from: %s", model_source)
     model = YOLO(model_source)
 
-    # Respect the CLI batch argument for the local 6GB VRAM constraint
-    batch_size = args.batch
+    # Dynamic Batch Sizing
+    if 'KAGGLE_URL_BASE' in os.environ:
+        # Unleash the batch sizes for 2x T4 GPUs (32GB total VRAM)
+        if args.variant.lower() == 'n':
+            batch_size = 128
+        elif args.variant.lower() == 's':
+            batch_size = 64
+        elif args.variant.lower() == 'm':
+            batch_size = 32
+        else:
+            batch_size = 32
+        log.info(f"[KAGGLE] Scaled up batch size to {batch_size} for dual T4 GPUs.")
+    else:
+        # Fallback to whatever was passed in the CLI (default: 12)
+        batch_size = args.batch
+        log.info(f"[LOCAL] Using CLI batch size: {batch_size}")
 
     # 7. Training/Tuning Execution
     log.info(
@@ -483,4 +512,3 @@ def run_experiment():
 
 if __name__ == "__main__":
     run_experiment()
-

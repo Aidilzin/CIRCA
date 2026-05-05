@@ -252,8 +252,7 @@ class CameraWorker(QObject):
                 self.camera_error.emit(msg)
                 self._running = False
                 break
-                
-            if frame_std > 3.0 and frame_mean < 0.5:
+            elif frame_std > 3.0 and frame_mean < 0.5:
                 msg = "Camera disconnected (Physical Switch Off)"
                 logger.warning("Camera %d: digital garbage detected (std=%.2f).", self._device_index, frame_std)
                 self.camera_error.emit(msg)
@@ -337,6 +336,10 @@ class CameraWorker(QObject):
         stop() takes effect within ~100ms even during a retry pause.
 
         UX UJ-03: "10-second retry cycle" — CAMERA_RETRY_INTERVAL_S = 10.0
+
+        Note: This helper is retained for potential future retry-loop
+        implementations but is not called in the current design, which
+        delegates reconnection to MainWindow via re-enumeration.
         """
         elapsed: float = 0.0
         while elapsed < CAMERA_RETRY_INTERVAL_S and self._running:

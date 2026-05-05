@@ -86,7 +86,7 @@ def main() -> int:
         model_path = _get_model_path()
         logger.info("Model path resolved: %s", model_path)
         if not os.path.isfile(model_path):
-            logger.warning("Model file not found at '%s'.")
+            logger.warning("Model file not found at '%s'.", model_path)
 
         # Build and show the main window
         from ui.main_window import MainWindow

@@ -22,7 +22,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QWidget
 
-from workers.inference_worker import DetectionResult
+from core.models import DetectionResult
 from ui.theme import (
     BBOX_INNER_WIDTH,
     BBOX_OUTER_ALPHA,
@@ -73,7 +73,8 @@ class VideoWidget(QWidget):
             self.update()
 
     def clear_feed(self, status_text: str = "") -> None:
-        if status_text: self._status_text = status_text
+        if status_text:
+            self._status_text = status_text
         self._current_frame = None
         self._detections = None
         self.update()
@@ -105,14 +106,16 @@ class VideoWidget(QWidget):
 
     def _compute_letterbox_rect(self, frame_w: int, frame_h: int) -> QRect:
         widget_w, widget_h = self.width(), self.height()
-        if frame_w == 0 or frame_h == 0: return QRect(0, 0, widget_w, widget_h)
+        if frame_w == 0 or frame_h == 0:
+            return QRect(0, 0, widget_w, widget_h)
         scale = min(widget_w / frame_w, widget_h / frame_h)
         drawn_w, drawn_h = int(frame_w * scale), int(frame_h * scale)
         return QRect((widget_w - drawn_w) // 2, (widget_h - drawn_h) // 2, drawn_w, drawn_h)
 
     def _draw_detections(self, painter: QPainter, letterbox: QRect) -> None:
         frame_w, frame_h = self._current_frame.width(), self._current_frame.height()
-        if frame_w == 0 or frame_h == 0: return
+        if frame_w == 0 or frame_h == 0:
+            return
         scale_x, scale_y = letterbox.width() / frame_w, letterbox.height() / frame_h
         for box in self._detections.boxes:
             self._draw_single_box(painter, box, letterbox, scale_x, scale_y)
@@ -148,9 +151,10 @@ class VideoWidget(QWidget):
         painter.setPen(QColor(DEFECT_CHIP_TEXT_COLOR))
         painter.drawText(chip_x + CHIP_PADDING_H, chip_y + CHIP_PADDING_V + metrics.ascent(), chip_text)
 
-    def _draw_status_label(self, painter, palette):
-        if not self._status_text: return
-        if self._status_text == "camera unavailable":
+    def _draw_status_label(self, painter: QPainter, palette: dict) -> None:
+        if not self._status_text:
+            return
+        if self._status_text.lower() == "camera unavailable":
             self._draw_unavailable_panel(painter, palette)
             return
         painter.setFont(QFont(FONT_MONO, FONT_SIZE_LABEL))

@@ -202,8 +202,8 @@ class MainWindow(QMainWindow):
             self.status_footer.set_camera_idle()
             self.video_widget.clear_feed("Please connect a camera")
         if os.path.isfile(self._model_path):
-            from PyQt6.QtCore import QMetaObject
-            QMetaObject.invokeMethod(self.inference_worker, "load_model", Qt.ConnectionType.QueuedConnection, self._model_path)
+            path = self._model_path
+            QTimer.singleShot(0, lambda: self.inference_worker.load_model(path))
         else:
             self.status_footer.set_model_error("Model missing")
 
@@ -222,22 +222,28 @@ class MainWindow(QMainWindow):
                 self._on_camera_selected(idx)
 
     @pyqtSlot(str)
-    def _on_camera_error(self, message):
+    def _on_camera_error(self, message: str) -> None:
         logger.error("Camera error signal received: %s", message)
         self.status_footer.set_camera_error(message)
         self._camera_thread_started = False
         self.video_widget.clear_feed("camera unavailable")
 
     @pyqtSlot()
-    def _on_model_loaded(self): self.status_footer.set_model_ready()
+    def _on_model_loaded(self) -> None:
+        self.status_footer.set_model_ready()
+
     @pyqtSlot(str)
-    def _on_inference_error(self, msg): self.status_footer.set_model_error(msg)
+    def _on_inference_error(self, msg: str) -> None:
+        self.status_footer.set_model_error(msg)
+
     @pyqtSlot(object)
-    def _on_new_detections(self, res):
+    def _on_new_detections(self, res) -> None:
         self.status_footer.set_detection_count(len(res.boxes))
         self.warning_banner.update_confidence(res.average_confidence, self._confidence_threshold)
+
     @pyqtSlot(object)
-    def _on_inference_params_changed(self, p): self._confidence_threshold = p.confidence_threshold
+    def _on_inference_params_changed(self, p) -> None:
+        self._confidence_threshold = p.confidence_threshold
 
     @pyqtSlot(int)
     def _on_camera_selected(self, idx):
@@ -279,5 +285,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802 — Qt C++ API override
         self.camera_worker.stop()
         self.camera_thread.quit()
+        self.camera_thread.wait(3000)
         self.inference_thread.quit()
+        self.inference_thread.wait(3000)
         event.accept()

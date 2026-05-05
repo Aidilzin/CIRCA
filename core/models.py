@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -18,7 +17,7 @@ class BoundingBox:
 class DetectionResult:
     """Represents the complete inference result for a single frame."""
 
-    boxes: List[BoundingBox] = field(default_factory=list)
+    boxes: list["BoundingBox"] = field(default_factory=list)
 
     @property
     def average_confidence(self) -> float:

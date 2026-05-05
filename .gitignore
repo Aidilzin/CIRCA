@@ -6,15 +6,18 @@
 .venv/
 venv/
 env/
+ENV/
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
 # Tool Caches
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage
+htmlcov/
 
 # Logs
 *.log
@@ -29,16 +32,34 @@ test_results.txt
 .idea/
 .vscode/
 *.swp
+*.swo
 
-# AI / ML outputs
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# AI / ML outputs and Tracking
 runs/
 datasets/
+wandb/
+weights/
 *.pt
 *.onnx
+*.engine
+*.pb
+*.h5
+*.hdf5
+*.keras
 
 # Data archives
 *.zip
 *.tar.gz
+*.rar
 
 # Jupyter
 .ipynb_checkpoints/

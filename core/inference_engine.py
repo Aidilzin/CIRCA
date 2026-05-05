@@ -11,11 +11,9 @@ Architecture constraints (enforced):
 
 Functional requirements covered:
   FR6  — INT8 synchronous OpenVINO inference          → InferenceEngine.run()
-  FR7  — Detect solder bridge                         → CLASS_LABELS index 0
-  FR8  — Detect missing component                     → CLASS_LABELS index 1
-  FR9  — Detect misaligned component                  → CLASS_LABELS index 2
-  FR10 — Detect burnt area                            → CLASS_LABELS index 3
-  FR11 — Per-detection confidence score               → BoundingBox.confidence
+  FR7  — Detect IPC-A-600 bare-board defects          → CLASS_LABELS indices 0–5, 10–11
+  FR8  — Detect IPC-A-610 solder defects              → CLASS_LABELS indices 6–9
+  FR9  — Per-detection confidence score               → BoundingBox.confidence
 
 Non-functional requirements:
   NFR2 — Total inference latency < 10s per frame (budgeted at ~40ms on consumer
@@ -27,7 +25,7 @@ Output tensor layout (YOLOv12 / YOLOv8-style ONNX→OpenVINO export):
          batch  bbox(cx,cy,   typically 8400 for 640×640 input
                 w,h) + scores   at three YOLO detection heads
   Note: The architecture doc cites [1, 84, 8400] as the COCO baseline.
-  For CIRCA's 4-class custom model: [1, 8, 8400].
+  For CIRCA's 12-class custom model: [1, 16, 8400].
   This implementation derives num_classes from the output shape at load time
   so it is robust to both layouts.
 
@@ -61,12 +59,21 @@ logger = logging.getLogger(__name__)
 # Index order MUST match the YOLOv12 training configuration class order.
 # ---------------------------------------------------------------------------
 CLASS_LABELS: dict[int, str] = {
+    # IPC-A-600 bare-board defects (classes 0–5)
     0: "missing_hole",
     1: "mouse_bite",
     2: "open_circuit",
     3: "short",
     4: "spur",
     5: "spurious_copper",
+    # IPC-A-610 assembly-stage solder defects (classes 6–9)
+    6: "excess_solder",
+    7: "insufficient_solder",
+    8: "solder_spike",
+    9: "cold_solder_joint",
+    # IPC-A-600 surface defects (classes 10–11)
+    10: "scratch",
+    11: "pinhole",
 }
 
 # ---------------------------------------------------------------------------
