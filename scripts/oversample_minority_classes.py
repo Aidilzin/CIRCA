@@ -1,27 +1,34 @@
 """
 oversample_minority_classes.py
 ================================
-CIRCA -- Phase 0 Data Preparation (updated: 2026-05-23)
+CIRCA -- Phase 0 Data Preparation (updated: 2026-05-25)
 Tiered minority-class oversampling for unified_pcb_v3 training split.
 
-Class distribution after dedup build (8,463 images, train split ~70%):
-  0: missing_hole         2,315  -- moderate
-  1: mouse_bite           4,887  -- good
-  2: open_circuit         3,990  -- good
-  3: short               12,373  -- DOMINANT -> EXCLUDED
-  4: excess_solder        7,120  -- good
-  5: insufficient_solder 23,610  -- DOMINANT -> EXCLUDED
-  6: cold_solder_joint      633  -- CRITICAL
+Class distribution before oversampling (BEFORE counts from live run):
+  0: missing_hole           390  -- moderate
+  1: mouse_bite           1,287  -- good
+  2: open_circuit           946  -- good
+  3: short               1,778  -- DOMINANT -> EXCLUDED
+  4: excess_solder          172  -- weak but not oversampled
+  5: insufficient_solder  1,788  -- DOMINANT -> EXCLUDED
+  6: cold_solder_joint      675  -- CRITICAL
+
+Class distribution after oversampling (AFTER counts from live run):
+  0: missing_hole           975  (3x, was 390)
+  4: excess_solder          252  (incidental -- co-occurs with cold_solder_joint images)
+  6: cold_solder_joint    2,835  (5x, was 675)
+  Total training images: 9,404
 
 Tier rules:
   TIER 1 -- Critical  (< 700 instances): class 6 (cold_solder_joint) -> 5x copies
-  TIER 2 -- Moderate  (< 2500 instances): class 0 (missing_hole)     -> 2x copies
+  TIER 2 -- Moderate  (< 500 instances): class 0 (missing_hole)      -> 3x copies
   EXCLUDED: classes 3 (short) and 5 (insufficient_solder) -- dominant, not oversampled
 
 Usage:
     python scripts/oversample_minority_classes.py
     python scripts/oversample_minority_classes.py --dry-run
     python scripts/oversample_minority_classes.py --dataset-root datasets/unified_pcb_v3
+    python scripts/oversample_minority_classes.py --dataset-root datasets/unified_pcb_v3_preproc
 """
 
 import argparse
@@ -50,8 +57,8 @@ EXCLUDED_CLASSES = {3, 5}
 # Tier definitions: class_id -> max_total_copies (including original)
 # max_copies=5 means 4 extra copies -> 5x the original count
 CLASS_TIER = {
-    0: 2,  # missing_hole      -- moderate  (~1,620 train instances -> 2x)
-    6: 5,  # cold_solder_joint -- CRITICAL  (~443 train instances -> 5x)
+    0: 3,  # missing_hole      -- moderate  (390 train instances -> 3x = 975)
+    6: 5,  # cold_solder_joint -- CRITICAL  (675 train instances -> 5x = 2,835)
 }
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}

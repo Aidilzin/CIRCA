@@ -169,28 +169,30 @@ def verify_dataset(dataset_root="datasets/unified_pcb_v3"):
 
 def print_launch_playbook():
     print_banner("Launch Commands Playbook")
-    print("Use the following commands to launch your experiments inside your RunPod terminal.\n")
-    
-    print("--- Weights & Biases Authentication (First Step) ---")
-    print("Before launching experiments, login to W&B to enable cloud tracking:")
+    print("Use the following commands to launch experiments inside your RunPod terminal.\n")
+    print("NOTE: If you ran runpod_setup.sh, dataset prep (oversampling + preproc) is already done.\n")
+
+    print("--- Step 0: Weights & Biases Authentication (First Step) ---")
     print("  wandb login <YOUR_WANDB_API_KEY>")
-    print("*(If you run without logging in, W&B will be automatically disabled to prevent terminal hang)*\n")
-    
+    print("*(Skipping login auto-disables W&B to prevent terminal hang)*\n")
+
     print("--- Phase 1: Vanilla Baseline (100 Epochs, Raw) ---")
-    print("This runs the baseline on unmodified raw images to establish our ablation control.")
-    print("Command:")
-    print("  python train_engine.py --mode train --variant s --id 001 --desc Baseline_Vanilla --epochs 100 --batch 24 --data datasets/unified_pcb_v3/data.yaml\n")
-    
+    print("Ablation control -- raw unified_pcb_v3 (oversampled, no CLAHE).")
+    print("  python train_engine.py --mode train --variant s --id 001 --desc Baseline_Vanilla \\")
+    print("    --epochs 100 --batch 24 --data datasets/unified_pcb_v3/data.yaml\n")
+
     print("--- Phase 2: CIRCA Preprocessing Baseline (100 Epochs, CLAHE+Gamma) ---")
-    print("This applies our custom visual preprocessing offline (CLAHE + Gamma) on the pod, then trains.")
-    print("Command:")
-    print("  python train_engine.py --mode train --variant s --id 002 --desc Baseline_CIRCA --epochs 100 --preproc --batch 24 --data datasets/unified_pcb_v3/data.yaml\n")
-    
-    print("--- Phase 3: Hyperparameter Tuning (HPO) (50 Iterations x 50 Epochs, Fraction=0.5) ---")
-    print("This tunes hyperparameters on the preprocessed dataset. Note: Run only after confirming Phase 2 works.")
-    print("Command:")
-    print("  python train_engine.py --mode tune --variant s --id 003 --desc HPO_7class --epochs 50 --iterations 50 --fraction 0.5 --batch 24 --data datasets/unified_pcb_v3_preproc/data.yaml\n")
-    
+    print("Uses unified_pcb_v3_preproc (already created + oversampled by setup.sh).")
+    print("  python train_engine.py --mode train --variant s --id 002 --desc Baseline_CIRCA \\")
+    print("    --epochs 100 --batch 24 --data datasets/unified_pcb_v3_preproc/data.yaml\n")
+
+    print("--- Phase 3: Hyperparameter Tuning / HPO (50 Iterations x 50 Epochs) ---")
+    print("Runs on unified_pcb_v3_preproc (preprocessed + oversampled -- already done by setup.sh).")
+    print("DO NOT use --preproc flag here.")
+    print("  python train_engine.py --mode tune --variant s --id 003 --desc HPO_7class \\")
+    print("    --epochs 50 --iterations 50 --fraction 0.5 --batch 24 \\")
+    print("    --data datasets/unified_pcb_v3_preproc/data.yaml\n")
+
     print("=" * 60)
 
 if __name__ == "__main__":

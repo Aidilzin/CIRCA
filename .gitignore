@@ -73,3 +73,6 @@ _bmad-output/
 .claude/
 .gemini/
 bmad_custom/
+
+# Backup and Archive directories
+.OLD/
