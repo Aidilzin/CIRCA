@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from collections import Counter
 import yaml
+import argparse
 
 def check_balance(dataset_path):
     dataset_path = Path(dataset_path)
@@ -39,6 +40,7 @@ def check_balance(dataset_path):
                         class_id = int(parts[0])
                         class_counts[class_id] += 1
 
+    print(f"\n=== Dataset: {dataset_path} ===")
     print("=== Dataset Split Distribution ===")
     if total_images == 0:
         print("No images found.")
@@ -51,9 +53,19 @@ def check_balance(dataset_path):
     print(f"\nTotal Images: {total_images}")
     
     print("\n=== Class Distribution ===")
+    total_annotations = sum(class_counts.values())
     for i in range(12):
         count = class_counts.get(i, 0)
-        print(f"Class {i:2d} ({class_names[i]:<30}): {count} instances")
+        pct = 100 * count / total_annotations if total_annotations else 0
+        print(f"Class {i:2d} ({class_names[i]:<30}): {count:6d} instances ({pct:4.1f}%)")
         
 if __name__ == "__main__":
-    check_balance("datasets/unified_pcb_v2")
+    parser = argparse.ArgumentParser(description="Check CIRCA dataset class balance.")
+    parser.add_argument(
+        "dataset_path", nargs="?",
+        default="datasets/unified_pcb_v2_preproc",
+        help="Path to dataset root (default: datasets/unified_pcb_v2_preproc)"
+    )
+    args = parser.parse_args()
+    check_balance(args.dataset_path)
+

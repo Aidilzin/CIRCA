@@ -18,8 +18,8 @@ flowchart TD
     classDef decision fill:#cf6679,stroke:#7a2c3a,color:#ffffff
 
     %% Phase 0
-    P0["<b>Phase 0</b><br/>Environment + Dataset Setup<br/>8 sources → unified_pcb_v2<br/>12-class IPC taxonomy, 70/15/15 split"]:::phase
-    A0[("data.yaml (nc=12)<br/>class_mapping.md")]:::artifact
+    P0["<b>Phase 0</b><br/>Environment + Dataset Setup<br/>8 sources → unified_pcb_v3<br/>7-class IPC taxonomy, 70/15/15 split"]:::phase
+    A0[("data.yaml (nc=7)<br/>CIRCA_CLASS_MAPPING.md")]:::artifact
 
     %% Phase 1 (vanilla baseline / ablation control)
     P1["<b>Phase 1</b><br/>Vanilla Baseline (YOLOv12-S)<br/>no preprocessing, 50 epochs"]:::phase
@@ -51,11 +51,11 @@ flowchart TD
     %% Phase 6 hardware benchmarking
     P6["<b>Phase 6</b><br/>Hardware Benchmarking<br/>Intel i5 8th-gen CPU + iGPU"]:::phase
     G_AC{"Pass all 4 acceptance criteria?<br/>&gt;90% mAP, &le;5 ms preproc,<br/>&ge;15 FPS, &le;10 s static"}:::decision
-    A6[("benchmark_report.md<br/>Variant Selection Matrix")]:::artifact
+    A6[("CIRCA_BENCHMARK_REPORT.md<br/>Variant Selection Matrix")]:::artifact
 
     %% Phase 7 final test + thresholds
     P7["<b>Phase 7</b><br/>Final Test Evaluation<br/>+ Confidence Threshold Calibration"]:::phase
-    A7[("test_evaluation.md<br/>circa_thresholds.yaml")]:::artifact
+    A7[("CIRCA_TEST_EVALUATION.md<br/>circa_thresholds.yaml")]:::artifact
 
     %% Edges
     P0 --> A0 --> P1 --> A1

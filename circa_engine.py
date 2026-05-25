@@ -54,7 +54,7 @@ log = logging.getLogger(__name__)
 if 'KAGGLE_URL_BASE' in os.environ:
     log.info("[KAGGLE] Environment detected. Configuring paths...")
     try:
-        from kaggle_secrets import UserSecretsClient
+        from kaggle_secrets import UserSecretsClient  # type: ignore
         user_secrets = UserSecretsClient()
         os.environ["WANDB_API_KEY"] = user_secrets.get_secret("WANDB_API_KEY")
     except Exception as e:
@@ -67,8 +67,6 @@ if 'KAGGLE_URL_BASE' in os.environ:
 # Image extensions (case-insensitive on case-sensitive filesystems)
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp"}
 
-# Canonical split key map: internal name -> possible YAML keys
-SPLIT_KEYS = {"train": "train", "val": "val", "test": "test"}
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +283,9 @@ def run_experiment():
     parser.add_argument("--warmup-epochs", type=float, default=5.0, help="Warmup epochs (ignored if --cfg provided)")
     parser.add_argument("--nbs", type=int, default=64, help="Nominal batch size for loss scaling")
     parser.add_argument("--patience", type=int, default=30, help="Early stopping patience")
+    parser.add_argument("--fraction", type=float, default=1.0,
+                        help="Fraction of training data to use per HPO trial (default: 1.0 = full dataset). "
+                             "Phase 3 used 0.3 on imbalanced data — Phase 3B uses 0.5 on balanced data.")
     parser.add_argument("--cls-pw", type=float, default=1.0,
                         help="Power for inverse-frequency class weighting (Ultralytics fraction key, range [0.0, 1.0]). "
                              "0.0 = disabled; 1.0 = full inverse-frequency weighting (recommended for v2 "
@@ -428,13 +429,15 @@ def run_experiment():
                 "mixup": (0.0, 0.2),
                 "copy_paste": (0.0, 0.3),
             }
-            log.info("[TUNE] Genetic search: %d iterations", args.iterations)
+            log.info("[TUNE] Genetic search: %d iterations | fraction=%.2f | epochs=%d",
+                     args.iterations, args.fraction, args.epochs)
             model.tune(
                 iterations=args.iterations,
                 optimizer="AdamW",
                 space=search_space,
                 save=False,
                 val=True,
+                fraction=args.fraction,
                 close_mosaic=10,   # Playbook
                 **common_kwargs,
             )
@@ -471,7 +474,7 @@ def run_experiment():
                 log.info("[CFG] Using manual lr0=%s, warmup_epochs=%s, cls_pw=%s (inverse-freq power)",
                          args.lr0, args.warmup_epochs, args.cls_pw)
 
-            results = model.train(**train_kwargs)
+            model.train(**train_kwargs)
 
             # Final metrics summary (train mode only)
             try:
@@ -503,10 +506,9 @@ def run_experiment():
         except Exception:
             log.exception("[EXPORT] OpenVINO INT8 export failed")
     else:
-        tune_dir = exp_dir
         log.info(
             "[COMPLETE] Tuning %s finalized. Best hyperparameters: %s",
-            args.id, tune_dir / "best_hyperparameters.yaml",
+            args.id, exp_dir / "best_hyperparameters.yaml",
         )
 
 

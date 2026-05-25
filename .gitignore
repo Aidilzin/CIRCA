@@ -45,6 +45,7 @@ Thumbs.db
 
 # AI / ML outputs and Tracking
 runs/
+OLD-runs/
 datasets/
 wandb/
 weights/
