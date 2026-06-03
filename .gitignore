@@ -82,4 +82,7 @@ bmad_custom/
 .OLD/
 
 # AI conversation transcripts (too large and not source code)
-restored_conversations_history.md
+restored_conversations_history.md
+
+# Local/Private Scripts
+scripts/upload_to_runpod.py
