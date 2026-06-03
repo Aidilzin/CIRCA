@@ -11,8 +11,8 @@ Architecture constraints (enforced):
 
 Functional requirements covered:
   FR6  — INT8 synchronous OpenVINO inference          → InferenceEngine.run()
-  FR7  — Detect IPC-A-600 bare-board defects          → CLASS_LABELS indices 0–5, 10–11
-  FR8  — Detect IPC-A-610 solder defects              → CLASS_LABELS indices 6–9
+  FR7  — Detect IPC-A-600 bare-board defects          → CLASS_LABELS indices 0–3
+  FR8  — Detect IPC-A-610H solder defects             → CLASS_LABELS indices 4–6
   FR9  — Per-detection confidence score               → BoundingBox.confidence
 
 Non-functional requirements:
@@ -25,7 +25,7 @@ Output tensor layout (YOLOv12 / YOLOv8-style ONNX→OpenVINO export):
          batch  bbox(cx,cy,   typically 8400 for 640×640 input
                 w,h) + scores   at three YOLO detection heads
   Note: The architecture doc cites [1, 84, 8400] as the COCO baseline.
-  For CIRCA's 12-class custom model: [1, 16, 8400].
+  For CIRCA's 7-class custom model (unified_pcb_v3): [1, 11, 8400].
   This implementation derives num_classes from the output shape at load time
   so it is robust to both layouts.
 
@@ -55,25 +55,20 @@ from core.models import BoundingBox, DetectionResult, InferenceParams
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Defect class label map — FR7 through FR10
+# Defect class label map — unified_pcb_v3 (nc: 7)
 # Index order MUST match the YOLOv12 training configuration class order.
+# Source: docs/CIRCA_CLASS_MAPPING.md | data.yaml nc: 7
 # ---------------------------------------------------------------------------
 CLASS_LABELS: dict[int, str] = {
-    # IPC-A-600 bare-board defects (classes 0–5)
+    # IPC-A-600 bare-board defects (classes 0–3)
     0: "missing_hole",
     1: "mouse_bite",
     2: "open_circuit",
     3: "short",
-    4: "spur",
-    5: "spurious_copper",
-    # IPC-A-610 assembly-stage solder defects (classes 6–9)
-    6: "excess_solder",
-    7: "insufficient_solder",
-    8: "solder_spike",
-    9: "cold_solder_joint",
-    # IPC-A-600 surface defects (classes 10–11)
-    10: "scratch",
-    11: "pinhole",
+    # IPC-A-610H assembly-stage solder defects (classes 4–6)
+    4: "excess_solder",
+    5: "insufficient_solder",
+    6: "cold_solder_joint",
 }
 
 # ---------------------------------------------------------------------------
@@ -175,6 +170,11 @@ class InferenceEngine:
             self._num_classes,
         )
 
+        # Pre-create the infer request once and reuse it every frame.
+        # OpenVINO's CompiledModel.create_infer_request() allocates internal
+        # buffers; calling it per-frame wastes ~1–3 ms per inference call.
+        self._infer_request = self._compiled_model.create_infer_request()
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -207,14 +207,13 @@ class InferenceEngine:
 
         original_h, original_w = frame.shape[:2]
 
-        # Stage 1: Preprocess frame → model input tensor
-        input_tensor = self._preprocess_frame(frame)
+        # Stage 1: Preprocess frame → model input tensor (letterbox)
+        input_tensor, pad_x, pad_y, scale = self._preprocess_frame(frame)
 
-        # Stage 2: Synchronous inference
+        # Stage 2: Synchronous inference (reuse pre-allocated request)
         try:
-            infer_request = self._compiled_model.create_infer_request()
-            infer_request.infer({self._input_layer: input_tensor})
-            raw_output: np.ndarray = infer_request.get_output_tensor(0).data
+            self._infer_request.infer({self._input_layer: input_tensor})
+            raw_output: np.ndarray = self._infer_request.get_output_tensor(0).data
         except Exception as exc:
             raise RuntimeError(f"OpenVINO infer_new_request failed: {exc}") from exc
 
@@ -224,6 +223,9 @@ class InferenceEngine:
             params,
             original_w=original_w,
             original_h=original_h,
+            pad_x=pad_x,
+            pad_y=pad_y,
+            scale=scale,
         )
 
         return DetectionResult(boxes=boxes)
@@ -232,29 +234,49 @@ class InferenceEngine:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
+    def _preprocess_frame(self, frame: np.ndarray) -> tuple[np.ndarray, float, float, float]:
         """
-        Resize, normalize, and transpose a BGR frame to a model-ready NCHW tensor.
+        Letterbox-resize and normalise a BGR frame to a model-ready NCHW tensor.
+
+        Letterboxing maintains the image aspect ratio by scaling to fit within
+        MODEL_INPUT_SIZE and padding the remaining area with grey (114, 114, 114).
+        This matches the preprocessing applied by Ultralytics during training,
+        ensuring train/inference consistency (no aspect-ratio distortion).
 
         Pipeline:
           BGR (H, W, 3) uint8
-          → resize to MODEL_INPUT_SIZE (640, 640)
-          → convert BGR → RGB (YOLO trained on RGB)
-          → normalize: divide by 255.0 → float32 in [0, 1]
-          → transpose HWC → CHW
-          → add batch dimension → [1, 3, 640, 640]
-
-        Args:
-            frame: Raw BGR (H, W, 3) uint8 numpy array.
+          → scale uniformly so longest side == 640 (letterbox)
+          → pad shorter side to 640×640 with (114, 114, 114)
+          → convert BGR → RGB
+          → normalize ÷ 255.0 → float32 [0, 1]
+          → transpose HWC → CHW → add batch dim → [1, 3, 640, 640]
 
         Returns:
-            float32 numpy array of shape [1, 3, 640, 640].
+            Tuple of (input_tensor, pad_x, pad_y, scale) where:
+              pad_x, pad_y : padding applied to left/top edges (pixels in model space)
+              scale        : ratio of model-space to original-frame pixels
         """
-        resized = cv2.resize(frame, MODEL_INPUT_SIZE, interpolation=cv2.INTER_LINEAR)
-        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        target_w, target_h = MODEL_INPUT_SIZE  # (640, 640)
+        src_h, src_w = frame.shape[:2]
+
+        # Uniform scale so the image fits inside target without distortion
+        scale = min(target_w / src_w, target_h / src_h)
+        new_w, new_h = int(round(src_w * scale)), int(round(src_h * scale))
+
+        resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+        # Padding amounts (distribute evenly; floor so coords align)
+        pad_x = (target_w - new_w) // 2
+        pad_y = (target_h - new_h) // 2
+
+        # Create grey canvas and blit resized image
+        canvas = np.full((target_h, target_w, 3), 114, dtype=np.uint8)
+        canvas[pad_y:pad_y + new_h, pad_x:pad_x + new_w] = resized
+
+        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
         normalized = rgb.astype(np.float32) / 255.0
-        chw = np.transpose(normalized, (2, 0, 1))  # HWC → CHW
-        return np.expand_dims(chw, axis=0)  # CHW → NCHW [1,3,H,W]
+        chw = np.transpose(normalized, (2, 0, 1))        # HWC → CHW
+        return np.expand_dims(chw, axis=0), float(pad_x), float(pad_y), scale
 
     def _postprocess(
         self,
@@ -262,6 +284,9 @@ class InferenceEngine:
         params: InferenceParams,
         original_w: int,
         original_h: int,
+        pad_x: float,
+        pad_y: float,
+        scale: float,
     ) -> List[BoundingBox]:
         """
         Parse the raw YOLOv12 output tensor into a filtered, NMS-deduped
@@ -272,10 +297,15 @@ class InferenceEngine:
           - Axis 1, rows 4+  : per-class confidence scores (no separate objectness
                                in YOLOv8/v12 — class score IS the final confidence)
 
+        Coordinate mapping (letterbox-aware):
+          model_coord → subtract padding → divide by scale → original_coord
+
         Args:
             raw_output:   Raw numpy array directly from the output tensor.
             params:       InferenceParams with live confidence_threshold.
             original_w/h: Frame dimensions BEFORE resize — used for coordinate scaling.
+            pad_x/pad_y:  Letterbox padding applied to left/top (from _preprocess_frame).
+            scale:        Uniform scale factor applied during letterboxing.
 
         Returns:
             Filtered, NMS-suppressed List[BoundingBox] in original pixel space.
@@ -304,12 +334,9 @@ class InferenceEngine:
         confs_filtered = confidences[conf_mask]  # [K]
         ids_filtered = class_ids[conf_mask]  # [K]
 
-        # Scale factors: model input space (640×640) → original frame space
-        scale_x = original_w / MODEL_INPUT_SIZE[0]
-        scale_y = original_h / MODEL_INPUT_SIZE[1]
-
         # Convert cx,cy,w,h → x1,y1,w,h (top-left corner) for NMS input
-        # Coordinates are still in model input (640×640) space at this point.
+        # Coordinates are in model input (640×640) space at this point;
+        # letterbox-aware scaling is applied later in the per-box loop.
         cx, cy, bw, bh = (
             boxes_filtered[:, 0],
             boxes_filtered[:, 1],
@@ -325,7 +352,7 @@ class InferenceEngine:
 
         # NMS per class — run NMS on the full set; class identity is preserved
         # because we pass per-anchor class_ids through. Standard YOLO practice
-        # for small class counts (4) is class-agnostic NMS at this threshold.
+        # for small class counts is class-agnostic NMS at this threshold.
         #
         # NOTE: cv2.dnn.NMSBoxes applies a strict `score > score_threshold`
         # filter internally (i.e. it EXCLUDES boxes at exactly the threshold).
@@ -352,11 +379,18 @@ class InferenceEngine:
             class_name = CLASS_LABELS.get(class_id, f"class_{class_id}")
             confidence = float(confs_filtered[idx])
 
-            # Scale from model input space → original frame space
-            x_scaled = int(round(x1[idx] * scale_x))
-            y_scaled = int(round(y1[idx] * scale_y))
-            w_scaled = int(round(bw[idx] * scale_x))
-            h_scaled = int(round(bh[idx] * scale_y))
+            # Letterbox-aware coordinate mapping:
+            # 1. Subtract padding offset (pad_x, pad_y) to get scaled-image coords.
+            # 2. Divide by scale to get original-frame coords.
+            x_orig = (x1[idx] - pad_x) / scale
+            y_orig = (y1[idx] - pad_y) / scale
+            w_orig = bw[idx] / scale
+            h_orig = bh[idx] / scale
+
+            x_scaled = int(round(x_orig))
+            y_scaled = int(round(y_orig))
+            w_scaled = int(round(w_orig))
+            h_scaled = int(round(h_orig))
 
             # Clamp to frame boundaries (handles floating-point overshoot)
             x_scaled = max(0, min(x_scaled, original_w - 1))

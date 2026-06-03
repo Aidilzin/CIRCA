@@ -129,9 +129,13 @@ class VideoWidget(QWidget):
         class_color = QColor(hex_color)
 
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(QColor(0, 0, 0, BBOX_OUTER_ALPHA), BBOX_OUTER_WIDTH, Qt.PenJoinStyle.MiterJoin))
+        outer_pen = QPen(QColor(0, 0, 0, BBOX_OUTER_ALPHA), BBOX_OUTER_WIDTH, Qt.PenStyle.SolidLine)
+        outer_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        painter.setPen(outer_pen)
         painter.drawRect(wx, wy, ww, wh)
-        painter.setPen(QPen(class_color, BBOX_INNER_WIDTH, Qt.PenJoinStyle.MiterJoin))
+        inner_pen = QPen(class_color, BBOX_INNER_WIDTH, Qt.PenStyle.SolidLine)
+        inner_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        painter.setPen(inner_pen)
         painter.drawRect(wx, wy, ww, wh)
         self._draw_label_chip(painter, wx, wy, box, class_color)
 

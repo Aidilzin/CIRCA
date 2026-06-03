@@ -28,10 +28,12 @@ Roboflow exports SolDef_AI with alphabetically sorted class indices. When using 
 | 0 | `exc_solder` | Remap → | **4** |
 | 1 | `good` | DROP → `negatives_reserve/` | — |
 | 2 | `no_good` | DROP (umbrella label) → `negatives_reserve/` | — |
-| 3 | `poor_solder` | Remap → | **5** |
+| 3 | `poor_solder` | Remap → | **6** |
 | 4 | `spike` | DROP (insufficient data; see Limitations) | — |
 
-Python mapping dict: `{0: 4, 3: 5}` — raw IDs 1, 2, 4 omitted.
+Python mapping dict: `{0: 4, 3: 6}` — raw IDs 1, 2, 4 omitted.
+`poor_solder` maps to **`cold_solder_joint` (6)**, not `insufficient_solder` (5).
+Visually, SolDef_AI's "poor solder" joints exhibit the characteristic dull/granular appearance of cold solder, not the missing/thin fillet of insufficient solder.
 
 ---
 

@@ -38,7 +38,7 @@ python train_engine.py --mode [train|tune] --variant [n|s|m] --id [ID] --desc [D
 | `--epochs` | int | `100` | Training epochs |
 | `--iterations` | int | `50` | HPO trials (tune mode only) |
 | `--imgsz` | int | `640` | Resolution |
-| `--batch` | int | `24` | Batch size (RTX 3090 default for S variant) |
+| `--batch` | int | `12` | Batch size (12 default; 64 for N, 48 for S, 32 for M recommended on RTX 3090) |
 | `--data` | string | `datasets/unified_pcb_v3/data.yaml` | Dataset config path |
 | `--preproc` | flag | `False` | Enable CLAHE + Gamma preprocessing |
 | `--force-preproc` | flag | `False` | Regenerate preprocessed dataset cache |
@@ -74,21 +74,22 @@ Locates `best.pt` → exports to **OpenVINO INT8 IR**.
 ### Phase 1 — Vanilla Baseline (100 epochs — same as Phase 2 for OFAT comparison)
 ```powershell
 python train_engine.py --mode train --variant s --id 001 --desc Baseline_Vanilla `
-    --epochs 100 --batch 24 `
+    --epochs 100 --batch 48 --cache `
     --data datasets/unified_pcb_v3/data.yaml
 ```
 
 ### Phase 2 — CIRCA Baseline (100 epochs — OFAT, only preprocessing changes)
 ```powershell
 python train_engine.py --mode train --variant s --id 002 --desc Baseline_CIRCA `
-    --epochs 100 --preproc --batch 24 `
-    --data datasets/unified_pcb_v3/data.yaml
+    --epochs 100 --batch 48 --cache `
+    --data datasets/unified_pcb_v3_preproc/data.yaml
 ```
+> **Note:** Phase 2 now points directly to `unified_pcb_v3_preproc/data.yaml`. The preproc dataset is built **offline** via `scripts/prepare_all_datasets.py` (Step 3) before uploading to RunPod. Do **NOT** use the `--preproc` flag for Phase 2 — it is no longer needed.
 
 ### Phase 3 — HPO (run on already-preprocessed corpus — NO --preproc flag)
 ```powershell
 python train_engine.py --mode tune --variant s --id 003 --desc HPO_7class `
-    --epochs 50 --iterations 50 --fraction 0.5 --batch 24 `
+    --epochs 50 --iterations 50 --fraction 0.5 --batch 48 --cache `
     --data datasets/unified_pcb_v3_preproc/data.yaml
 ```
 
@@ -96,19 +97,19 @@ python train_engine.py --mode tune --variant s --id 003 --desc HPO_7class `
 ```powershell
 # YOLOv12-N
 python train_engine.py --mode train --variant n --id 004 --desc Final_HPO `
-    --epochs 200 --batch 32 `
+    --epochs 200 --batch 64 --cache `
     --data datasets/unified_pcb_v3_preproc/data.yaml `
     --cfg runs/detect/CIRCA_V12S_003_TUNE_HPO_7class/best_hyperparameters.yaml
 
 # YOLOv12-S
 python train_engine.py --mode train --variant s --id 005 --desc Final_HPO `
-    --epochs 200 --batch 24 `
+    --epochs 200 --batch 48 --cache `
     --data datasets/unified_pcb_v3_preproc/data.yaml `
     --cfg runs/detect/CIRCA_V12S_003_TUNE_HPO_7class/best_hyperparameters.yaml
 
 # YOLOv12-M
 python train_engine.py --mode train --variant m --id 006 --desc Final_HPO `
-    --epochs 200 --batch 16 `
+    --epochs 200 --batch 32 --cache `
     --data datasets/unified_pcb_v3_preproc/data.yaml `
     --cfg runs/detect/CIRCA_V12S_003_TUNE_HPO_7class/best_hyperparameters.yaml
 ```
@@ -122,7 +123,18 @@ python train_engine.py --mode train --variant m --id 006 --desc Final_HPO `
 | Issue | Fix |
 |---|---|
 | GPU OOM (RTX 3060) | Reduce `--batch` (try 8 or 4) |
-| Stale preprocessing cache | Run `--force-preproc` |
-| W&B hang | Run `wandb login` manually |
+| Stale preprocessing cache | Delete `unified_pcb_v3_preproc/` and re-run `scripts/prepare_all_datasets.py` (Step 3 uses `--force`) |
+| W&B authentication on RunPod | Create `~/.config/wandb/settings` with `api_key=...`; `train_engine.py` auto-detects this path |
+| W&B hang during preproc step | `export WANDB_MODE=disabled` before running `runpod_setup.sh` (already handled in script) |
 | Missing OpenVINO | `pip install openvino openvino-dev nncf` |
 | `AttributeError: VideoWidget has no clear_feed` | Ensure `VideoWidget.clear_feed()` is defined in `widgets.py` |
+
+---
+
+## 7. Deprecated / Removed
+
+| Component | Status | Replacement |
+|---|---|---|
+| `circa_engine.py` | **DELETED** (2026-05-25) | Consolidated into `train_engine.py` |
+| `--preproc` flag for Phase 2 | **DEPRECATED** | Point `--data` to `unified_pcb_v3_preproc/data.yaml` directly |
+| Individual build scripts (manual) | Superseded | `python scripts/prepare_all_datasets.py` (full 5-step pipeline) |

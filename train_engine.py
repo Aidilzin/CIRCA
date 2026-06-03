@@ -63,17 +63,36 @@ def ensure_wandb_login() -> bool:
     Ensure W&B is usable for this run.
 
     Behaviour:
-    - Already authenticated (env var or ~/.netrc): proceed.
+    - Already authenticated (env var, ~/.netrc, ~/.config/wandb/settings, or resolved api_key): proceed.
     - Not authenticated AND running interactively (TTY): prompt for login.
     - Not authenticated AND headless: disable W&B and warn (prevents hang).
 
     Returns True if W&B is active, False if disabled.
     """
-    # Already configured via env var or netrc
+    try:
+        import wandb
+    except ImportError:
+        log.warning("[W&B] wandb not installed; pip install wandb. Continuing without cloud logging.")
+        os.environ["WANDB_MODE"] = "disabled"
+        return False
+
+    # Check for existing credentials using multiple mechanisms
     has_key = bool(os.environ.get("WANDB_API_KEY"))
     has_netrc = Path.home().joinpath(".netrc").exists()
-    if has_key or has_netrc:
+    has_config = Path.home().joinpath(".config", "wandb", "settings").exists()
+    
+    # Use wandb's internal api_key resolver as the ultimate source of truth
+    has_resolved = False
+    try:
+        has_resolved = bool(wandb.api.api_key)
+    except Exception:
+        pass
+
+    if has_key or has_netrc or has_config or has_resolved:
         log.info("[W&B] Existing credentials detected")
+        # Ensure we are not overriding to disabled if we have credentials
+        if os.environ.get("WANDB_MODE") == "disabled":
+            del os.environ["WANDB_MODE"]
         return True
 
     # Headless / non-interactive: refuse to prompt to avoid hanging
@@ -84,14 +103,6 @@ def ensure_wandb_login() -> bool:
             "WANDB_MODE=disabled to avoid an interactive hang. "
             "Run `wandb login` once, or set WANDB_API_KEY, to enable cloud logging."
         )
-        return False
-
-    # Interactive: prompt for login
-    try:
-        import wandb
-    except ImportError:
-        log.warning("[W&B] wandb not installed; pip install wandb. Continuing without cloud logging.")
-        os.environ["WANDB_MODE"] = "disabled"
         return False
 
     log.info("[W&B] No credentials found. Launching interactive login...")
@@ -186,7 +197,7 @@ def preprocess_dataset(data_yaml_path: str, force: bool = False) -> str:
         elif canonical == "val" and "valid" in data:
             yaml_split_keys[canonical] = "valid"
 
-    n_workers = max(1, cpu_count() - 1)
+    n_workers = min(8, max(1, cpu_count() - 1))
 
     for canonical, yaml_key in yaml_split_keys.items():
         split_rel = data[yaml_key]
@@ -255,7 +266,7 @@ def run_experiment():
     parser.add_argument("--iterations", type=int, default=50, help="Number of iterations for tuning mode")
     parser.add_argument("--imgsz", type=int, default=640, help="Image size (640 recommended for stability)")
     parser.add_argument("--batch", type=int, default=12, help="Batch size (12 recommended for 6GB VRAM)")
-    parser.add_argument("--data", type=str, default="datasets/unified_pcb_v2/data.yaml", help="Path to data.yaml (v2 = 12-class IPC corpus)")
+    parser.add_argument("--data", type=str, default="datasets/unified_pcb_v3/data.yaml", help="Path to data.yaml (v3 = 7-class IPC corpus, unified_pcb_v3)")
     parser.add_argument("--cfg", type=str, default=None, help="Optional path to best_hyperparameters.yaml from HPO")
     parser.add_argument("--preproc", action="store_true", help="Apply CIRCA preprocessing (CLAHE + Gamma)")
     parser.add_argument("--force-preproc", action="store_true", help="Regenerate preprocessed dataset even if cached")
@@ -273,8 +284,8 @@ def run_experiment():
                              "Use 0.5 on balanced data to halve tuning time. Ignored in train mode.")
     parser.add_argument("--cls-pw", type=float, default=1.0,
                         help="Power for inverse-frequency class weighting (Ultralytics fraction key, range [0.0, 1.0]). "
-                             "0.0 = disabled; 1.0 = full inverse-frequency weighting (recommended for v2 "
-                             "bare-board/solder imbalance). Ignored when --cfg is provided.")
+                             "0.0 = disabled; 1.0 = full inverse-frequency weighting (recommended for "
+                             "bare-board/solder class imbalance in unified_pcb_v3). Ignored when --cfg is provided.")
 
     args = parser.parse_args()
 
@@ -431,8 +442,8 @@ def run_experiment():
                     raise FileNotFoundError(f"--cfg not found: {cfg_path}")
                 log.info("[CFG] Loading tuned hyperparameters from %s", cfg_path)
                 train_kwargs["cfg"] = str(cfg_path)
-                if args.cls_pw is not None:
-                    log.warning("[CFG] --cls-pw=%s ignored because --cfg overrides it", args.cls_pw)
+                # cls_pw is ignored when an HPO config overrides all hyperparameters.
+                log.warning("[CFG] --cls-pw=%s ignored because --cfg overrides it", args.cls_pw)
             else:
                 # Manual stability patches (only when no HPO config provided)
                 train_kwargs["lr0"] = args.lr0
@@ -450,11 +461,30 @@ def run_experiment():
             # Final metrics summary (train mode only)
             try:
                 metrics = model.metrics
+                map50   = float(metrics.box.map50)
+                map5095 = float(metrics.box.map)
+                prec    = float(metrics.box.mp)
+                rec     = float(metrics.box.mr)
                 log.info(
                     "[RESULT] mAP@0.5=%.4f | mAP@0.5:0.95=%.4f | precision=%.4f | recall=%.4f",
-                    float(metrics.box.map50), float(metrics.box.map),
-                    float(metrics.box.mp), float(metrics.box.mr),
+                    map50, map5095, prec, rec,
                 )
+                # Write a machine-readable summary for downstream Phase 5–7 scripts.
+                summary = {
+                    "experiment_id": args.id,
+                    "description": args.desc,
+                    "variant": args.variant,
+                    "mode": args.mode,
+                    "data": data_path,
+                    "mAP50": round(map50, 4),
+                    "mAP50_95": round(map5095, 4),
+                    "precision": round(prec, 4),
+                    "recall": round(rec, 4),
+                }
+                summary_path = exp_dir / "run_summary.yaml"
+                with open(summary_path, "w") as f:
+                    yaml.dump(summary, f, default_flow_style=False, sort_keys=False)
+                log.info("[RESULT] Summary written to %s", summary_path)
             except Exception as e:
                 log.warning("[RESULT] Could not extract final metrics: %s", e)
 

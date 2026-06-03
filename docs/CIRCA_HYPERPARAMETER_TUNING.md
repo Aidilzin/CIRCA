@@ -36,6 +36,7 @@ pip install ultralytics opencv-python numpy pyyaml openvino openvino-dev nncf im
 ### 1.2 7-Class Taxonomy
 
 ```yaml
+# unified_pcb_v3 (raw)
 path: D:/FYP/CIRCA/datasets/unified_pcb_v3
 train: train/images
 val:   valid/images
@@ -49,6 +50,14 @@ names:
   4: excess_solder
   5: insufficient_solder
   6: cold_solder_joint
+
+# unified_pcb_v3_preproc (CLAHE+Gamma, built offline)
+path: D:/FYP/CIRCA/datasets/unified_pcb_v3_preproc
+train: train/images
+val:   val/images      # note: normalised from 'valid' to 'val'
+test:  test/images
+nc: 7
+names: (same as above)
 ```
 
 - Classes 0–3: IPC-A-600 bare-board (PKU/JR, DsPCBSD+)
@@ -58,7 +67,9 @@ names:
 ### 1.3 Dataset Spec
 
 - YOLO format, 70/15/15 stratified split, `seed=42`, test frozen.
-- Built via `scripts/build_unified_pcb_v3.py`.
+- Built via `scripts/prepare_all_datasets.py` (5-step pipeline: rebuild → cap → oversample → preproc → oversample).
+- **Dominant-class capping (Step 1.5):** 2,468 pure-dominant images removed; annotation ratio 9.9:1 → 5.7:1.
+- **Oversampling tiers v4 (Step 2):** 5× for `missing_hole` (0), `excess_solder` (4), `cold_solder_joint` (6). Excluded: `short` (3), `insufficient_solder` (5).
 
 ### 1.4 Preprocessing Pipeline
 

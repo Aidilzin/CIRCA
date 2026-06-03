@@ -78,10 +78,21 @@ def main():
         print(f"[!] ERROR: Could not find 'results.csv' in {run_dir}. Is this a valid Ultralytics run folder?")
         sys.exit(1)
         
-    # Check if W&B API Key is available
-    if not os.environ.get("WANDB_API_KEY"):
-        print("[!] ERROR: WANDB_API_KEY environment variable not found in .env or system environment.")
-        print("Please ensure your .env file in the project root contains:")
+    # Check if W&B API Key or credentials are available
+    has_key = bool(os.environ.get("WANDB_API_KEY"))
+    has_netrc = Path.home().joinpath(".netrc").exists()
+    has_config = Path.home().joinpath(".config", "wandb", "settings").exists()
+    
+    has_resolved = False
+    try:
+        import wandb
+        has_resolved = bool(wandb.api.api_key)
+    except Exception:
+        pass
+        
+    if not (has_key or has_netrc or has_config or has_resolved):
+        print("[!] ERROR: W&B credentials not found in environment, ~/.netrc, or ~/.config/wandb/settings.")
+        print("Please run `wandb login` once, or ensure your .env file contains:")
         print("WANDB_API_KEY=your_key_here")
         sys.exit(1)
         

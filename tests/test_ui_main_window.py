@@ -182,9 +182,9 @@ class TestCameraWorkerRouting:
         assert win.status_footer._camera_indicator.dot_color != "#4CAF50"  # Not green
 
     def test_camera_error_updates_video_widget_status_text(self, win):
-        """camera_error -> VideoWidget shows 'camera unavailable' status text."""
+        """camera_error -> VideoWidget shows 'Please connect a camera' status text."""
         win.camera_worker.camera_error.emit("Device gone")
-        assert win.video_widget._status_text == "camera unavailable"
+        assert win.video_widget._status_text == "Please connect a camera"
 
     def test_new_frame_reaches_video_widget(self, win):
         """new_frame signal → VideoWidget stores a frame with matching dimensions."""
@@ -557,8 +557,9 @@ class TestVideoWidgetStatusTextWiring:
     """Verify MainWindow drives set_status_text() at correct lifecycle moments."""
 
     def test_camera_error_status_is_unavailable(self, win):
+        """_on_camera_error -> VideoWidget shows 'Please connect a camera'."""
         win._on_camera_error("USB dropout")
-        assert win.video_widget._status_text == "camera unavailable"
+        assert win.video_widget._status_text == "Please connect a camera"
 
     def test_usb_removal_no_cameras_shows_placeholder_text(self, win):
         win._on_cameras_found_hotplug([])

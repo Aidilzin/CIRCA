@@ -237,10 +237,18 @@ class TestEnumerateCameras:
     """
 
     def _make_mock_cap(self, is_opened: bool, can_read: bool = True) -> MagicMock:
-        """Build a mock VideoCapture that reports isOpened() and read()."""
+        """
+        Build a mock VideoCapture that reports isOpened() and read().
+
+        The frame uses random noise (std ≈75) instead of zeros so the
+        enumerate_cameras() dead-buffer guard (std < 0.1) does not
+        mistakenly filter out valid mocked cameras.
+        """
         cap = MagicMock()
         cap.isOpened.return_value = is_opened
-        cap.read.return_value = (can_read, np.zeros((64, 64, 3), dtype=np.uint8))
+        # Non-uniform frame: random noise ensures std ≫ 0.1 (defeats dead-buffer guard)
+        frame = np.random.randint(1, 256, (64, 64, 3), dtype=np.uint8)
+        cap.read.return_value = (can_read, frame)
         return cap
 
     # --- Empty result ---

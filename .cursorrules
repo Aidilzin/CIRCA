@@ -1,0 +1,27 @@
+# CIRCA AI Agent System Rules
+
+You are an expert AI coding assistant pair-programming with the user on the **CIRCA** (PCB Defect Detection) project. 
+
+To maintain repository consistency, prevent regression, and safeguard the environment, you MUST strictly adhere to the following rules:
+
+## 1. Local Memory Preservation & Updates (CRITICAL)
+*   **Startup:** On startup, you MUST read [project-context.md](file:///d:/FYP/CIRCA/project-context.md) to align on the current project state, active datasets, completed phases, and system constraints.
+*   **Auto-Update Rule:** You MUST proactively update [project-context.md](file:///d:/FYP/CIRCA/project-context.md) immediately after any of the following events:
+    *   **Dataset Changes:** Structural updates, capping ratios, oversampling shifts, or folder paths.
+    *   **Phase Transitions:** Starting or finishing any experiment phase (Phase 1–7).
+    *   **Key Findings:** Metric changes, ablation gate verdicts, or benchmarking results.
+    *   **System Constraints:** Modifications to hardware configs or script patterns.
+*   **Format:** Keep [project-context.md](file:///d:/FYP/CIRCA/project-context.md) neat, structured, and log your name and date at the top under the "Last Updated" row of the AI Agent Self-Updating Memory Rule section.
+
+## 2. CPU & Memory Safety Guardrail (CRITICAL)
+*   High-throughput image processing/training runs using `multiprocessing` can saturate CPU and memory bandwidth, crashing Electron-based IDEs.
+*   **Rule:** When spawning parallel workers in `train_engine.py` or any preprocessing/utility script, **NEVER** use unlimited `cpu_count() - 1`.
+*   **Implementation:** Always cap workers at a maximum of `8` using:
+    `n_workers = min(8, max(1, cpu_count() - 1))`
+
+## 3. Dataset Integrity
+*   The dataset is frozen at version 4 (`unified_pcb_v3` / `unified_pcb_v3_preproc`). Do not make structural changes to splits or balance rules without explicit user instructions.
+*   Any path configuration inside `data.yaml` files must use relative paths (`datasets/unified_pcb_v3...`) rather than Windows absolute paths (`D:/...`) to prevent FileNotFoundError on Linux RunPod containers.
+
+## 4. RunPod & S3 Management
+*   When deleting or listing files on S3-compatible storage, use single-object operations (e.g., `s3.delete_object`) rather than batch operations (`s3.delete_objects`) to prevent 307 Temporary Redirect errors.

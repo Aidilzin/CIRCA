@@ -40,6 +40,20 @@ DEFAULT_MODEL_PATH: str = "models/yolov12_int8.xml"
 _DEFAULT_CONFIDENCE_THRESHOLD: float = 0.50
 
 class HardwareScannerThread(QThread):
+    """
+    Short-lived background thread for USB camera enumeration.
+
+    Architecture note: This is an intentional exception to the project rule
+    against subclassing QThread (documented in camera_worker.py). The exception
+    is justified because:
+      1. The scanner has no persistent run loop and runs exactly once.
+      2. Spinning up a full QObject-in-QThread pair for a one-shot task adds
+         boilerplate without safety benefit.
+      3. The camera enumeration result is returned via a signal — correct
+         Qt cross-thread communication is still maintained.
+    For long-lived streaming workers (CameraWorker, InferenceWorker), the
+    QObject-in-QThread pattern must still be used.
+    """
     cameras_found = pyqtSignal(list)
     def __init__(self, active_idx=-1, names=None, parent=None):
         super().__init__(parent)
@@ -130,6 +144,8 @@ class MainWindow(QMainWindow):
 
     def _create_workers(self):
         self.camera_thread = QThread()
+        # device_index=0 is a placeholder — the real index is applied in
+        # _on_cameras_found_startup() once the scan result is available.
         self.camera_worker = CameraWorker(device_index=0)
         self.camera_worker.moveToThread(self.camera_thread)
         self.inference_thread = QThread()
@@ -195,6 +211,16 @@ class MainWindow(QMainWindow):
         self.side_panel.populate_cameras(cameras)
         device_index = self.side_panel.camera_combo.currentData()
         if cameras and isinstance(device_index, int) and device_index >= 0:
+            # ── Bug fix: update the worker to the ACTUAL selected device index ──
+            # _create_workers() used a placeholder index=0. Now that we know
+            # which device the user has, reconfigure the worker before starting.
+            if self.camera_worker._device_index != device_index:
+                logger.info(
+                    "Startup: updating CameraWorker device_index from %d to %d",
+                    self.camera_worker._device_index,
+                    device_index,
+                )
+                self.camera_worker._device_index = device_index
             self.status_footer.set_camera_active()
             self._camera_thread_started = True
             self.camera_thread.start()
@@ -223,8 +249,26 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str)
     def _on_camera_error(self, message: str) -> None:
+        """Handle a camera_error signal from CameraWorker.
+
+        The worker has already set _running=False and broken out of its loop,
+        so it will not emit any more frames. We must still quit+wait the thread
+        before marking ourselves as idle — otherwise the QThread gets destroyed
+        while its internal thread is still unwinding, which causes Qt to print
+        "QThread: Destroyed while thread is still running" and can crash.
+        """
         logger.error("Camera error signal received: %s", message)
         self.status_footer.set_camera_error(message)
+
+        # Stop and wait for the thread to finish before we clear state.
+        # The worker already set _running=False, so quit() + wait() is safe.
+        if self.camera_thread.isRunning():
+            self.camera_thread.quit()
+            if not self.camera_thread.wait(3000):
+                logger.warning("_on_camera_error: camera thread did not stop in 3 s — forcing termination.")
+                self.camera_thread.terminate()
+                self.camera_thread.wait()
+
         self._camera_thread_started = False
         self.video_widget.clear_feed("Please connect a camera")
 

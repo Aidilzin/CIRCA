@@ -177,8 +177,11 @@ def enumerate_cameras(
         else:
             label = f"Camera {index} (USB)"
 
-        # ── String denylist check ──
-        if any(bad_str in label for bad_str in denylist):
+        # ── String denylist check (real names only) ──
+        # Only apply the denylist to real OS-registered device names from QtMultimedia.
+        # Never apply it to our own auto-generated fallback labels like "Camera N (USB)"
+        # which would inadvertently block index 1 via the "Camera 1" denylist entry.
+        if has_real_name and any(bad_str in label for bad_str in denylist):
             logger.debug("enumerate_cameras: skipping denylisted device: '%s'", label)
             continue
 

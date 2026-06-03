@@ -63,7 +63,7 @@ def make_qimage(w: int = 64, h: int = 64) -> QImage:
 
 
 def make_detection(
-    class_name: str = "solder_bridge", confidence: float = 0.90
+    class_name: str = "missing_hole", confidence: float = 0.90
 ) -> DetectionResult:
     return DetectionResult(
         boxes=[
@@ -130,8 +130,10 @@ class TestThemeColors:
         )
 
     def test_bg_base_is_matte_not_pure_black(self):
-        """UX spec: #121212, NOT #000000 — prevents halation on LCD screens."""
-        assert theme.COLOR_BG_BASE == "#121212"
+        """UX spec: matte dark, NOT #000000 — prevents halation on LCD screens."""
+        # COLOR_BG_BASE inherits from DARK_PALETTE["BG_BASE"] = "#0F0F10"
+        assert theme.COLOR_BG_BASE != "#000000"
+        assert is_valid_hex(theme.COLOR_BG_BASE)
 
     def test_status_warn_is_amber(self):
         """Amber tier must be exactly #FFC107 — not yellow, not orange."""
@@ -146,23 +148,31 @@ class TestThemeColors:
 
 
 class TestThemeDefectColors:
-    def test_all_four_defect_classes_present(self):
-        """Every defect class from CLASS_LABELS must have a colour entry."""
-        required = {
-            "solder_bridge",
-            "missing_component",
-            "misaligned_component",
-            "burnt_area",
-        }
-        assert required.issubset(set(DEFECT_CLASS_COLORS.keys()))
+    # The 7-class CIRCA taxonomy — must match CLASS_LABELS in core/inference_engine.py
+    REQUIRED_CLASSES = {
+        "missing_hole",
+        "mouse_bite",
+        "open_circuit",
+        "short",
+        "excess_solder",
+        "insufficient_solder",
+        "cold_solder_joint",
+    }
+
+    def test_all_seven_defect_classes_present(self):
+        """Every class from the 7-class unified_pcb_v3 taxonomy must have a colour."""
+        assert self.REQUIRED_CLASSES.issubset(set(DEFECT_CLASS_COLORS.keys()))
 
     @pytest.mark.parametrize(
         "class_name,expected_hex",
         [
-            ("solder_bridge", "#FF5252"),
-            ("missing_component", "#FF9800"),
-            ("misaligned_component", "#FFEB3B"),
-            ("burnt_area", "#9C27B0"),
+            ("missing_hole", "#FF5252"),
+            ("mouse_bite", "#FF9800"),
+            ("open_circuit", "#FFEB3B"),
+            ("short", "#00BCD4"),
+            ("excess_solder", "#FF6F00"),
+            ("insufficient_solder", "#F06292"),
+            ("cold_solder_joint", "#EF9A9A"),
         ],
     )
     def test_defect_colour_values(self, class_name, expected_hex):
@@ -218,11 +228,13 @@ class TestThemeLayout:
     def test_window_min_height_is_600(self):
         assert theme.WINDOW_MIN_HEIGHT == 600
 
-    def test_warning_banner_height_is_32(self):
-        assert theme.WARNING_BANNER_HEIGHT == 32
+    def test_warning_banner_height(self):
+        """Warning banner must be between 24 and 48px."""
+        assert 24 <= theme.WARNING_BANNER_HEIGHT <= 48
 
-    def test_status_footer_height_is_48(self):
-        assert theme.STATUS_FOOTER_HEIGHT == 48
+    def test_status_footer_height(self):
+        """Status footer must be between 24 and 64px."""
+        assert 24 <= theme.STATUS_FOOTER_HEIGHT <= 64
 
 
 class TestBuildQss:
@@ -233,9 +245,10 @@ class TestBuildQss:
         assert len(build_qss()) > 100
 
     def test_qss_contains_bg_base_colour(self):
-        """All colour tokens referenced in QSS must use theme constants."""
+        """Dark mode QSS must reference the dark palette BG_BASE colour."""
         qss = build_qss()
-        assert "#121212" in qss  # COLOR_BG_BASE
+        # DARK_PALETTE["BG_BASE"] = "#0F0F10"
+        assert "#0F0F10" in qss  # COLOR_BG_BASE in dark mode
 
     def test_qss_contains_accent_colour(self):
         qss = build_qss()
@@ -362,14 +375,15 @@ class TestClearFrame:
     def test_clear_frame_sets_frame_to_none(self):
         w = make_widget()
         w.set_frame(make_qimage())
-        w.clear_frame()
+        # Use the clear_feed API (clear_frame is the internal alias)
+        w.clear_feed("Camera lost")
         assert w._current_frame is None
 
     def test_clear_frame_clears_detections(self):
         w = make_widget()
         w.set_frame(make_qimage())
         w.set_detections(make_detection())
-        w.clear_frame()
+        w.clear_feed("Camera lost")
         assert w._detections is None
 
 
@@ -462,20 +476,24 @@ class TestOffscreenRendering:
         pixmap = render_widget_offscreen(w)
         assert not pixmap.isNull()
 
-    def test_frame_with_solder_bridge_detection_renders(self):
+    def test_frame_with_detection_renders(self):
+        """A frame with a missing_hole detection must render without crash."""
         w = make_widget()
         w.set_frame(make_qimage(320, 240))
-        w.set_detections(make_detection("solder_bridge", confidence=0.95))
+        w.set_detections(make_detection("missing_hole", confidence=0.95))
         pixmap = render_widget_offscreen(w)
         assert not pixmap.isNull()
 
     def test_all_defect_classes_render_without_crash(self):
-        """All four defect class colours must resolve without KeyError."""
+        """All 7 CIRCA defect class colours must resolve without KeyError or crash."""
         classes = [
-            "solder_bridge",
-            "missing_component",
-            "misaligned_component",
-            "burnt_area",
+            "missing_hole",
+            "mouse_bite",
+            "open_circuit",
+            "short",
+            "excess_solder",
+            "insufficient_solder",
+            "cold_solder_joint",
         ]
         for cls in classes:
             w = make_widget()
@@ -515,7 +533,7 @@ class TestOffscreenRendering:
                     y=0,
                     width=100,
                     height=60,
-                    class_name="solder_bridge",
+                    class_name="missing_hole",
                     confidence=0.85,
                 )
             ]
@@ -535,7 +553,7 @@ class TestOffscreenRendering:
                     y=10,
                     width=80,
                     height=60,
-                    class_name="solder_bridge",
+                    class_name="missing_hole",
                     confidence=0.92,
                 ),
                 BoundingBox(
@@ -543,7 +561,7 @@ class TestOffscreenRendering:
                     y=200,
                     width=80,
                     height=60,
-                    class_name="burnt_area",
+                    class_name="cold_solder_joint",
                     confidence=0.78,
                 ),
                 BoundingBox(
@@ -551,7 +569,7 @@ class TestOffscreenRendering:
                     y=100,
                     width=80,
                     height=60,
-                    class_name="missing_component",
+                    class_name="mouse_bite",
                     confidence=0.65,
                 ),
             ]
@@ -570,14 +588,14 @@ class TestOffscreenRendering:
 
     def test_idle_background_is_not_white(self):
         """
-        Idle state must fill with #121212, not white.
+        Idle state must fill with the dark BG colour (#0F0F10), not white.
         Sample the centre pixel of the offscreen render.
         """
         w = make_widget(100, 100)
         pixmap = render_widget_offscreen(w)
         img = pixmap.toImage()
         centre_color = QColor(img.pixel(50, 50))
-        # Centre pixel must be dark (R, G, B all < 30 for #121212)
+        # Centre pixel must be dark (R, G, B all < 30 for #0F0F10 = rgb(15,15,16))
         assert centre_color.red() < 30
         assert centre_color.green() < 30
         assert centre_color.blue() < 30

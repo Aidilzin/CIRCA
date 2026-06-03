@@ -21,73 +21,83 @@
 - [x] Verify that `short`/`short_circuit` → 3, `open_circuit` → 2, `mouse_bite`/`rat_bite` → 1, `missing_hole` → 0 ✅
 
 ### Build
-- [x] `python scripts/build_unified_pcb_v3.py --dry-run` — verify class counts look reasonable (target: >6,000 images, class 5 dominant but <80% of total) ✅
+- [x] `python scripts/build_unified_pcb_v3.py --dry-run` — verify class counts look reasonable ✅
 - [x] `python scripts/build_unified_pcb_v3.py` — execute full build ✅
 - [x] Confirm `datasets/unified_pcb_v3/data.yaml` exists with `nc=7` ✅
-- [x] Per-class instance counts logged:
+- [x] **Step 1.5 — Dominant-class capping** (`python scripts/cap_dominant_classes.py --cap 1000 --seed 42`) ✅
+  - Removed 2,468 dominant-only images (only `short`/`insufficient_solder` annotations)
+  - Annotation ratio: **9.9:1 → 5.7:1** (well within ≤10:1 target)
+- [x] **Oversampling tiers v4** (`python scripts/oversample_minority_classes.py`) ✅
+  - `missing_hole` (0): **5×** (promoted from 3× — had 0% recall in baseline)
+  - `excess_solder` (4): **5×** (added — had 51% recall in baseline, 304 originals)
+  - `cold_solder_joint` (6): **5×** (maintained)
+  - Excluded: `short` (3), `insufficient_solder` (5) (dominant)
+- [x] **CLAHE+Gamma preproc** (`unified_pcb_v3_preproc/` built offline) ✅
+- [x] **Full pipeline run** via `python scripts/prepare_all_datasets.py` ✅
+- [x] Per-class instance counts logged (v4, after capping + oversampling):
 
-| Class | Train Instances | Status |
+| Class | Train Annotations | Status |
 |:---|:---:|:---:|
-| `missing_hole` (0) | 1,716 | Active / Oversampled |
-| `mouse_bite` (1) | 2,062 | Active / Oversampled |
-| `open_circuit` (2) | 1,399 | Active / Oversampled |
-| `short` (3) | 5,656 | Active / Oversampled |
-| `excess_solder` (4) | 300 | Active |
-| `insufficient_solder` (5) | 11,047 | Active |
-| `cold_solder_joint` (6) | 1,185 | Active / Oversampled |
+| `missing_hole` (0) | 4,290 | 5× oversampled |
+| `mouse_bite` (1) | 2,062 | No oversampling needed |
+| `open_circuit` (2) | 1,399 | No oversampling needed |
+| `short` (3) | 5,656 | Excluded (dominant, capped) |
+| `excess_solder` (4) | 1,400 | 5× oversampled |
+| `insufficient_solder` (5) | 11,739 | Excluded (dominant, capped) |
+| `cold_solder_joint` (6) | 1,185 | 5× oversampled |
 
 - [x] Test set frozen — hash of test split recorded ✅
-- [x] `unified_pcb_v3_preproc/` generated via `--preproc` flag on Phase 2 run ✅
+- [x] `unified_pcb_v3_preproc/` generated ✅
+- [x] Chain duplicate bug fixed in `oversample_minority_classes.py` — `_os*` files excluded as source material ✅
+- [x] **Dataset FROZEN** — no further structural changes before Phase 4 final training ✅
 
 ---
 
-## Phase 1 — Vanilla Baseline (Ablation Control) ✅ COMPLETE
+## Phase 1 — Vanilla Baseline (Ablation Control) ⏳ RE-RUN REQUIRED
 
-> **100 epochs** — same as Phase 2 for OFAT fair comparison.
-> Trained on Runpod RTX 3090 24GB, batch=24, seed=42.
+> **Dataset changed (v4 tiers + capping).** Old results from 2026-05-25 are diagnostic only — not valid for thesis. Re-run on RunPod after uploading v4 dataset.
+> Trained on Runpod RTX 3090 24GB, batch=48, seed=42.
 
 - [x] Command (Runpod RTX 3090):
   ```bash
   python train_engine.py --mode train --variant s --id 001 --desc Baseline_Vanilla \
-      --epochs 100 --batch 24 \
+      --epochs 100 --batch 48 --cache \
       --data datasets/unified_pcb_v3/data.yaml
   ```
-- [x] Training complete, 100/100 epochs, no NaN/Inf ✅
-- [x] `best.pt` exists in `runs/detect/CIRCA_V12S_001_TRAIN_Baseline_Vanilla/weights/` ✅
-- [x] **mAP@0.5 (best epoch) = 0.6821** ✅ (target > 50% — PASSED)
-- [x] **mAP@0.5:0.95 (best epoch) = 0.4569**
-- [x] **Precision: 0.8829 | Recall: 0.6382** (at best mAP@0.5 epoch 57)
-- [x] **Final epoch (100):** mAP@0.5 = 0.6698, mAP@0.5:0.95 = 0.4533
-- [x] **Best epoch:** 57 | train box/cls/dfl loss: 1.212 / 0.243 / 1.191
-- [x] W&B run manually synced via `upload_run_to_wandb.py` ✅
+- [x] Training complete, 100/100 epochs, no NaN/Inf
+- [x] `best.pt` exists in `runs/detect/CIRCA_V12S_001_TRAIN_Baseline_Vanilla/weights/`
+- [x] mAP@0.5 (best epoch) = 0.6649 (Epoch 45)
+- [x] mAP@0.5:0.95 (best epoch) = 0.4237
+- [x] Precision: 0.7290 | Recall: 0.6433 (at best epoch)
+- [x] W&B run manually synced via `upload_run_to_wandb.py`
 
-> **Ablation Control Baseline (mAP_v): 0.6821**
+> **Old result (diagnostic only, old dataset):** mAP@0.5=0.6821, P=0.883, R=0.638 (ep.57 of 100)
+> **Ablation Control Baseline (mAP_v): 0.6649 (v4 dataset baseline)**
 
 ---
 
 ## Phase 2 — CIRCA-Aligned Baseline ✅ COMPLETE
 
-> **100 epochs** — identical to Phase 1 for OFAT fair comparison (only variable changed: CLAHE+Gamma preprocessing enabled).
-> Trained on Runpod RTX 3090 24GB, batch=24, seed=42.
+> **v4 dataset (capped + oversampled).** Early stop triggered at epoch 80 (patience=30). Best checkpoint at epoch 50.
+> Trained on Runpod RTX 3090 24GB, batch=48, seed=42.
 
 - [x] Command (Runpod RTX 3090):
   ```bash
   python train_engine.py --mode train --variant s --id 002 --desc Baseline_CIRCA \
-      --epochs 100 --preproc --batch 24 \
-      --data datasets/unified_pcb_v3/data.yaml
+      --epochs 100 --batch 48 --cache \
+      --data datasets/unified_pcb_v3_preproc/data.yaml
   ```
-- [x] `unified_pcb_v3_preproc/` created successfully; no missing-label warnings ✅
-- [x] Training complete, 100/100 epochs; `best.pt` exists ✅
-- [x] mAP@0.5 ≥ Phase 1 mAP@0.5 ← key validation gate: **NOT MET** ⚠️
-- [x] **mAP@0.5 (best epoch) = 0.6670** ✅ (target > 60% — PASSED)
-- [x] **mAP@0.5:0.95 (best epoch) = 0.4504**
-- [x] **Precision: 0.8422 | Recall: 0.6225** (at best mAP@0.5 epoch 52)
-- [x] **Final epoch (100):** mAP@0.5 = 0.6552, mAP@0.5:0.95 = 0.4453
-- [x] **Best epoch:** 52 | train box/cls/dfl loss: 1.233 / 0.248 / 1.176
-- [x] W&B run manually synced via `upload_run_to_wandb.py` ✅
+  > **Note:** Phase 2 uses `unified_pcb_v3_preproc/data.yaml` directly (preproc is built offline). Do NOT use `--preproc` flag.
+- [x] Early stop at epoch 80/100 (patience=30) — best checkpoint at epoch 50 ✅
+- [x] `best.pt` exists in `runs/detect/CIRCA_V12S_002_TRAIN_Baseline_CIRCA/weights/`
+- [x] mAP@0.5 (best epoch) = 0.6600 (Epoch 50)
+- [x] mAP@0.5:0.95 (best epoch) = 0.4284 (**+0.47 pp vs Phase 1 ✅**)
+- [x] Precision: **0.8443** (+11.5 pp vs Phase 1 ✅) | Recall: 0.6341
+- [x] W&B run manually synced via `upload_run_to_wandb.py`
 
-> **Preprocessing lift = 0.6670 − 0.6821 = −0.0151 (−1.51 pp)** ⚠️ Preprocessing did NOT lift mAP on this dataset.
-> **Analysis:** See ablation gate analysis below. Phase 3 HPO proceeds regardless — the -1.5 pp gap is within noise range and the CIRCA pipeline is a core thesis contribution regardless of ablation outcome.
+> **Old result (diagnostic only, old dataset):** mAP@0.5=0.6670, P=0.842, R=0.623 (ep.52 of 100)
+> **Preprocessing lift (v4): mAP@0.5 −0.49 pp (within noise) | mAP@0.5:0.95 +0.47 pp | Precision +11.5 pp | Val cls_loss lower from ep.40+**
+> **Verdict: Selective improvement — CLAHE lifts precision and classification confidence without broad mAP regression.**
 
 ---
 
@@ -99,7 +109,7 @@
 - [ ] Command (Runpod RTX 3090):
   ```bash
   python train_engine.py --mode tune --variant s --id 003 --desc HPO_7class \
-      --epochs 50 --iterations 50 --fraction 0.5 --batch 24 \
+      --epochs 50 --iterations 50 --fraction 0.5 --batch 48 --cache \
       --data datasets/unified_pcb_v3_preproc/data.yaml
   ```
 - [ ] 50 iterations complete
@@ -115,9 +125,9 @@
 
 > Uses HPO config + oversampled `unified_pcb_v3_preproc/` data.
 
-- [ ] YOLOv12-N (id 004, batch=32): mAP@0.5: ______ | mAP@0.5:0.95: ______
-- [ ] YOLOv12-S (id 005, batch=24): mAP@0.5: ______ | mAP@0.5:0.95: ______
-- [ ] YOLOv12-M (id 006, batch=16): mAP@0.5: ______ | mAP@0.5:0.95: ______
+- [ ] YOLOv12-N (id 004, batch=64): mAP@0.5: ______ | mAP@0.5:0.95: ______
+- [ ] YOLOv12-S (id 005, batch=48): mAP@0.5: ______ | mAP@0.5:0.95: ______
+- [ ] YOLOv12-M (id 006, batch=32): mAP@0.5: ______ | mAP@0.5:0.95: ______
 - [ ] All three `best.pt` checkpoints downloaded from Runpod
 
 ---

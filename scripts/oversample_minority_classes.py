@@ -1,27 +1,20 @@
 """
 oversample_minority_classes.py
 ================================
-CIRCA -- Phase 0 Data Preparation (updated: 2026-05-25)
+CIRCA -- Phase 0 Data Preparation (updated: 2026-05-27)
 Tiered minority-class oversampling for unified_pcb_v3 training split.
 
-Class distribution before oversampling (BEFORE counts from live run):
-  0: missing_hole           390  -- moderate
-  1: mouse_bite           1,287  -- good
-  2: open_circuit           946  -- good
-  3: short               1,778  -- DOMINANT -> EXCLUDED
-  4: excess_solder          172  -- weak but not oversampled
-  5: insufficient_solder  1,788  -- DOMINANT -> EXCLUDED
-  6: cold_solder_joint      675  -- CRITICAL
+Class distribution before oversampling (BEFORE counts from rebuilt dataset):
+  0: missing_hole           390  -- CRITICAL (0% recall in baseline -> promoted to 5x)
+  1: mouse_bite           2,574  -- good
+  2: open_circuit         1,892  -- good
+  3: short               3,556  -- DOMINANT -> EXCLUDED
+  4: excess_solder          304  -- CRITICAL (51% recall in baseline -> added to 5x)
+  5: insufficient_solder  3,568  -- DOMINANT -> EXCLUDED
+  6: cold_solder_joint      270  -- CRITICAL (5x, working well)
 
-Class distribution after oversampling (AFTER counts from live run):
-  0: missing_hole           975  (3x, was 390)
-  4: excess_solder          252  (incidental -- co-occurs with cold_solder_joint images)
-  6: cold_solder_joint    2,835  (5x, was 675)
-  Total training images: 9,404
-
-Tier rules:
-  TIER 1 -- Critical  (< 700 instances): class 6 (cold_solder_joint) -> 5x copies
-  TIER 2 -- Moderate  (< 500 instances): class 0 (missing_hole)      -> 3x copies
+Tier rules (v4 -- updated based on Phase 1/2 confusion matrix analysis):
+  TIER 1 -- Critical (5x): class 0 (missing_hole), class 4 (excess_solder), class 6 (cold_solder_joint)
   EXCLUDED: classes 3 (short) and 5 (insufficient_solder) -- dominant, not oversampled
 
 Usage:
@@ -42,13 +35,13 @@ DATASET_ROOT = Path("datasets/unified_pcb_v3")
 SEED = 42
 
 CLASS_NAMES = [
-    "missing_hole",        # 0  moderate
+    "missing_hole",        # 0  CRITICAL -- 5x (0% recall in baseline)
     "mouse_bite",          # 1  good
     "open_circuit",        # 2  good
     "short",               # 3  EXCLUDED -- dominant
-    "excess_solder",       # 4  good
+    "excess_solder",       # 4  CRITICAL -- 5x (51% recall in baseline)
     "insufficient_solder", # 5  EXCLUDED -- dominant
-    "cold_solder_joint",   # 6  CRITICAL
+    "cold_solder_joint",   # 6  CRITICAL -- 5x
 ]
 
 # Classes excluded from oversampling (dominant -- would worsen imbalance)
@@ -56,9 +49,11 @@ EXCLUDED_CLASSES = {3, 5}
 
 # Tier definitions: class_id -> max_total_copies (including original)
 # max_copies=5 means 4 extra copies -> 5x the original count
+# v4: all three weak classes promoted to CRITICAL (5x) based on Phase 1/2 confusion matrix
 CLASS_TIER = {
-    0: 3,  # missing_hole      -- moderate  (390 train instances -> 3x = 975)
-    6: 5,  # cold_solder_joint -- CRITICAL  (675 train instances -> 5x = 2,835)
+    0: 5,  # missing_hole   -- CRITICAL (390 instances, 0% recall  -> 5x)
+    4: 5,  # excess_solder  -- CRITICAL (304 instances, 51% recall -> 5x)
+    6: 5,  # cold_solder_joint -- CRITICAL (270 instances, 96% recall -> maintain 5x)
 }
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -113,6 +108,9 @@ def compute_class_distribution(labels_dir: Path) -> tuple[Counter, dict[int, lis
     class_to_labels: dict[int, list[Path]] = defaultdict(list)
 
     for label_file in sorted(labels_dir.glob("*.txt")):
+        # Skip already-oversampled copies -- only count/use originals as sources
+        if "_os" in label_file.stem:
+            continue
         classes_in_file = get_classes_in_label(label_file)
         for cls in classes_in_file:
             instance_counts[cls] += 1
@@ -226,16 +224,15 @@ def main() -> None:
         raise SystemExit(1)
 
     print("\n" + "=" * 65)
-    print("  CIRCA -- Tiered Minority Class Oversampler  (v3 -- 7-class)")
+    print("  CIRCA -- Tiered Minority Class Oversampler  (v4 -- 7-class)")
     print("  Excluded (dominant): Class 3 (short), Class 5 (insufficient_solder)")
-    print("  CRITICAL (5x): Class 6 (cold_solder_joint)")
-    print("  Moderate  (2x): Class 0 (missing_hole)")
+    print("  CRITICAL (5x): Class 0 (missing_hole), Class 4 (excess_solder), Class 6 (cold_solder_joint)")
     print(f"  Mode: {'DRY RUN -- no files written' if args.dry_run else 'LIVE -- files will be copied'}")
     print("=" * 65)
 
-    # -- Before distribution ---------------------------------------------------
+    # -- Before distribution (originals only -- _os* files excluded) --------------
     before_counts, class_to_labels = compute_class_distribution(labels_dir)
-    print_distribution("BEFORE -- Training Split Class Distribution", before_counts)
+    print_distribution("BEFORE -- Original Class Distribution (excl. _os* copies)", before_counts)
 
     # -- Oversample ------------------------------------------------------------
     n_copied = oversample(
@@ -248,8 +245,14 @@ def main() -> None:
 
     # -- After distribution ----------------------------------------------------
     if not args.dry_run:
-        after_counts, _ = compute_class_distribution(labels_dir)
-        print_distribution("AFTER -- Training Split Class Distribution", after_counts)
+        # Count ALL files (including _os* copies) to show true final state
+        after_counts: Counter = Counter()
+        for label_file in sorted(labels_dir.glob("*.txt")):
+            for line in label_file.open():
+                parts = line.strip().split()
+                if parts:
+                    after_counts[int(parts[0])] += 1
+        print_distribution("AFTER -- Full Class Distribution (incl. _os* copies)", after_counts)
         n_train_images = len(list(images_dir.glob("*.*")))
         n_train_labels = len(list(labels_dir.glob("*.txt")))
         print(f"\n  Done. Copied {n_copied} image/label pairs.")

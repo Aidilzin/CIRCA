@@ -329,7 +329,9 @@ def build_dataset(dry_run: bool = False):
             dest_lbl.write_text("\n".join(labels))
 
     # --- Write data.yaml ---
-    yaml_content = f"""path: {OUTPUT_DIR.resolve().as_posix()}
+    # Use a relative path (not absolute) so the yaml works on Linux RunPod
+    # containers without modification (Rule 3: no Windows absolute paths).
+    yaml_content = f"""path: {OUTPUT_DIR.as_posix()}
 train: train/images
 val:   valid/images
 test:  test/images

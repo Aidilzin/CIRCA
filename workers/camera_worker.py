@@ -332,19 +332,6 @@ class CameraWorker(QObject):
                 blur_threshold=src.blur_threshold,
             )
 
-    def _wait_for_retry(self) -> None:
-        """
-        Non-blocking wait for CAMERA_RETRY_INTERVAL_S before the next
-        reconnect attempt. Polls _running every CAMERA_RETRY_POLL_S so
-        stop() takes effect within ~100ms even during a retry pause.
-
-        UX UJ-03: "10-second retry cycle" — CAMERA_RETRY_INTERVAL_S = 10.0
-
-        Note: This helper is retained for potential future retry-loop
-        implementations but is not called in the current design, which
-        delegates reconnection to MainWindow via re-enumeration.
-        """
-        elapsed: float = 0.0
-        while elapsed < CAMERA_RETRY_INTERVAL_S and self._running:
-            time.sleep(CAMERA_RETRY_POLL_S)
-            elapsed += CAMERA_RETRY_POLL_S
+    # _wait_for_retry() was removed (2026-06-03).
+    # Reconnection is delegated to MainWindow via re-enumeration (UJ-03).
+    # If a future design needs an in-worker retry loop, re-introduce it here.

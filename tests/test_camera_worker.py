@@ -221,51 +221,11 @@ class TestStop:
 
 
 # ===========================================================================
-# _wait_for_retry — non-blocking retry sleep
+# _wait_for_retry — REMOVED (2026-06-03)
+# _wait_for_retry() was removed from CameraWorker because it was dead code.
+# Reconnection is delegated to MainWindow via re-enumeration (UJ-03).
+# No tests for this method are needed.
 # ===========================================================================
-
-
-class TestWaitForRetry:
-    def test_exits_immediately_when_running_is_false(self):
-        worker = CameraWorker()
-        worker._running = False
-        with patch("time.sleep") as mock_sleep:
-            worker._wait_for_retry()
-        # Should exit on first poll check without sleeping
-        assert mock_sleep.call_count == 0
-
-    def test_calls_sleep_in_poll_intervals(self):
-        """With _running=True throughout, sleep should be called repeatedly."""
-        worker = CameraWorker()
-        worker._running = True
-        poll_count = [0]
-
-        def fake_sleep(duration):
-            poll_count[0] += 1
-            if poll_count[0] >= 3:
-                worker._running = False  # Abort after 3 polls
-
-        with patch("time.sleep", side_effect=fake_sleep):
-            worker._wait_for_retry()
-
-        assert poll_count[0] == 3
-
-    def test_respects_running_false_mid_retry(self):
-        """stop() during a retry should exit the wait within one poll interval."""
-        worker = CameraWorker()
-        worker._running = True
-        poll_count = [0]
-
-        def fake_sleep(duration):
-            poll_count[0] += 1
-            if poll_count[0] == 2:
-                worker._running = False
-
-        with patch("time.sleep", side_effect=fake_sleep):
-            worker._wait_for_retry()
-
-        # Must have exited after poll 2 set _running=False
-        assert poll_count[0] == 2
 
 
 # ===========================================================================

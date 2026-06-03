@@ -19,10 +19,12 @@ $StagingPath = Join-Path $RootPath "runpod_staging"
 $ZipPath = Join-Path $RootPath "CIRCA_runpod.zip"
 
 $DatasetSource = Join-Path $RootPath "datasets\unified_pcb_v3"
+$DatasetPreprocSource = Join-Path $RootPath "datasets\unified_pcb_v3_preproc"
 $TrainEngineSource = Join-Path $RootPath "train_engine.py"
 $ReqsSource = Join-Path $RootPath "requirements_runpod.txt"
-$SetupPySource = Join-Path $RootPath "scripts\runpod_setup.py"
-$SetupShSource = Join-Path $RootPath "scripts\runpod_setup.sh"
+$ScriptsDirSource = Join-Path $RootPath "scripts"
+$WeightN = Join-Path $RootPath "yolo12n.pt"
+$WeightS = Join-Path $RootPath "yolo12s.pt"
 
 # 3. Validations
 Write-Host "[*] Validating required files and directories..." -ForegroundColor Yellow
@@ -36,11 +38,11 @@ if (-not (Test-Path $TrainEngineSource)) {
 if (-not (Test-Path $ReqsSource)) {
     Write-Error "Requirements file not found at $ReqsSource."
 }
-if (-not (Test-Path $SetupPySource)) {
-    Write-Error "Setup script (Python) not found at $SetupPySource."
+if (-not (Test-Path $ScriptsDirSource)) {
+    Write-Error "Scripts directory not found at $ScriptsDirSource."
 }
-if (-not (Test-Path $SetupShSource)) {
-    Write-Error "Setup script (Shell) not found at $SetupShSource."
+if (-not (Test-Path $DatasetPreprocSource)) {
+    Write-Error "Preprocessed dataset not found at $DatasetPreprocSource. Run: python scripts/prepare_all_datasets.py"
 }
 
 Write-Host "  [+] All required files and directories found." -ForegroundColor Green
@@ -59,21 +61,24 @@ if (Test-Path $ZipPath) {
 Write-Host "[*] Creating temporary staging environment..." -ForegroundColor Yellow
 New-Item -ItemType Directory -Path $StagingPath | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $StagingPath "datasets") | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $StagingPath "scripts") | Out-Null
 
 # 6. Copy Files to Staging
 Write-Host "[*] Copying files to staging (excluding logs, caches, and backups)..." -ForegroundColor Yellow
 
-# Copy dataset (excluding any temp files)
+# Copy both datasets (raw + preprocessed -- fully pre-baked, no pod setup required)
 Copy-Item -Recurse -Path $DatasetSource -Destination (Join-Path $StagingPath "datasets")
+Copy-Item -Recurse -Path $DatasetPreprocSource -Destination (Join-Path $StagingPath "datasets")
 
-# Copy scripts
-Copy-Item -Path $SetupPySource -Destination (Join-Path $StagingPath "scripts")
-Copy-Item -Path $SetupShSource -Destination (Join-Path $StagingPath "scripts")
+# Copy entire scripts/ directory (so no script is ever accidentally left out)
+Copy-Item -Recurse -Path $ScriptsDirSource -Destination $StagingPath
 
 # Copy root scripts and requirement sheets
 Copy-Item -Path $TrainEngineSource -Destination $StagingPath
 Copy-Item -Path $ReqsSource -Destination $StagingPath
+
+# Copy YOLO base weights (avoids downloading them on the pod)
+if (Test-Path $WeightN) { Copy-Item -Path $WeightN -Destination $StagingPath }
+if (Test-Path $WeightS) { Copy-Item -Path $WeightS -Destination $StagingPath }
 
 Write-Host "  [+] Staging copying complete." -ForegroundColor Green
 

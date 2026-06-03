@@ -36,7 +36,7 @@ from core.inference_engine import (
 
 
 def make_inference_engine_with_mocks(
-    num_classes: int = 4,
+    num_classes: int = 7,
     num_anchors: int = 8400,
 ) -> tuple[InferenceEngine, MagicMock]:
     """
@@ -59,6 +59,10 @@ def make_inference_engine_with_mocks(
     mock_compiled_model.input.return_value = mock_input_layer
     mock_compiled_model.output.return_value = mock_output_layer
 
+    # Pre-wire a reusable infer request (InferenceEngine caches this at init)
+    mock_request = MagicMock()
+    mock_compiled_model.create_infer_request.return_value = mock_request
+
     # Patch the openvino import inside inference_engine's __init__
     with (
         patch.dict("sys.modules", {"openvino.runtime": MagicMock()}),
@@ -77,6 +81,8 @@ def make_inference_engine_with_mocks(
             engine._input_layer = mock_input_layer
             engine._output_layer = mock_output_layer
             engine._num_classes = num_classes
+            # Wire the cached infer request (created once at init in production)
+            engine._infer_request = mock_request
 
     return engine, mock_compiled_model
 
@@ -117,9 +123,9 @@ def make_default_params(**overrides) -> InferenceParams:
 
 
 class TestClassLabels:
-    def test_has_six_classes(self):
-        """CIRCA uses the standard 6-class PCB defect taxonomy."""
-        assert len(CLASS_LABELS) == 6
+    def test_has_seven_classes(self):
+        """CIRCA uses the unified_pcb_v3 7-class taxonomy (nc=7)."""
+        assert len(CLASS_LABELS) == 7
 
     def test_missing_hole_at_index_0(self):
         assert CLASS_LABELS[0] == "missing_hole"
@@ -133,14 +139,17 @@ class TestClassLabels:
     def test_short_at_index_3(self):
         assert CLASS_LABELS[3] == "short"
 
-    def test_spur_at_index_4(self):
-        assert CLASS_LABELS[4] == "spur"
+    def test_excess_solder_at_index_4(self):
+        assert CLASS_LABELS[4] == "excess_solder"
 
-    def test_spurious_copper_at_index_5(self):
-        assert CLASS_LABELS[5] == "spurious_copper"
+    def test_insufficient_solder_at_index_5(self):
+        assert CLASS_LABELS[5] == "insufficient_solder"
+
+    def test_cold_solder_joint_at_index_6(self):
+        assert CLASS_LABELS[6] == "cold_solder_joint"
 
     def test_indices_are_zero_based_integers(self):
-        assert list(CLASS_LABELS.keys()) == [0, 1, 2, 3, 4, 5]
+        assert list(CLASS_LABELS.keys()) == [0, 1, 2, 3, 4, 5, 6]
 
 
 # ===========================================================================
@@ -192,50 +201,51 @@ class TestPreprocessFrame:
 
     def test_output_shape_is_nchw(self):
         frame = np.random.randint(0, 256, (480, 640, 3), dtype=np.uint8)
-        result = self.engine._preprocess_frame(frame)
-        assert result.shape == (1, 3, MODEL_INPUT_SIZE[1], MODEL_INPUT_SIZE[0])
+        tensor, pad_x, pad_y, scale = self.engine._preprocess_frame(frame)
+        assert tensor.shape == (1, 3, MODEL_INPUT_SIZE[1], MODEL_INPUT_SIZE[0])
 
     def test_output_dtype_is_float32(self):
         frame = np.random.randint(0, 256, (480, 640, 3), dtype=np.uint8)
-        result = self.engine._preprocess_frame(frame)
-        assert result.dtype == np.float32
+        tensor, _, _, _ = self.engine._preprocess_frame(frame)
+        assert tensor.dtype == np.float32
 
     def test_output_values_in_zero_one_range(self):
         frame = np.random.randint(0, 256, (480, 640, 3), dtype=np.uint8)
-        result = self.engine._preprocess_frame(frame)
-        assert result.min() >= 0.0
-        assert result.max() <= 1.0
+        tensor, _, _, _ = self.engine._preprocess_frame(frame)
+        assert tensor.min() >= 0.0
+        assert tensor.max() <= 1.0
 
     def test_pure_white_frame_normalises_to_one(self):
-        frame = np.full((64, 64, 3), 255, dtype=np.uint8)
-        result = self.engine._preprocess_frame(frame)
-        np.testing.assert_allclose(result, 1.0, atol=1e-5)
+        """A 640x640 white frame has no letterbox padding, so tensor is all 1.0."""
+        frame = np.full((640, 640, 3), 255, dtype=np.uint8)  # square = no padding
+        tensor, _, _, _ = self.engine._preprocess_frame(frame)
+        np.testing.assert_allclose(tensor, 1.0, atol=1e-5)
 
     def test_pure_black_frame_normalises_to_zero(self):
-        frame = np.zeros((64, 64, 3), dtype=np.uint8)
-        result = self.engine._preprocess_frame(frame)
-        np.testing.assert_allclose(result, 0.0, atol=1e-5)
+        """A 640x640 black frame has no letterbox padding, so tensor is all 0.0."""
+        frame = np.zeros((640, 640, 3), dtype=np.uint8)  # square = no padding
+        tensor, _, _, _ = self.engine._preprocess_frame(frame)
+        np.testing.assert_allclose(tensor, 0.0, atol=1e-5)
 
     def test_handles_non_square_input_frame(self):
-        """InferenceEngine must resize arbitrary-resolution frames to 640×640."""
+        """InferenceEngine must resize arbitrary-resolution frames to 640x640."""
         frame = np.random.randint(0, 256, (1080, 1920, 3), dtype=np.uint8)
-        result = self.engine._preprocess_frame(frame)
-        assert result.shape == (1, 3, 640, 640)
+        tensor, pad_x, pad_y, scale = self.engine._preprocess_frame(frame)
+        assert tensor.shape == (1, 3, 640, 640)
+        assert isinstance(scale, float) and scale > 0.0
 
     def test_bgr_to_rgb_channel_swap(self):
         """
-        Verify that channel 0 of the output (R in RGB) corresponds to the
-        B channel of a solid-colour BGR input, not the B/R-swapped version.
-        A pure-blue BGR frame (B=255, G=0, R=0) should produce R=0 in the
-        RGB output (channel 0 of NCHW = R channel = 0.0).
+        Verify BGR→RGB channel swap. A pure-blue BGR frame (B=255, G=0, R=0)
+        should map to an RGB frame where R=0, G=0, B=255.
+        NCHW channel 0 = R channel = 0 for a blue pixel.
+        Use 640x640 so no letterbox padding is present.
         """
-        frame = np.zeros((64, 64, 3), dtype=np.uint8)
+        frame = np.zeros((640, 640, 3), dtype=np.uint8)
         frame[:, :, 0] = 255  # Blue channel in BGR
-        result = self.engine._preprocess_frame(frame)
-        # After BGR→RGB: R channel (NCHW channel 0) should be 0 (was B=255→R channel)
-        # Actually blue BGR → red in RGB at channel 0: result[0,0] should == 0
-        # because the blue pixel's R component is 0
-        assert result[0, 0].max() < 0.01  # R channel of blue pixel is ~0
+        tensor, _, _, _ = self.engine._preprocess_frame(frame)
+        # After BGR→RGB: R channel (NCHW ch 0) should be 0 for a blue pixel
+        assert tensor[0, 0].max() < 0.01  # R channel of blue pixel is ~0
 
 
 # ===========================================================================
@@ -245,15 +255,27 @@ class TestPreprocessFrame:
 
 class TestPostprocess:
     def setup_method(self):
-        self.engine, _ = make_inference_engine_with_mocks(num_classes=6)
+        self.engine, _ = make_inference_engine_with_mocks(num_classes=7)
         self.params = make_default_params(confidence_threshold=0.5)
 
-    def _run_postprocess(self, raw_output, original_w=640, original_h=640):
+    def _run_postprocess(
+        self,
+        raw_output,
+        original_w=640,
+        original_h=640,
+        pad_x=0.0,
+        pad_y=0.0,
+        scale=1.0,
+    ):
+        """Helper: call _postprocess with letterbox defaults (no-op padding)."""
         return self.engine._postprocess(
             raw_output,
             self.params,
             original_w=original_w,
             original_h=original_h,
+            pad_x=pad_x,
+            pad_y=pad_y,
+            scale=scale,
         )
 
     # --- Basic detection ---
@@ -265,7 +287,7 @@ class TestPostprocess:
             cy=320,
             w=100,
             h=100,
-            class_scores=[0.0, 0.9, 0.0, 0.0, 0.0, 0.0],  # mouse_bite, conf=0.9
+            class_scores=[0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0],  # mouse_bite, conf=0.9
         )
         boxes = self._run_postprocess(raw)
         assert len(boxes) == 1
@@ -279,7 +301,7 @@ class TestPostprocess:
             cy=320,
             w=100,
             h=100,
-            class_scores=[0.3, 0.0, 0.0, 0.0],  # 0.3 < default threshold 0.5
+            class_scores=[0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0.3 < threshold 0.5
         )
         boxes = self._run_postprocess(raw)
         assert len(boxes) == 0
@@ -291,78 +313,91 @@ class TestPostprocess:
             cy=320,
             w=100,
             h=100,
-            class_scores=[0.5, 0.0, 0.0, 0.0],
+            class_scores=[0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         )
         boxes = self._run_postprocess(raw)
         assert len(boxes) == 1
 
     def test_empty_output_tensor_returns_empty_list(self):
         """All anchors at zero confidence → empty result."""
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
+        raw = np.zeros((1, 11, 8400), dtype=np.float32)  # 4 + 7 classes
         boxes = self._run_postprocess(raw)
         assert len(boxes) == 0
 
     # --- Class label assignment (FR7-FR10) ---
 
     def test_class_0_maps_to_missing_hole(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         assert boxes[0].class_name == "missing_hole"
 
     def test_class_1_maps_to_mouse_bite(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.9, 0.0, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         assert boxes[0].class_name == "mouse_bite"
 
     def test_class_2_maps_to_open_circuit(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.9, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         assert boxes[0].class_name == "open_circuit"
 
     def test_class_3_maps_to_short(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.9, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         assert boxes[0].class_name == "short"
 
     def test_unknown_class_id_falls_back_to_class_n_label(self):
-        """If num_classes > len(CLASS_LABELS), fallback label is used."""
-        engine, _ = make_inference_engine_with_mocks(num_classes=7)
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9])
-        boxes = engine._postprocess(raw, self.params, 640, 640)
-        assert boxes[0].class_name == "class_6"
+        """If class_id > len(CLASS_LABELS), fallback label is used."""
+        engine, _ = make_inference_engine_with_mocks(num_classes=8)
+        raw = make_raw_output(
+            320, 320, 100, 100,
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9]
+        )
+        boxes = engine._postprocess(
+            raw, self.params, 640, 640, pad_x=0.0, pad_y=0.0, scale=1.0
+        )
+        assert boxes[0].class_name == "class_7"
 
     # --- Coordinate scaling ---
 
     def test_box_coordinates_scaled_from_640_to_original_size(self):
         """
         Detection at cx=320, cy=320, w=200, h=100 in 640×640 model space.
-        Output frame is 1280×960 → coordinates must scale by (2.0, 1.5).
-        Expected: x1 = (320-100)*2 = 440, y1 = (320-50)*1.5 = 405
-                  w = 200*2 = 400, h = 100*1.5 = 150
+        With no letterbox padding (square input) and scale=0.5 (1280×960 → 640):
+          x_orig = (cx - w/2 - pad_x) / scale = (320-100-0)/0.5 = 440
+          y_orig = (cy - h/2 - pad_y) / scale = (320-50-0)/0.5  = 540  (→ clamped)
+        For simplicity, use scale=1.0 (square frame matching model space):
+          x_orig = 320-100 = 220, y_orig = 320-50 = 270
         """
         raw = make_raw_output(
-            cx=320, cy=320, w=200, h=100, class_scores=[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]
+            cx=320, cy=320, w=200, h=100,
+            class_scores=[0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         )
-        boxes = self._run_postprocess(raw, original_w=1280, original_h=960)
+        boxes = self._run_postprocess(
+            raw, original_w=640, original_h=640, pad_x=0.0, pad_y=0.0, scale=1.0
+        )
         assert len(boxes) == 1
         b = boxes[0]
-        # x1 = (cx - w/2) * scale_x = (320 - 100) * (1280/640) = 220 * 2 = 440
-        assert b.x == 440
-        # y1 = (cy - h/2) * scale_y = (320 - 50) * (960/640) = 270 * 1.5 = 405
-        assert b.y == 405
-        assert b.width == 400
-        assert b.height == 150
+        # x1 = (cx - w/2 - 0) / 1.0 = 220
+        assert b.x == 220
+        # y1 = (cy - h/2 - 0) / 1.0 = 270
+        assert b.y == 270
+        assert b.width == 200
+        assert b.height == 100
 
     def test_box_clamped_to_frame_boundaries(self):
         """
         A box whose centre is near the edge with large width/height may
         compute negative x1 or x1+w > frame_width. Must be clamped.
-        """
         # cx=10, cy=10 with w=100, h=100 → x1 = 10-50 = -40 → clamped to 0
+        """
         raw = make_raw_output(
-            cx=10, cy=10, w=100, h=100, class_scores=[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]
+            cx=10, cy=10, w=100, h=100,
+            class_scores=[0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         )
-        boxes = self._run_postprocess(raw, original_w=640, original_h=640)
+        boxes = self._run_postprocess(
+            raw, original_w=640, original_h=640, pad_x=0.0, pad_y=0.0, scale=1.0
+        )
         # x1 and y1 must never be negative
         if boxes:
             assert boxes[0].x >= 0
@@ -377,7 +412,7 @@ class TestPostprocess:
         Two anchors at almost identical positions with the same class.
         NMS must keep exactly one.
         """
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
+        raw = np.zeros((1, 11, 8400), dtype=np.float32)  # 4 + 7 classes
         # Anchor 0: high confidence
         raw[0, :4, 0] = [320, 320, 200, 200]
         raw[0, 4, 0] = 0.95
@@ -392,7 +427,7 @@ class TestPostprocess:
         """
         Two anchors at spatially separate positions → NMS should keep both.
         """
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
+        raw = np.zeros((1, 11, 8400), dtype=np.float32)  # 4 + 7 classes
         # Top-left detection
         raw[0, :4, 0] = [80, 80, 80, 80]
         raw[0, 4, 0] = 0.9
@@ -405,28 +440,35 @@ class TestPostprocess:
     # --- DetectionResult integration ---
 
     def test_result_boxes_are_bounding_box_instances(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         for box in boxes:
             assert isinstance(box, BoundingBox)
 
     def test_confidence_preserved_to_float(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.75, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.75, 0.0, 0.0, 0.0, 0.0])
         boxes = self._run_postprocess(raw)
         assert isinstance(boxes[0].confidence, float)
         assert abs(boxes[0].confidence - 0.75) < 1e-4
 
     def test_custom_confidence_threshold_applied(self):
         """Lowering threshold to 0.3 should surface previously-filtered boxes."""
-        raw = make_raw_output(320, 320, 100, 100, [0.45, 0.0, 0.0, 0.0, 0.0, 0.0])
+        raw = make_raw_output(
+            320, 320, 100, 100,
+            [0.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        )
         # Default threshold 0.5 → filtered out
         high_thresh = make_default_params(confidence_threshold=0.5)
-        boxes_high = self.engine._postprocess(raw, high_thresh, 640, 640)
+        boxes_high = self.engine._postprocess(
+            raw, high_thresh, 640, 640, pad_x=0.0, pad_y=0.0, scale=1.0
+        )
         assert len(boxes_high) == 0
 
         # Lower threshold 0.3 → included
         low_thresh = make_default_params(confidence_threshold=0.3)
-        boxes_low = self.engine._postprocess(raw, low_thresh, 640, 640)
+        boxes_low = self.engine._postprocess(
+            raw, low_thresh, 640, 640, pad_x=0.0, pad_y=0.0, scale=1.0
+        )
         assert len(boxes_low) == 1
 
 
@@ -436,23 +478,22 @@ class TestPostprocess:
 
 
 class TestInferenceEngineRun:
-    def _make_engine_with_output(self, raw_output: np.ndarray, num_classes=4):
+    def _make_engine_with_output(self, raw_output: np.ndarray, num_classes=7):
         """Build a fully mocked engine that returns `raw_output` on infer."""
         engine, mock_compiled = make_inference_engine_with_mocks(
             num_classes=num_classes,
             num_anchors=raw_output.shape[2],
         )
 
-        mock_request = MagicMock()
+        # Update the cached infer request's output tensor to return raw_output
         mock_tensor = MagicMock()
         mock_tensor.data = raw_output
-        mock_request.get_output_tensor.return_value = mock_tensor
-        mock_compiled.create_infer_request.return_value = mock_request
+        engine._infer_request.get_output_tensor.return_value = mock_tensor
 
         return engine
 
     def test_run_returns_detection_result_instance(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0])
+        raw = make_raw_output(320, 320, 100, 100, [0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         engine = self._make_engine_with_output(raw)
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         params = make_default_params()
@@ -460,8 +501,8 @@ class TestInferenceEngineRun:
         assert isinstance(result, DetectionResult)
 
     def test_run_returns_detections_for_high_confidence_tensor(self):
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.85, 0.0, 0.0, 0.0, 0.0])
-        engine = self._make_engine_with_output(raw, num_classes=6)
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.85, 0.0, 0.0, 0.0, 0.0, 0.0])
+        engine = self._make_engine_with_output(raw, num_classes=7)
         frame = np.zeros((640, 640, 3), dtype=np.uint8)
         params = make_default_params()
         result = engine.run(frame, params)
@@ -469,7 +510,7 @@ class TestInferenceEngineRun:
         assert result.boxes[0].class_name == "mouse_bite"
 
     def test_run_returns_empty_for_all_low_confidence_tensor(self):
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
+        raw = np.zeros((1, 11, 8400), dtype=np.float32)  # 4 + 7 classes
         engine = self._make_engine_with_output(raw)
         frame = np.zeros((640, 640, 3), dtype=np.uint8)
         params = make_default_params()
@@ -477,14 +518,14 @@ class TestInferenceEngineRun:
         assert len(result.boxes) == 0
 
     def test_run_raises_value_error_on_none_frame(self):
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
+        raw = np.zeros((1, 11, 8400), dtype=np.float32)  # 4 + 7 classes
         engine = self._make_engine_with_output(raw)
         params = make_default_params()
         with pytest.raises(ValueError, match="empty frame"):
             engine.run(None, params)  # type: ignore[arg-type]
 
     def test_run_raises_value_error_on_wrong_channels(self):
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
+        raw = np.zeros((1, 11, 8400), dtype=np.float32)  # 4 + 7 classes
         engine = self._make_engine_with_output(raw)
         params = make_default_params()
         grey = np.zeros((480, 640), dtype=np.uint8)
@@ -492,9 +533,9 @@ class TestInferenceEngineRun:
             engine.run(grey, params)
 
     def test_run_raises_runtime_error_on_openvino_failure(self):
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
-        engine, mock_compiled = make_inference_engine_with_mocks()
-        mock_compiled.create_infer_request.side_effect = RuntimeError("OV crash")
+        engine, _ = make_inference_engine_with_mocks()
+        # Simulate infer_request raising at inference time
+        engine._infer_request.infer.side_effect = RuntimeError("OV crash")
         frame = np.zeros((640, 640, 3), dtype=np.uint8)
         params = make_default_params()
         with pytest.raises(RuntimeError, match="infer_new_request failed"):
@@ -505,7 +546,7 @@ class TestInferenceEngineRun:
         DetectionResult.average_confidence (used for FR15 warning banner)
         must correctly reflect the confidence of detected boxes.
         """
-        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.9])
+        raw = make_raw_output(320, 320, 100, 100, [0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0])
         engine = self._make_engine_with_output(raw)
         frame = np.zeros((640, 640, 3), dtype=np.uint8)
         params = make_default_params()
@@ -517,7 +558,7 @@ class TestInferenceEngineRun:
         DetectionResult with no boxes → average_confidence returns 1.0
         (defined behaviour in models.py for clean boards).
         """
-        raw = np.zeros((1, 8, 8400), dtype=np.float32)
+        raw = np.zeros((1, 11, 8400), dtype=np.float32)  # 4 + 7 classes
         engine = self._make_engine_with_output(raw)
         frame = np.zeros((640, 640, 3), dtype=np.uint8)
         params = make_default_params()

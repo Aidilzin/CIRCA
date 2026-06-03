@@ -27,9 +27,9 @@ class TestCameraWorkerRouting:
         assert win.status_footer._camera_indicator.dot_color != "#4CAF50"  # Not green
 
     def test_camera_error_updates_video_widget_status_text(self, win):
-        """camera_error -> VideoWidget shows 'camera unavailable' status text."""
+        """camera_error -> VideoWidget shows 'Please connect a camera' status text."""
         win.camera_worker.camera_error.emit("Device gone")
-        assert win.video_widget._status_text == "camera unavailable"
+        assert win.video_widget._status_text == "Please connect a camera"
 
     def test_new_frame_reaches_video_widget(self, win):
         """new_frame signal → VideoWidget stores a frame with matching dimensions."""
@@ -60,7 +60,7 @@ class TestInferenceWorkerRouting:
             boxes=[
                 BoundingBox(
                     x=10, y=10, width=50, height=50,
-                    class_name="solder_bridge", confidence=0.9,
+                    class_name="missing_hole", confidence=0.9,
                 )
             ]
         )
@@ -78,8 +78,8 @@ class TestInferenceWorkerRouting:
         """2 detections → StatusFooter shows '2 defects'."""
         result = DetectionResult(
             boxes=[
-                BoundingBox(x=0, y=0, width=10, height=10, class_name="burnt_area", confidence=0.8),
-                BoundingBox(x=0, y=0, width=10, height=10, class_name="solder_bridge", confidence=0.7),
+                BoundingBox(x=0, y=0, width=10, height=10, class_name="cold_solder_joint", confidence=0.8),
+                BoundingBox(x=0, y=0, width=10, height=10, class_name="mouse_bite", confidence=0.7),
             ]
         )
         win.inference_worker.new_detections.emit(result)
@@ -90,7 +90,7 @@ class TestFR15Routing:
     def _make_result(self, avg_conf: float) -> DetectionResult:
         return DetectionResult(
             boxes=[
-                BoundingBox(x=0, y=0, width=10, height=10, class_name="solder_bridge", confidence=avg_conf)
+                BoundingBox(x=0, y=0, width=10, height=10, class_name="missing_hole", confidence=avg_conf)
             ]
         )
 
@@ -143,7 +143,7 @@ class TestConfidenceThresholdTracking:
         win._on_inference_params_changed(InferenceParams(confidence_threshold=0.80))
         result = DetectionResult(
             boxes=[
-                BoundingBox(x=0, y=0, width=10, height=10, class_name="solder_bridge", confidence=0.70)
+                BoundingBox(x=0, y=0, width=10, height=10, class_name="missing_hole", confidence=0.70)
             ]
         )
         win._on_new_detections(result)
@@ -152,8 +152,9 @@ class TestConfidenceThresholdTracking:
 
 class TestVideoWidgetStatusTextWiring:
     def test_camera_error_status_is_unavailable(self, win):
+        """_on_camera_error -> VideoWidget shows 'Please connect a camera'."""
         win._on_camera_error("USB dropout")
-        assert win.video_widget._status_text == "camera unavailable"
+        assert win.video_widget._status_text == "Please connect a camera"
 
     def test_usb_removal_no_cameras_shows_placeholder_text(self, win):
         win._on_cameras_found_hotplug([])

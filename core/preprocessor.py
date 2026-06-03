@@ -75,9 +75,14 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     ... (rest of docstring)
 
     Implementation strategy:
-      1. Convert BGR → YUV colour space (faster than LAB for NFR1).
-      2. Apply CLAHE to the Y (luminance) channel only.
-      3. Convert YUV → BGR and return the result.
+      1. Convert BGR → LAB colour space.
+      2. Apply CLAHE to the L (luminance) channel only.
+      3. Convert LAB → BGR and return the result.
+
+    Colour space choice: LAB is used here (not YUV) to ensure train/inference
+    consistency.  The offline preprocessing pipeline (train_engine.py §CIRCA
+    Thesis Preprocessing) also uses LAB.  The ~0.3 ms extra cost vs YUV is
+    well within the 5 ms NFR1 budget at 1080p.
     ...
     """
     if frame is None or frame.size == 0:
@@ -96,14 +101,16 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
         )
     clahe = _clahe_cache[clip_limit]
 
-    # NFR1 Optimization: BGR -> YUV is faster than BGR -> LAB.
-    yuv = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV)
-    y_channel, u_channel, v_channel = cv2.split(yuv)
+    # Use LAB to match the offline training preprocessing (train_engine.py).
+    # Applying CLAHE only to the L channel leaves chrominance (a, b) untouched,
+    # preserving the diagnostic colour of solder and copper under variable lighting.
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    l_channel, a_channel, b_channel = cv2.split(lab)
 
-    y_enhanced = clahe.apply(y_channel)
+    l_enhanced = clahe.apply(l_channel)
 
-    yuv_enhanced = cv2.merge([y_enhanced, u_channel, v_channel])
-    return cv2.cvtColor(yuv_enhanced, cv2.COLOR_YUV2BGR)
+    lab_enhanced = cv2.merge([l_enhanced, a_channel, b_channel])
+    return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
 
 
 # ---------------------------------------------------------------------------

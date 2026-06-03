@@ -104,8 +104,12 @@ class TestWarningBannerInit:
         assert "×" in banner._dismiss_btn.text()
 
     def test_warning_text_uses_status_warn_color(self, banner: WarningBanner) -> None:
-        """Text label QSS must reference COLOR_STATUS_WARN (#FFC107 — amber tier)."""
-        assert COLOR_STATUS_WARN in banner._text_label.styleSheet()
+        """
+        Text label QSS uses dark amber (#856404) for accessible contrast on the
+        amber background fill.  #FFC107 (COLOR_STATUS_WARN) is only used for the
+        background; the darker shade ensures readable text (WCAG contrast rule).
+        """
+        assert "#856404" in banner._text_label.styleSheet()
 
 
 # ===========================================================================
