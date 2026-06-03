@@ -27,6 +27,7 @@ execution_trace.log
 # Temporary Outputs
 *_output.txt
 test_results.txt
+test_output_utf8.txt
 
 # IDEs and Editors
 .idea/
@@ -56,6 +57,8 @@ weights/
 *.h5
 *.hdf5
 *.keras
+*.xml
+*.bin
 
 # Data archives
 *.zip
@@ -70,9 +73,13 @@ weights/
 _bmad/
 _bmad-output/
 .agent/
+.agents/
 .claude/
 .gemini/
 bmad_custom/
 
 # Backup and Archive directories
 .OLD/
+
+# AI conversation transcripts (too large and not source code)
+restored_conversations_history.md
