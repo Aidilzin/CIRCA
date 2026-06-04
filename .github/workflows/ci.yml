@@ -43,10 +43,10 @@ jobs:
 
       - name: Run tests (excluding training engine integration tests)
         run: |
-          pytest tests/ \
-            --ignore=tests/test_performance.py \
-            -v \
-            --tb=short \
+          pytest tests/ `
+            --ignore=tests/test_performance.py `
+            -v `
+            --tb=short `
             -k "not integration_smoke"
         env:
           # Prevent PyQt6 from trying to open a display in CI
