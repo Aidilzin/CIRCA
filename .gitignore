@@ -23,6 +23,7 @@ htmlcov/
 *.log
 crash_report.log
 execution_trace.log
+log/
 
 # Temporary Outputs
 *_output.txt
@@ -70,13 +71,8 @@ weights/
 .ipynb_checkpoints/
 
 # AI Agent folders
-_bmad/
-_bmad-output/
-.agent/
-.agents/
 .claude/
 .gemini/
-bmad_custom/
 
 # Backup and Archive directories
 .OLD/
