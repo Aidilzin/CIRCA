@@ -80,7 +80,7 @@ pip install -r requirements.txt
 
 ## Running the GUI
 
-> **Prerequisite:** A trained and exported OpenVINO FP16 model must exist at `models/yolov12_fp16.xml`.  
+> **Prerequisite:** A trained and exported OpenVINO model must exist at `models/yolov12_int8.xml`.  
 > See [Training](#training) below to produce this file.
 
 ```powershell
@@ -207,7 +207,9 @@ CIRCA/
 │   ├── video_widget.py        # Live feed + bounding box overlay
 │   ├── warning_banner.py      # Low-confidence advisory bar
 │   ├── status_footer.py       # Camera/model/detection status bar
-│   └── theme.py               # Design tokens + QSS builder
+│   ├── theme.py               # Design tokens + QSS builder
+│   ├── analytics_dashboard.py # Live performance analytics and charts
+│   └── help_dialog.py         # Onboarding tutorial and user instructions
 │
 ├── scripts/                   # Dataset build & RunPod utilities
 ├── docs/                      # Experiment plans, checklists, thesis diagrams
