@@ -197,7 +197,15 @@ def preprocess_dataset(data_yaml_path: str, force: bool = False) -> str:
         elif canonical == "val" and "valid" in data:
             yaml_split_keys[canonical] = "valid"
 
-    n_workers = min(8, max(1, cpu_count() - 1))
+    # Rule 2 (AGENTS.md): cap workers at 8 on local runs to prevent IDE crashes.
+    # On RunPod (detected via RUNPOD_POD_ID env var), use full CPU count.
+    _on_runpod = bool(os.environ.get("RUNPOD_POD_ID"))
+    if _on_runpod:
+        n_workers = max(1, cpu_count() - 1)
+        log.info("[PREPROC] RunPod detected — using %d workers (uncapped)", n_workers)
+    else:
+        n_workers = min(8, max(1, cpu_count() - 1))
+        log.info("[PREPROC] Local run — workers capped at 8 (using %d)", n_workers)
 
     for canonical, yaml_key in yaml_split_keys.items():
         split_rel = data[yaml_key]
@@ -235,7 +243,19 @@ def preprocess_dataset(data_yaml_path: str, force: bool = False) -> str:
 
     # Write new data.yaml mirroring the original structure
     new_data = data.copy()
-    new_data["path"] = str(preproc_base.resolve()).replace("\\", "/")
+    try:
+        # Compute relative path to workspace root (Cwd) to keep path relative
+        rel_path = os.path.relpath(preproc_base, Path.cwd())
+        new_data["path"] = rel_path.replace("\\", "/")
+    except ValueError:
+        try:
+            # Fallback: make it relative to the parent of the input yaml if on a different drive (e.g. windows pytest tmp_path)
+            rel_path = os.path.relpath(preproc_base, Path(data_yaml_path).parent)
+            new_data["path"] = rel_path.replace("\\", "/")
+        except ValueError:
+            # Absolute fallback
+            new_data["path"] = str(preproc_base.resolve()).replace("\\", "/")
+
     if "train" in yaml_split_keys:
         new_data["train"] = "train/images"
     if "val" in yaml_split_keys:
@@ -273,7 +293,9 @@ def run_experiment():
     parser.add_argument("--cache", action="store_true", help="Cache images in RAM (requires 16GB+ free RAM)")
     parser.add_argument("--clear", action="store_true", help="Clear existing experiment folder")
     parser.add_argument("--device", type=str, default="0", help="Device (0 or cpu)")
-    parser.add_argument("--workers", type=int, default=4, help="DataLoader workers")
+    parser.add_argument("--workers", type=int,
+                        default=(max(1, cpu_count() - 1) if os.environ.get("RUNPOD_POD_ID") else 4),
+                        help="DataLoader workers (auto: full CPU on RunPod, 4 on local)")
     parser.add_argument("--multi_scale", action="store_true", help="Enable multi-scale training (risky on 6GB VRAM)")
     parser.add_argument("--lr0", type=float, default=0.001, help="Initial LR (ignored if --cfg provided)")
     parser.add_argument("--warmup-epochs", type=float, default=5.0, help="Warmup epochs (ignored if --cfg provided)")
@@ -353,6 +375,13 @@ def run_experiment():
             resume = True
             model_source = str(checkpoint_path)
             log.info("[RESUME] Found checkpoint: %s", checkpoint_path)
+
+    if not resume:
+        # Fallback to models/ if not in root
+        if not Path(model_source).exists():
+            alt_path = Path("models") / model_source
+            if alt_path.exists():
+                model_source = str(alt_path)
 
     # 6. Load Model
     log.info("[LOAD] Initializing model from: %s", model_source)

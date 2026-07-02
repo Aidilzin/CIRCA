@@ -3,7 +3,7 @@
 **Project:** CIRCA — Circuit Inspection and Recognition using Convolutional Architectures
 **Model:** YOLOv12 (N / S / M) | **Deployment:** Intel OpenVINO INT8
 **Dataset:** `unified_pcb_v3` (7-class, nc=7) — v4 tiers + dominant-class capping (2026-05-27)
-**Status:** Phase 0 dataset rebuilt (v4). Phase 1 & 2 **re-run required** on new dataset. Phase 3 HPO pending.
+**Status:** Phase 0, 1, 2, and 3 complete. Phase 4 (final training) pending.
 
 ---
 
@@ -31,9 +31,9 @@
 | Phase | ID | Description | Epochs | Status | Key Result |
 |:---|:---|:---|:---|:---:|:---|
 | 0 | — | Dataset rebuild (7-class `unified_pcb_v3`, v4: cap+oversample+preproc) | — | ✅ Done | 5,924 originals; cap → ~5.7:1 ratio; 5× on classes 0, 4, 6 |
-| 1 | 001 | Vanilla YOLOv12-S, raw images | **100** | ⏳ Re-run needed | Old result: mAP@0.5=0.6821 (dataset changed — not valid for thesis) |
-| 2 | 002 | CLAHE+Gamma preprocessed, YOLOv12-S | **100** | ⏳ Re-run needed | Old result: mAP@0.5=0.6670 (dataset changed — not valid for thesis) |
-| 3 | 003 | Genetic HPO on oversampled preproc data | 50/iter × 50 iter | 🔲 Pending | Optimal hyperparameter config |
+| 1 | 001 | Vanilla YOLOv12-S, raw images | **100** | ✅ Done | mAP@0.5=0.6649, mAP@0.5:0.95=0.4237 |
+| 2 | 002 | CLAHE+Gamma preprocessed, YOLOv12-S | **100** | ✅ Done | mAP@0.5=0.6600, mAP@0.5:0.95=0.4284, Precision=0.8443 |
+| 3 | 003 | Genetic HPO on oversampled preproc data | 50/iter × 50 iter | ✅ Done | Best fitness 0.263, iteration 42/50, ~23.4h runtime |
 | 4 | 004–006 | Final N/S/M with HPO config | 200 | 🔲 Pending | Three final variants |
 | 5 | — | OpenVINO FP32/FP16/INT8 export | — | 🔲 Pending | Quantisation delta |
 | 6 | — | Hardware benchmark on i5 8th-gen | — | 🔲 Pending | Latency validation |
@@ -70,17 +70,17 @@ python train_engine.py --mode tune --variant s --id 003 --desc HPO_7class \
     --data datasets/unified_pcb_v3_preproc/data.yaml
 
 # Phase 4 — Final Training (3 variants, 200 epochs, HPO config)
-python train_engine.py --mode train --variant n --id 004 --desc Final_HPO \
+python train_engine.py --mode train --variant n --id 004 --desc Phase4_Nano \
     --epochs 200 --batch 64 --cache \
     --data datasets/unified_pcb_v3_preproc/data.yaml \
     --cfg runs/detect/CIRCA_V12S_003_TUNE_HPO_7class/best_hyperparameters.yaml
 
-python train_engine.py --mode train --variant s --id 005 --desc Final_HPO \
+python train_engine.py --mode train --variant s --id 005 --desc Phase4_Small \
     --epochs 200 --batch 48 --cache \
     --data datasets/unified_pcb_v3_preproc/data.yaml \
     --cfg runs/detect/CIRCA_V12S_003_TUNE_HPO_7class/best_hyperparameters.yaml
 
-python train_engine.py --mode train --variant m --id 006 --desc Final_HPO \
+python train_engine.py --mode train --variant m --id 006 --desc Phase4_Medium \
     --epochs 200 --batch 32 --cache \
     --data datasets/unified_pcb_v3_preproc/data.yaml \
     --cfg runs/detect/CIRCA_V12S_003_TUNE_HPO_7class/best_hyperparameters.yaml
@@ -123,9 +123,9 @@ python train_engine.py --mode train --variant m --id 006 --desc Final_HPO \
 |:---|:---:|:---:|
 | Phase 1 (100 ep, V12-S) | ~90 min | $0.66 |
 | Phase 2 (100 ep, V12-S) | ~90 min | $0.66 |
-| Phase 3 (50 × 50 ep HPO) | ~25 hrs | $11.00 |
+| Phase 3 (50 × 50 ep HPO) | ~23.4 hrs (actual) | $10.30 |
 | Phase 4 (200 ep × 3 variants) | ~25 hrs | $11.00 |
-| **Total** | **~53 hrs** | **~$23.32** |
+| **Total** | **~51.4 hrs** | **~$22.62** |
 
 > Start with $5 credit → Run Phase 1+2 → Validate mAP → Credit $20 more for HPO + Final.
 

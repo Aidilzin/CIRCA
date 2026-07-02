@@ -12,6 +12,7 @@ import os
 import sys
 import argparse
 from pathlib import Path
+import json
 import yaml
 import pandas as pd
 from dotenv import load_dotenv
@@ -71,12 +72,19 @@ def main():
         sys.exit(1)
         
     results_csv = run_dir / "results.csv"
+    tune_results_ndjson = run_dir / "tune_results.ndjson"
     args_yaml = run_dir / "args.yaml"
     best_weights = run_dir / "weights" / "best.pt"
+    last_weights = run_dir / "weights" / "last.pt"
     
+    is_hpo = False
     if not results_csv.exists():
-        print(f"[!] ERROR: Could not find 'results.csv' in {run_dir}. Is this a valid Ultralytics run folder?")
-        sys.exit(1)
+        if tune_results_ndjson.exists():
+            is_hpo = True
+            print("[*] 'results.csv' not found, but 'tune_results.ndjson' detected. Switching to HPO mode.")
+        else:
+            print(f"[!] ERROR: Could not find 'results.csv' or 'tune_results.ndjson' in {run_dir}. Is this a valid folder?")
+            sys.exit(1)
         
     # Check if W&B API Key or credentials are available
     has_key = bool(os.environ.get("WANDB_API_KEY"))
@@ -105,26 +113,6 @@ def main():
     print(f"    - Job Type   : {meta['job_type'].upper()}")
     print(f"    - Description: {meta['description']}")
     
-    # Load training configurations from args.yaml if available
-    config_dict = {
-        "run_folder": folder_name,
-        "variant": meta["variant"],
-        "id": meta["id"],
-        "description": meta["description"],
-        "manual_upload": True
-    }
-    
-    if args_yaml.exists():
-        try:
-            with open(args_yaml, "r") as f:
-                yolo_args = yaml.safe_load(f)
-                if isinstance(yolo_args, dict):
-                    # Merge YOLO args into our config
-                    config_dict.update(yolo_args)
-                    print("[+] Successfully loaded and merged training hyperparameters from args.yaml")
-        except Exception as e:
-            print(f"[!] WARNING: Failed to parse args.yaml: {e}")
-            
     # Import wandb safely
     try:
         import wandb
@@ -133,70 +121,183 @@ def main():
         print("Please run: pip install wandb")
         sys.exit(1)
         
-    # Initialize WandB Run
-    print(f"[*] Initializing W&B run in project '{args.project}'...")
-    run_notes = args.notes if args.notes else f"Manual offline upload of run {folder_name}"
-    
-    run = wandb.init(
-        project=args.project,
-        name=folder_name,
-        job_type=meta["job_type"],
-        notes=run_notes,
-        config=config_dict
-    )
-    
-    # Read metrics CSV and upload
-    print(f"[*] Reading metrics from {results_csv.name}...")
-    df = pd.read_csv(results_csv)
-    
-    # Clean column names (strip spaces if any)
-    df.columns = [c.strip() for c in df.columns]
-    
-    print(f"[*] Uploading {len(df)} epochs to W&B...")
-    for idx, row in df.iterrows():
-        # Clean row data
-        clean_row = row.dropna().to_dict()
+    if is_hpo:
+        # HPO mode
+        print(f"[*] Reading HPO results from {tune_results_ndjson.name}...")
+        trials = []
+        with open(tune_results_ndjson, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    trials.append(json.loads(line))
+                    
+        print(f"[+] Found {len(trials)} trials. Synchronizing each trial to W&B...")
+        group_name = folder_name
         
-        # Convert scientific notation or weird types to floats where applicable
-        metrics_to_log = {}
-        for k, v in clean_row.items():
-            # Standardize column naming for W&B formatting
-            # e.g., metrics/mAP50(B) -> metrics/mAP50
-            clean_key = k.replace("(B)", "")
-            metrics_to_log[clean_key] = float(v) if not isinstance(v, str) else v
+        for trial in trials:
+            iteration = trial["iteration"]
+            fitness = trial["fitness"]
+            hparams = trial["hyperparameters"]
+            metrics = trial.get("datasets", {}).get("data", {})
             
-        # Log epoch data
-        epoch_num = int(metrics_to_log.get("epoch", idx + 1))
-        
-        # Log metrics to W&B
-        wandb.log(metrics_to_log, step=epoch_num)
-        
-    print(f"[+] Successfully logged {len(df)} epochs.")
-    
-    # Upload training charts/plots if they exist
-    charts = [
-        "results.png", "confusion_matrix_normalized.png", 
-        "BoxPR_curve.png", "BoxF1_curve.png"
-    ]
-    for chart in charts:
-        chart_path = run_dir / chart
-        if chart_path.exists():
-            print(f"[*] Logging chart: {chart}...")
-            # Log image directly
-            run.log({chart.replace(".png", ""): wandb.Image(str(chart_path))})
+            # Clean metrics key names
+            clean_metrics = {}
+            for k, v in metrics.items():
+                clean_k = k.replace("(B)", "").strip()
+                clean_metrics[clean_k] = float(v) if not isinstance(v, str) else v
+                
+            if "fitness" not in clean_metrics:
+                clean_metrics["fitness"] = fitness
+                
+            run_name = f"trial_{iteration:02d}"
+            print(f"[*] Syncing trial {iteration:02d}/{len(trials)}: fitness = {fitness:.5f}")
             
-    # Upload best.pt as a model artifact if it exists
-    if best_weights.exists():
-        print(f"[*] Uploading best model weights: {best_weights.name} ({best_weights.stat().st_size / (1024*1024):.2f} MB)...")
-        artifact_name = f"{folder_name.lower().replace('_', '-')}-model"
-        artifact = wandb.Artifact(artifact_name, type="model", description=f"Best weights for run {folder_name}")
-        artifact.add_file(str(best_weights))
-        run.log_artifact(artifact)
-        print(f"[+] Successfully logged model artifact: {artifact_name}")
+            trial_run = wandb.init(
+                project=args.project,
+                name=run_name,
+                group=group_name,
+                job_type="tune-trial",
+                config=hparams,
+                notes=f"Trial {iteration} of HPO search {folder_name}"
+            )
+            trial_run.log(clean_metrics)
+            trial_run.finish()
+            
+        print(f"[+] All {len(trials)} trials synced.")
+        
+        # Summary/Master Run
+        print(f"[*] Initializing summary W&B run for HPO group '{group_name}'...")
+        best_hparams_file = run_dir / "best_hyperparameters.yaml"
+        best_hparams = {}
+        if best_hparams_file.exists():
+            try:
+                with open(best_hparams_file, "r") as f:
+                    best_hparams = yaml.safe_load(f)
+                    print("[+] Successfully loaded best tuned hyperparameters.")
+            except Exception as e:
+                print(f"[!] WARNING: Failed to parse best_hyperparameters.yaml: {e}")
+                
+        run_notes = args.notes if args.notes else f"HPO Summary of {folder_name}"
+        summary_run = wandb.init(
+            project=args.project,
+            name=f"{folder_name}_summary",
+            group=group_name,
+            job_type="tune-summary",
+            notes=run_notes,
+            config={
+                "best_hyperparameters": best_hparams,
+                "total_trials": len(trials),
+                "is_hpo": True,
+                "variant": meta["variant"],
+                "id": meta["id"],
+                "description": meta["description"],
+            }
+        )
+        
+        # Log HPO summary charts
+        hpo_charts = ["tune_fitness.png", "tune_scatter_plots.png"]
+        for chart in hpo_charts:
+            chart_path = run_dir / chart
+            if chart_path.exists():
+                print(f"[*] Logging summary chart: {chart}...")
+                summary_run.log({chart.replace(".png", ""): wandb.Image(str(chart_path))})
+                
+        # Upload best.pt and last.pt as artifacts if they exist
+        for weight_name, weight_file in [("best", best_weights), ("last", last_weights)]:
+            if weight_file.exists():
+                print(f"[*] Uploading HPO {weight_name} weights: {weight_file.name} ({weight_file.stat().st_size / (1024*1024):.2f} MB)...")
+                artifact_name = f"{folder_name.lower().replace('_', '-')}-{weight_name}-model"
+                artifact = wandb.Artifact(artifact_name, type="model", description=f"{weight_name.capitalize()} weights for HPO run {folder_name}")
+                artifact.add_file(str(weight_file))
+                summary_run.log_artifact(artifact)
+                print(f"[+] Successfully logged {weight_name} model artifact.")
+                
+        summary_run.finish()
     else:
-        print("[!] WARNING: 'weights/best.pt' not found. Skipping weight artifact upload.")
+        # Load training configurations from args.yaml if available
+        config_dict = {
+            "run_folder": folder_name,
+            "variant": meta["variant"],
+            "id": meta["id"],
+            "description": meta["description"],
+            "manual_upload": True
+        }
         
-    run.finish()
+        if args_yaml.exists():
+            try:
+                with open(args_yaml, "r") as f:
+                    yolo_args = yaml.safe_load(f)
+                    if isinstance(yolo_args, dict):
+                        # Merge YOLO args into our config
+                        config_dict.update(yolo_args)
+                        print("[+] Successfully loaded and merged training hyperparameters from args.yaml")
+            except Exception as e:
+                print(f"[!] WARNING: Failed to parse args.yaml: {e}")
+                
+        # Initialize WandB Run
+        print(f"[*] Initializing W&B run in project '{args.project}'...")
+        run_notes = args.notes if args.notes else f"Manual offline upload of run {folder_name}"
+        
+        run = wandb.init(
+            project=args.project,
+            name=folder_name,
+            job_type=meta["job_type"],
+            notes=run_notes,
+            config=config_dict
+        )
+        
+        # Read metrics CSV and upload
+        print(f"[*] Reading metrics from {results_csv.name}...")
+        df = pd.read_csv(results_csv)
+        
+        # Clean column names (strip spaces if any)
+        df.columns = [c.strip() for c in df.columns]
+        
+        print(f"[*] Uploading {len(df)} epochs to W&B...")
+        for idx, row in df.iterrows():
+            # Clean row data
+            clean_row = row.dropna().to_dict()
+            
+            # Convert scientific notation or weird types to floats where applicable
+            metrics_to_log = {}
+            for k, v in clean_row.items():
+                # Standardize column naming for W&B formatting
+                # e.g., metrics/mAP50(B) -> metrics/mAP50
+                clean_key = k.replace("(B)", "")
+                metrics_to_log[clean_key] = float(v) if not isinstance(v, str) else v
+                
+            # Log epoch data
+            epoch_num = int(metrics_to_log.get("epoch", idx + 1))
+            
+            # Log metrics to W&B
+            wandb.log(metrics_to_log, step=epoch_num)
+            
+        print(f"[+] Successfully logged {len(df)} epochs.")
+        
+        # Upload training charts/plots if they exist
+        charts = [
+            "results.png", "confusion_matrix_normalized.png", 
+            "BoxPR_curve.png", "BoxF1_curve.png"
+        ]
+        for chart in charts:
+            chart_path = run_dir / chart
+            if chart_path.exists():
+                print(f"[*] Logging chart: {chart}...")
+                # Log image directly
+                run.log({chart.replace(".png", ""): wandb.Image(str(chart_path))})
+                
+        # Upload best.pt as a model artifact if it exists
+        if best_weights.exists():
+            print(f"[*] Uploading best model weights: {best_weights.name} ({best_weights.stat().st_size / (1024*1024):.2f} MB)...")
+            artifact_name = f"{folder_name.lower().replace('_', '-')}-model"
+            artifact = wandb.Artifact(artifact_name, type="model", description=f"Best weights for run {folder_name}")
+            artifact.add_file(str(best_weights))
+            run.log_artifact(artifact)
+            print(f"[+] Successfully logged model artifact: {artifact_name}")
+        else:
+            print("[!] WARNING: 'weights/best.pt' not found. Skipping weight artifact upload.")
+            
+        run.finish()
     print("\n" + "=" * 60)
     print("               UPLOAD COMPLETED SUCCESSFULLY!             ")
     print("=" * 60)

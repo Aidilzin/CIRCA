@@ -42,9 +42,10 @@ DOT_COLOR_IDLE: str = "#3A3A3A"
 class _StatusIndicator(QWidget):
     def __init__(self, initial_text: str = "", parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self.setObjectName("StatusIndicator")
         row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(SPACING_XS)
+        row.setContentsMargins(10, 2, 10, 2)
+        row.setSpacing(6)
 
         self._dot = QLabel()
         self._dot.setFixedSize(STATUS_DOT_SIZE, STATUS_DOT_SIZE)
@@ -95,7 +96,6 @@ class StatusFooter(QWidget):
 
         fm = QFontMetrics(fps_font)
         self._fps_label.setMinimumWidth(fm.horizontalAdvance("30 fps") + 8)
-        row.addWidget(self._fps_label)
 
     @pyqtSlot()
     def set_camera_active(self): self._camera_indicator.set_state(COLOR_STATUS_OK, "Camera Active")
@@ -109,6 +109,10 @@ class StatusFooter(QWidget):
     def set_model_loading(self): self._model_indicator.set_state(DOT_COLOR_IDLE, "Loading Model…")
     @pyqtSlot(str)
     def set_model_error(self, msg="Model Error"): self._model_indicator.set_state(COLOR_STATUS_ERROR, msg)
+
+    @pyqtSlot(str)
+    def set_status_text(self, msg: str) -> None:
+        self._model_indicator.set_state(COLOR_ACCENT_CYAN, msg)
 
     @pyqtSlot(int)
     def set_detection_count(self, count: int) -> None:

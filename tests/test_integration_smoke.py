@@ -83,7 +83,10 @@ class TestIntegrationSmoke:
 
         # Verify OpenVINO runtime can be initialized
         try:
-            from openvino.runtime import Core
+            try:
+                from openvino.runtime import Core
+            except ImportError:
+                from openvino import Core
             core = Core()
             assert core is not None
         except (ImportError, AttributeError):

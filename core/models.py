@@ -18,6 +18,7 @@ class DetectionResult:
     """Represents the complete inference result for a single frame."""
 
     boxes: list["BoundingBox"] = field(default_factory=list)
+    inference_time_ms: float = -1.0
 
     @property
     def average_confidence(self) -> float:
@@ -33,7 +34,9 @@ class PreprocessParams:
 
     clahe_clip_limit: float = 2.0
     gamma: float = 1.0
-    blur_threshold: float = 100.0
+    blur_threshold: float = 12.5
+    auto_optimize: bool = True
+    denoise: bool = True
 
 
 @dataclass

@@ -1,0 +1,27 @@
+_meta:
+  generated_by: scripts/calibrate_thresholds.py
+  split_used: val
+  model: runs\detect\CIRCA_V12N_004_TRAIN_Phase4_Nano\weights\best_openvino_model
+  display_target_precision: 0.9
+  warning_target_recall: 0.95
+display_thresholds:
+  missing_hole: 0.1
+  mouse_bite: 0.6
+  open_circuit: 0.5
+  short: 0.4
+  excess_solder: 0.6
+  insufficient_solder: 0.5
+  cold_solder_joint: 0.1
+warning_thresholds:
+  missing_hole: 0.1
+  mouse_bite: 0.1
+  open_circuit: 0.1
+  short: 0.1
+  excess_solder: 0.1
+  insufficient_solder: 0.1
+  cold_solder_joint: 0.1
+global_trigger:
+  mean_confidence_below: 0.5
+  no_detection_timeout_s: 1.0
+  note: Banner fires when mean conf < 0.50 OR Laplacian variance < blur_threshold
+    OR no boxes for >= 1s

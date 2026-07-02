@@ -215,10 +215,36 @@ class TestSidePanelInit:
         assert abs(panel.gamma_slider.value() - 1.0) < 0.05
 
     def test_default_sharpness_value(self, panel):
-        assert abs(panel.sharpness_slider.value() - 100.0) < 1.0
+        assert abs(panel.sharpness_slider.value() - 12.5) < 0.1
 
     def test_default_confidence_value(self, panel):
         assert abs(panel.confidence_slider.value() - 50.0) < 0.5
+
+
+# ===========================================================================
+# SegmentedControl
+# ===========================================================================
+
+class TestSegmentedControl:
+    def test_init(self):
+        from ui.sidebar import SegmentedControl
+        sc = SegmentedControl(["A", "B", "C"])
+        assert sc._items == ["A", "B", "C"]
+        assert len(sc._buttons) == 3
+        assert sc._active_index == 0
+
+    def test_set_index_updates_states_and_emits(self):
+        from ui.sidebar import SegmentedControl
+        sc = SegmentedControl(["A", "B", "C"])
+        
+        received = []
+        sc.index_changed.connect(lambda i: received.append(i))
+        
+        sc.set_index(2, animate=False)
+        assert sc._active_index == 2
+        assert sc._buttons[0].property("active") == "false"
+        assert sc._buttons[2].property("active") == "true"
+        assert received == [2]
 
 
 # ===========================================================================
@@ -244,7 +270,7 @@ class TestSidePanelSignals:
     def test_sharpness_slider_emits_preprocessing_params(self, panel):
         received: list[PreprocessParams] = []
         panel.preprocessing_params_changed.connect(lambda p: received.append(p))
-        panel.sharpness_slider._slider.setValue(150)
+        panel.sharpness_slider.set_value(150.0)
         assert len(received) >= 1
         assert received[-1].blur_threshold == 150.0
 
@@ -270,8 +296,16 @@ class TestSidePanelSignals:
     def test_preprocessing_params_carries_blur_value(self, panel):
         received = []
         panel.preprocessing_params_changed.connect(lambda p: received.append(p))
-        panel.sharpness_slider._slider.setValue(200)
+        panel.sharpness_slider.set_value(200.0)
         assert received[-1].blur_threshold == 200.0
+
+    def test_manual_slider_change_disables_auto_optimise(self, panel):
+        panel.auto_opt_check.setChecked(True)
+        assert panel.auto_opt_check.isChecked() is True
+        
+        # Simulating manual slider drag
+        panel.clahe_slider.set_value(4.5)
+        assert panel.auto_opt_check.isChecked() is False
 
 
 # ===========================================================================

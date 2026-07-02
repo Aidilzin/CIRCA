@@ -26,7 +26,9 @@ class AnimationMode(Enum):
 # Design Tokens - Shared
 # ===========================================================================
 
-COLOR_ACCENT_CYAN = "#00BCD4"
+COLOR_ACCENT_CYAN = "#F59E0B"
+COLOR_ACCENT_CYAN_HOVER = "#FBBF24"
+COLOR_ACCENT_CYAN_PRESSED = "#D97706"
 COLOR_STATUS_OK = "#4CAF50"
 COLOR_STATUS_WARN = "#FFC107"
 COLOR_STATUS_ERROR = "#F44336"
@@ -89,6 +91,13 @@ ICONS_SVG = {
     "brain": _SVG_TEMPLATE.format(color="{color}", path='<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .52 5.862 3 3 0 1 0 5.182 2.227h1.642a3 3 0 1 0 5.182-2.227 4 4 0 0 0 .52-5.862 4 4 0 0 0-2.526-5.77A3 3 0 1 0 12 5z"/><path d="M9 13a4.5 4.5 0 0 0 3-4"/><path d="M15 13a4.5 4.5 0 0 1-3-4"/><path d="M12 13V8"/>'),
     "focus": _SVG_TEMPLATE.format(color="{color}", path='<circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>'),
     "sidebar": _SVG_TEMPLATE.format(color="{color}", path='<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>'),
+    "sliders": _SVG_TEMPLATE.format(color="{color}", path='<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/>'),
+    "export": _SVG_TEMPLATE.format(color="{color}", path='<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
+    "log": _SVG_TEMPLATE.format(color="{color}", path='<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
+    "info": _SVG_TEMPLATE.format(color="{color}", path='<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
+    "cpu": _SVG_TEMPLATE.format(color="{color}", path='<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 15h3"/><path d="M1 9h3"/><path d="M1 15h3"/>'),
+    "terminal": _SVG_TEMPLATE.format(color="{color}", path='<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>'),
+    "check": _SVG_TEMPLATE.format(color="{color}", path='<polyline points="20 6 9 17 4 12"/>'),
 }
 
 # ===========================================================================
@@ -96,25 +105,25 @@ ICONS_SVG = {
 # ===========================================================================
 
 DARK_PALETTE = {
-    "BG_BASE": "#0F0F10",
-    "BG_SURFACE": "#1C1C1E",
-    "BG_ELEVATED": "#2C2C2E",
-    "BORDER": "#3A3A3C",
-    "TEXT_PRIMARY": "#FFFFFF",
-    "TEXT_SECONDARY": "#A1A1A6",
-    "TEXT_DISABLED": "#48484A",
-    "GLASS_BG": "rgba(28, 28, 30, 0.88)",
+    "BG_BASE": "#09090B",
+    "BG_SURFACE": "#18181B",
+    "BG_ELEVATED": "#27272A",
+    "BORDER": "#3F3F46",
+    "TEXT_PRIMARY": "#FAFAFA",
+    "TEXT_SECONDARY": "#A1A1AA",
+    "TEXT_DISABLED": "#52525B",
+    "GLASS_BG": "rgba(24, 24, 27, 0.85)",
 }
 
 LIGHT_PALETTE = {
-    "BG_BASE": "#F2F2F7",
+    "BG_BASE": "#F4F4F5",
     "BG_SURFACE": "#FFFFFF",
-    "BG_ELEVATED": "#E5E5EA",
-    "BORDER": "#D1D1D6",
-    "TEXT_PRIMARY": "#000000",
-    "TEXT_SECONDARY": "#636366",
-    "TEXT_DISABLED": "#C7C7CC",
-    "GLASS_BG": "rgba(255, 255, 255, 0.94)",
+    "BG_ELEVATED": "#E4E4E7",
+    "BORDER": "#D4D4D8",
+    "TEXT_PRIMARY": "#09090B",
+    "TEXT_SECONDARY": "#61616A",
+    "TEXT_DISABLED": "#A1A1AA",
+    "GLASS_BG": "rgba(255, 255, 255, 0.90)",
 }
 
 # ===========================================================================
@@ -200,17 +209,94 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
 
     #SidePanel {{
         background-color: {p['BG_SURFACE']};
-        border-right: 1px solid {p['BORDER']};
+        border-left: 1px solid {p['BORDER']};
     }}
 
     #SidePanel QWidget {{
         background-color: transparent;
+        color: {p['TEXT_PRIMARY']};
+    }}
+
+    #SidePanel QTabWidget::pane {{
+        border-top: 1px solid {p['BORDER']};
+        background-color: {p['BG_SURFACE']};
+        background: {p['BG_SURFACE']};
+    }}
+
+    #SidePanel QTabWidget > QWidget {{
+        background-color: {p['BG_SURFACE']};
+    }}
+
+    #SidePanel QTabBar {{
+        background-color: {p['BG_SURFACE']};
+        border: none;
+    }}
+
+    #SidePanel QTabBar::tab {{
+        background-color: {p['BG_SURFACE']};
+        border: none;
+        padding: 8px 16px;
+        color: {p['TEXT_SECONDARY']};
+        font-weight: bold;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid transparent;
+    }}
+    #SidePanel QTabBar::tab:selected {{
+        background-color: {p['BG_SURFACE']};
+        color: {COLOR_ACCENT_CYAN};
+        border-bottom: 2px solid {COLOR_ACCENT_CYAN};
+    }}
+
+    #SidePanel QLabel[secondary="true"] {{
+        border-top: 1px solid {p['BORDER']};
+        padding-top: 8px;
+        margin-top: 6px;
+        color: {p['TEXT_SECONDARY']};
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+    }}
+
+    #SidePanel QComboBox {{
+        background-color: {p['BG_ELEVATED']};
+        border: 1px solid {p['BORDER']};
+        border-radius: 6px;
+        padding: 6px 12px;
+        color: {p['TEXT_PRIMARY']};
+    }}
+
+    #SidePanel QComboBox::drop-down {{
+        border: none;
+        background: transparent;
+    }}
+
+    #SidePanel QPushButton {{
+        background-color: {p['BG_ELEVATED']};
+        border: 1px solid {p['BORDER']};
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-weight: 600;
+        color: {p['TEXT_PRIMARY']};
+    }}
+    #SidePanel QPushButton:hover {{
+        background-color: {p['BORDER']};
+        border-color: {COLOR_ACCENT_CYAN};
+    }}
+    #SidePanel QPushButton#PrimaryButton {{
+        background-color: {COLOR_ACCENT_CYAN};
+        color: {p['BG_BASE']};
+        border: none;
+    }}
+    #SidePanel QPushButton#PrimaryButton:hover {{
+        background-color: {COLOR_ACCENT_CYAN_HOVER};
     }}
 
     #ActivityButton {{
         background-color: transparent;
         border: none;
         border-radius: 8px;
+        margin: 4px 4px;
         padding: 8px;
         min-width: 40px;
         min-height: 40px;
@@ -219,8 +305,9 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         background-color: {p['BG_ELEVATED']};
     }}
     #ActivityButton[active="true"] {{
+        background-color: {p['BG_ELEVATED']};
         border-left: 2px solid {COLOR_ACCENT_CYAN};
-        border-radius: 0px;
+        border-radius: 4px;
     }}
 
     QTabWidget::pane {{
@@ -242,30 +329,46 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     QLabel {{ background: transparent; color: {p['TEXT_PRIMARY']}; }}
     QLabel[secondary="true"] {{ color: {p['TEXT_SECONDARY']}; }}
 
-    QSlider::groove:horizontal {{ background: {p['BG_ELEVATED']}; height: 4px; border-radius: 2px; }}
+    QSlider::groove:horizontal {{
+        background: {p['BG_ELEVATED']};
+        height: 6px;
+        border-radius: 3px;
+    }}
     QSlider::handle:horizontal {{
-        background: {p['TEXT_PRIMARY']};
+        background: {COLOR_ACCENT_CYAN};
         width: 14px;
         height: 14px;
-        margin: -5px 0;
+        margin: -4px 0;
         border-radius: 7px;
+        border: 2px solid {p['BG_SURFACE']};
     }}
-    QSlider::sub-page:horizontal {{ background: {COLOR_ACCENT_CYAN}; border-radius: 2px; }}
+    QSlider::handle:horizontal:hover {{
+        background: {p['TEXT_PRIMARY']};
+    }}
+    QSlider::sub-page:horizontal {{
+        background: {COLOR_ACCENT_CYAN};
+        border-radius: 3px;
+    }}
 
     QComboBox {{
         background-color: {p['BG_ELEVATED']};
         border: 1px solid {p['BORDER']};
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 8px 12px;
         color: {p['TEXT_PRIMARY']};
     }}
-    QComboBox::drop-down {{ border: none; }}
+    QComboBox:hover {{
+        border-color: {COLOR_ACCENT_CYAN};
+    }}
+    QComboBox::drop-down {{
+        border: none;
+    }}
 
     QComboBox QAbstractItemView {{
         background-color: {p['BG_SURFACE']};
         border: 1px solid {p['BORDER']};
         selection-background-color: {COLOR_ACCENT_CYAN};
-        selection-color: {p['TEXT_PRIMARY']};
+        selection-color: {p['BG_BASE']};
         color: {p['TEXT_PRIMARY']};
         outline: none;
     }}
@@ -279,20 +382,236 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
 
     QComboBox QAbstractItemView::item:selected {{
         background-color: {COLOR_ACCENT_CYAN};
-        color: {p['TEXT_PRIMARY']};
+        color: {p['BG_BASE']};
     }}
 
     QPushButton {{
         background-color: {p['BG_ELEVATED']};
         border: 1px solid {p['BORDER']};
-        border-radius: 8px;
-        padding: 10px 16px;
+        border-radius: 6px;
+        padding: 8px 16px;
         font-weight: 600;
+        color: {p['TEXT_PRIMARY']};
     }}
-    QPushButton:hover {{ background-color: {p['BORDER']}; }}
+    QPushButton:hover {{
+        background-color: {p['BORDER']};
+        border-color: {COLOR_ACCENT_CYAN};
+    }}
+    QPushButton:pressed {{
+        background-color: {p['BG_SURFACE']};
+    }}
+
+    QPushButton#PrimaryButton {{
+        background-color: {COLOR_ACCENT_CYAN};
+        color: {p['BG_BASE']};
+        border: none;
+    }}
+    QPushButton#PrimaryButton:hover {{
+        background-color: {COLOR_ACCENT_CYAN_HOVER};
+    }}
+    QPushButton#PrimaryButton:pressed {{
+        background-color: {COLOR_ACCENT_CYAN_PRESSED};
+    }}
 
     #StatusFooter {{
         background-color: {p['BG_SURFACE']};
         border-top: 1px solid {p['BORDER']};
+    }}
+
+    #StatusIndicator {{
+        background-color: {p['BG_ELEVATED']};
+        border: 1px solid {p['BORDER']};
+        border-radius: 12px;
+    }}
+
+    #FPSLabel {{
+        color: {COLOR_ACCENT_CYAN};
+        font-weight: bold;
+    }}
+
+    QCheckBox {{
+        spacing: 8px;
+        color: {p['TEXT_PRIMARY']};
+    }}
+    QCheckBox::indicator {{
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid {p['BORDER']};
+        border-radius: 4px;
+        background-color: {p['BG_ELEVATED']};
+    }}
+    QCheckBox::indicator:hover {{
+        border-color: {COLOR_ACCENT_CYAN};
+    }}
+    QCheckBox::indicator:checked {{
+        background-color: {COLOR_ACCENT_CYAN};
+        border: 3px solid {p['BG_SURFACE']};
+    }}
+
+    QScrollBar:vertical {{
+        border: none;
+        background: transparent;
+        width: 6px;
+        margin: 0px;
+    }}
+    QScrollBar::handle:vertical {{
+        background: {p['BORDER']};
+        min-height: 20px;
+        border-radius: 3px;
+    }}
+    QScrollBar::handle:vertical:hover {{
+        background: {p['TEXT_SECONDARY']};
+    }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+        height: 0px;
+    }}
+    QScrollBar:horizontal {{
+        border: none;
+        background: transparent;
+        height: 6px;
+        margin: 0px;
+    }}
+    QScrollBar::handle:horizontal {{
+        background: {p['BORDER']};
+        min-width: 20px;
+        border-radius: 3px;
+    }}
+    QScrollBar::handle:horizontal:hover {{
+        background: {p['TEXT_SECONDARY']};
+    }}
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+        width: 0px;
+    }}
+
+    #AnalyticsCard {{
+        background-color: {p['BG_SURFACE']};
+        border: 1px solid {p['BORDER']};
+        border-radius: 10px;
+    }}
+
+    /* Top Bar & Navigation */
+    #TopNavBar {{
+        background-color: {p['BG_SURFACE']};
+        border-bottom: 1px solid {p['BORDER']};
+    }}
+    
+    #TopNavBar QPushButton {{
+        background: transparent;
+        border: 1px solid {p['BORDER']};
+        padding: 5px;
+        min-width: 30px;
+        max-width: 30px;
+        min-height: 30px;
+        max-height: 30px;
+        border-radius: 6px;
+        color: {p['TEXT_PRIMARY']};
+    }}
+    #TopNavBar QPushButton:hover {{
+        background: {p['BG_ELEVATED']};
+        border-color: {COLOR_ACCENT_CYAN};
+    }}
+
+    /* Sidebar Group Card */
+    #SidebarGroupCard {{
+        background-color: {p['BG_SURFACE']};
+        border: 1px solid {p['BORDER']};
+        border-radius: 8px;
+    }}
+    
+    #ArmedStatus {{
+        background-color: rgba(76, 175, 80, 20);
+        border: 1px solid #4CAF50;
+        border-radius: 10px;
+        padding: 2px 10px;
+        color: #4CAF50;
+    }}
+    
+    /* QSplitter Handle */
+    QSplitter::handle {{
+        background-color: {p['BORDER']};
+    }}
+    
+    /* Analytics Dashboard & Elements */
+    #AnalyticsHeader {{
+        letter-spacing: 0.5px;
+        color: {p['TEXT_SECONDARY']};
+    }}
+    
+    #AdvisoryStatusVal {{
+        color: {p['TEXT_SECONDARY']};
+    }}
+    
+    #AdvisoryStatusDesc {{
+        color: {p['TEXT_SECONDARY']};
+    }}
+    
+    #AnalyticsScroll {{
+        border: none;
+        background: transparent;
+    }}
+    
+    #AnalyticsSectionHeader {{
+        border-top: 1px solid {p['BORDER']};
+        padding-top: 10px;
+        margin-top: 5px;
+        color: {p['TEXT_SECONDARY']};
+    }}
+
+    #CommitReworkButton {{
+        background-color: {COLOR_STATUS_OK};
+        color: #09090B;
+        border: none;
+        font-weight: bold;
+        padding: 10px 16px;
+    }}
+    #CommitReworkButton:hover {{
+        background-color: #66BB6A;
+    }}
+    
+    #ExportTicketButton, #NextBoardButton {{
+        padding: 10px 12px;
+    }}
+
+    /* Segmented Control Options */
+    #SegmentedControl {{
+        background-color: {p['BG_ELEVATED']};
+        border-radius: 8px;
+        padding: 2px;
+        border: 1px solid {p['BORDER']};
+    }}
+
+    .SegmentedOption {{
+        color: {p['TEXT_SECONDARY']};
+        font-weight: bold;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-align: center;
+        border: none;
+        background: transparent;
+        padding: 6px 12px;
+        border-radius: 6px;
+    }}
+    
+    .SegmentedOption:hover {{
+        color: {p['TEXT_PRIMARY']};
+    }}
+
+    .SegmentedOption[active="true"] {{
+        color: {p['BG_BASE']};
+        font-weight: 800;
+    }}
+
+    #SegmentedIndicator {{
+        background-color: {COLOR_ACCENT_CYAN};
+        border-radius: 6px;
+    }}
+
+    /* Compute Backend Indicator HUD style */
+    #BackendIndicator {{
+        background-color: {p['BG_ELEVATED']};
+        border: 1px solid {p['BORDER']};
+        border-radius: 8px;
+        padding: 4px 8px;
+        color: {p['TEXT_SECONDARY']};
     }}
     """

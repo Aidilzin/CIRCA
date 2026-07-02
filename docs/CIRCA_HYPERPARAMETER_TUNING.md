@@ -104,15 +104,35 @@ names: (same as above)
 
 ---
 
+## 2.1 HPO Results (Phase 3)
+
+The genetic HPO ran for 23.4 hours on an NVIDIA RTX 3090 (50 iterations × 50 epochs per trial, fraction=0.5). Model fitness improved by 31.6% (from 0.19978 to 0.26305), with the best trial found at iteration 42.
+
+### Tuned Configuration (`best_hyperparameters.yaml`)
+
+| Parameter | YOLOv12 Default | Tuned Value | Change | Significance |
+|:---|:---:|:---:|:---:|:---|
+| `lr0` (Initial Learning Rate) | 0.01 | **0.00014** | ÷71× | 🔴 Critical: Avoids gradient explosion on small, low-contrast defects. |
+| `box` (Box Loss Gain) | 7.5 | **0.169** | ÷44× | 🔴 Critical: Prevents localization loss from dominating classification. |
+| `cls` (Class Loss Gain) | 0.5 | **0.266** | ÷1.9× | 🟡 Moderate: Restructures class loss weight for the 7-class taxonomy. |
+| `momentum` (SGD/Adam Momentum) | 0.937 | **0.785** | -16% | 🟡 Moderate: Increases optimizer sensitivity to rare defect gradients. |
+| `mosaic` (Mosaic Augmentation) | 1.0 | **0.722** | -28% | 🟡 Moderate: Limits visual noise from out-of-context image composites. |
+| `scale` (Scale Augmentation) | 0.5 | **0.650** | +30% | 🟢 Minor: Enhances model robustness to scale variations in PCB layouts. |
+| `weight_decay` (L2 Regularization) | 0.0005 | **0.0009** | ×1.8 | 🟢 Minor: Reduces overfitting on oversampled minority classes. |
+| `dfl` (Distribution Focal Loss) | 1.5 | **1.656** | +10% | 🟢 Minor: Stabilizes boundary regressions on fine-grained defects. |
+| `copy_paste` (Copy-Paste Aug) | 0.0 | **0.011** | New | 🟢 Minor: Pastes defect regions onto new backgrounds to combat imbalance. |
+
+---
+
 ## 3. Training Protocol
 
 ### Batch Sizes
 
 | Variant | RTX 3090 (24 GB) | RTX 3060 Laptop (6 GB) |
 |:---|:---:|:---:|
-| `yolov12n` | 32 | 16 |
-| `yolov12s` | 24 | 12 |
-| `yolov12m` | 16 | 6 |
+| `yolov12n` | 64 | 16 |
+| `yolov12s` | 48 | 12 |
+| `yolov12m` | 32 | 6 |
 
 ### Ablation Training Config (Phase 1 & 2)
 

@@ -140,7 +140,7 @@ class TestThemeColors:
         assert theme.COLOR_STATUS_WARN == "#FFC107"
 
     def test_accent_cyan_is_correct(self):
-        assert theme.COLOR_ACCENT_CYAN == "#00BCD4"
+        assert theme.COLOR_ACCENT_CYAN == "#F59E0B"
 
     def test_status_warn_does_not_equal_accent(self):
         """Amber tier must be distinct from the interactive accent colour."""
@@ -247,12 +247,12 @@ class TestBuildQss:
     def test_qss_contains_bg_base_colour(self):
         """Dark mode QSS must reference the dark palette BG_BASE colour."""
         qss = build_qss()
-        # DARK_PALETTE["BG_BASE"] = "#0F0F10"
-        assert "#0F0F10" in qss  # COLOR_BG_BASE in dark mode
+        # DARK_PALETTE["BG_BASE"] = "#09090B"
+        assert "#09090B" in qss  # COLOR_BG_BASE in dark mode
 
     def test_qss_contains_accent_colour(self):
         qss = build_qss()
-        assert "#00BCD4" in qss  # COLOR_ACCENT_CYAN
+        assert "#F59E0B" in qss  # COLOR_ACCENT_CYAN
 
     def test_qss_contains_slider_rules(self):
         qss = build_qss()

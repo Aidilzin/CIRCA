@@ -80,7 +80,7 @@ pip install -r requirements.txt
 
 ## Running the GUI
 
-> **Prerequisite:** A trained and exported OpenVINO INT8 model must exist at `models/yolov12_int8.xml`.  
+> **Prerequisite:** A trained and exported OpenVINO FP16 model must exist at `models/yolov12_fp16.xml`.  
 > See [Training](#training) below to produce this file.
 
 ```powershell
@@ -222,8 +222,11 @@ CIRCA/
 |:---|:---|:---:|:---:|:---:|:---:|
 | Phase 1 — Vanilla Baseline | unified_pcb_v3 | 0.6649 | 0.4237 | 0.7290 | 0.6433 |
 | Phase 2 — CIRCA (CLAHE+γ) | unified_pcb_v3_preproc | 0.6600 | 0.4284 | **0.8443** | 0.6341 |
-| Phase 3 — HPO | — | Pending | — | — | — |
-| Phase 4 — Final (N/S/M) | — | Pending | — | — | — |
+| Phase 3 — HPO (YOLOv12-S) | unified_pcb_v3_preproc | 0.4350 (fitness 0.263) | 0.2631 | 0.7161 | 0.4196 |
+| Phase 4 — Final N (FP16) | unified_pcb_v3_preproc | 0.6313 | 0.3952 | 0.8316 | 0.6023 |
+| Phase 4 — Final S (FP16) | unified_pcb_v3_preproc | 0.6620 | 0.4297 | 0.7306 | 0.6700 |
+| Phase 4 — Final M (FP16) | unified_pcb_v3_preproc | 0.6742 | 0.4389 | 0.7478 | 0.6707 |
+| **Phase 7 — Test (N FP16)** | unified_pcb_v3 test split | **0.6279** | **0.3834** | **0.8570** | **0.6059** |
 
 Full experiment log: [`docs/CIRCA_EXPERIMENT_CHECKLIST.md`](docs/CIRCA_EXPERIMENT_CHECKLIST.md)  
 Training flow diagrams: [`CIRCA_TRAINING_FLOW.md`](CIRCA_TRAINING_FLOW.md)

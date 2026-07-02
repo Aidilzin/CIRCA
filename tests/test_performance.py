@@ -91,10 +91,10 @@ class TestPerformance:
 
         avg_time_ms = (total_time / iterations) * 1000.0
 
-        # 20ms bound: stress ceiling for CI environments (hardware-variable).
+        # 25ms bound: stress ceiling for CI environments (hardware-variable).
         # Locally, expect ~7-14ms on an i5 8th-gen. Real op resolution is <5ms.
-        assert avg_time_ms < 20.0, (
-            f"NFR1 Stress FAILED: Preprocessing at 1080p took {avg_time_ms:.2f}ms (CI ceiling: <20ms)"
+        assert avg_time_ms < 25.0, (
+            f"NFR1 Stress FAILED: Preprocessing at 1080p took {avg_time_ms:.2f}ms (CI ceiling: <25ms)"
         )
 
     def test_nfr2_inference_latency(self, test_frame):

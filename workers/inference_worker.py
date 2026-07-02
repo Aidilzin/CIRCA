@@ -108,6 +108,10 @@ class InferenceWorker(QObject):
     # MainWindow uses this to flip the "● Model Ready" status dot.
     model_loaded: pyqtSignal = pyqtSignal()
 
+    # Emitted when a dynamic model suitability benchmark completes.
+    # Carries: (model_path: str, avg_latency_ms: float)
+    benchmark_completed: pyqtSignal = pyqtSignal(str, float)
+
     # ------------------------------------------------------------------
     # Initialisation
     # ------------------------------------------------------------------
@@ -163,6 +167,37 @@ class InferenceWorker(QObject):
             self.model_loaded.emit()
         except Exception as exc:
             msg = f"Model load failed — {type(exc).__name__}: {exc}"
+            logger.error(msg, exc_info=True)
+            self.inference_error.emit(msg)
+
+    @pyqtSlot(str)
+    @trace_execution
+    def run_benchmark(self, model_path: str) -> None:
+        """
+        Run a quick 5-iteration speed benchmark on the specified model
+        using a dummy input frame, and emit the average latency.
+        """
+        try:
+            import numpy as np
+            logger.info("InferenceWorker: starting benchmark on '%s'…", model_path)
+            # Create a separate temporary engine to avoid mutating currently running inference
+            engine = InferenceEngine(model_path)
+            dummy_frame = np.zeros((640, 640, 3), dtype=np.uint8)
+            params = InferenceParams(confidence_threshold=0.50)
+
+            # Warmup pass
+            _ = engine.run(dummy_frame, params)
+
+            # 5 measurement passes
+            start = time.perf_counter()
+            for _ in range(5):
+                _ = engine.run(dummy_frame, params)
+            avg_latency = ((time.perf_counter() - start) / 5.0) * 1000.0
+
+            logger.info("InferenceWorker: benchmark done. Avg latency = %.2f ms", avg_latency)
+            self.benchmark_completed.emit(model_path, avg_latency)
+        except Exception as exc:
+            msg = f"Benchmark failed — {type(exc).__name__}: {exc}"
             logger.error(msg, exc_info=True)
             self.inference_error.emit(msg)
 
@@ -223,6 +258,7 @@ class InferenceWorker(QObject):
             start_inference = time.perf_counter()
             result: DetectionResult = self._engine.run(frame, params)
             inference_duration_ms = (time.perf_counter() - start_inference) * 1000.0
+            result.inference_time_ms = inference_duration_ms
 
             logger.debug(
                 "InferenceWorker: %d detection(s), avg_conf=%.2f, took %.2fms",

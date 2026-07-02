@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from core.models import PreprocessParams
-from core.preprocessor import apply_clahe, apply_gamma, compute_variance
+from core.preprocessor import apply_clahe, apply_gamma, compute_variance, apply_denoise, auto_tune_parameters
 
 
 # ---------------------------------------------------------------------------
@@ -311,3 +311,39 @@ class TestPipelineIntegration:
             f"blur_threshold ({params.blur_threshold}). Preprocessing is "
             f"destroying edge information."
         )
+
+
+# ===========================================================================
+# apply_denoise & auto_tune_parameters
+# ===========================================================================
+
+class TestApplyDenoise:
+    def test_denoise_preserves_shape_and_dtype(self):
+        frame = make_bgr_frame(64, 64, 128)
+        result = apply_denoise(frame)
+        assert result.shape == frame.shape
+        assert result.dtype == np.uint8
+
+    def test_denoise_raises_on_empty(self):
+        with pytest.raises(ValueError, match="empty frame"):
+            apply_denoise(None)  # type: ignore[arg-type]
+
+
+class TestAutoTuneParameters:
+    def test_auto_tune_returns_tuple_of_floats(self):
+        frame = make_bgr_frame(64, 64, 128)
+        clahe, gamma = auto_tune_parameters(frame)
+        assert isinstance(clahe, float)
+        assert isinstance(gamma, float)
+
+    def test_auto_tune_dark_frame_raises_gamma(self):
+        # Extremely dark frame (value=10) should yield high gamma (2.2)
+        frame = make_bgr_frame(64, 64, 10)
+        clahe, gamma = auto_tune_parameters(frame)
+        assert gamma == 2.2
+
+    def test_auto_tune_bright_frame_lowers_gamma(self):
+        # Extremely bright frame (value=200) should yield low gamma (0.6)
+        frame = make_bgr_frame(64, 64, 200)
+        clahe, gamma = auto_tune_parameters(frame)
+        assert gamma == 0.6

@@ -23,8 +23,11 @@ $DatasetPreprocSource = Join-Path $RootPath "datasets\unified_pcb_v3_preproc"
 $TrainEngineSource = Join-Path $RootPath "train_engine.py"
 $ReqsSource = Join-Path $RootPath "requirements_runpod.txt"
 $ScriptsDirSource = Join-Path $RootPath "scripts"
-$WeightN = Join-Path $RootPath "yolo12n.pt"
-$WeightS = Join-Path $RootPath "yolo12s.pt"
+$ModelsDirSource = Join-Path $RootPath "models"
+$WeightN = Join-Path $ModelsDirSource "yolo12n.pt"
+$WeightS = Join-Path $ModelsDirSource "yolo12s.pt"
+$WeightM = Join-Path $ModelsDirSource "yolo12m.pt"
+$HPOYaml = Join-Path $RootPath "runs\detect\CIRCA_V12S_003_TUNE_HPO_7class\best_hyperparameters.yaml"
 
 # 3. Validations
 Write-Host "[*] Validating required files and directories..." -ForegroundColor Yellow
@@ -76,9 +79,25 @@ Copy-Item -Recurse -Path $ScriptsDirSource -Destination $StagingPath
 Copy-Item -Path $TrainEngineSource -Destination $StagingPath
 Copy-Item -Path $ReqsSource -Destination $StagingPath
 
-# Copy YOLO base weights (avoids downloading them on the pod)
-if (Test-Path $WeightN) { Copy-Item -Path $WeightN -Destination $StagingPath }
-if (Test-Path $WeightS) { Copy-Item -Path $WeightS -Destination $StagingPath }
+# Copy YOLO base weights from models/ dir (avoids downloading on pod)
+New-Item -ItemType Directory -Path (Join-Path $StagingPath "models") | Out-Null
+if (Test-Path $WeightN) { Copy-Item -Path $WeightN -Destination (Join-Path $StagingPath "models") }
+if (Test-Path $WeightS) { Copy-Item -Path $WeightS -Destination (Join-Path $StagingPath "models") }
+if (Test-Path $WeightM) {
+    Copy-Item -Path $WeightM -Destination (Join-Path $StagingPath "models")
+} else {
+    Write-Host "  [!] WARNING: yolo12m.pt not found in models/ — Phase 4-M will auto-download on pod." -ForegroundColor Yellow
+}
+
+# Copy HPO yaml from Phase 3 runs (required for Phase 4 --cfg flag)
+if (Test-Path $HPOYaml) {
+    $HPODestDir = Join-Path $StagingPath "runs\detect\CIRCA_V12S_003_TUNE_HPO_7class"
+    New-Item -ItemType Directory -Path $HPODestDir -Force | Out-Null
+    Copy-Item -Path $HPOYaml -Destination $HPODestDir
+    Write-Host "  [+] HPO yaml included." -ForegroundColor Green
+} else {
+    Write-Host "  [!] WARNING: HPO yaml not found — Phase 4 will use manual hyperparameters." -ForegroundColor Yellow
+}
 
 Write-Host "  [+] Staging copying complete." -ForegroundColor Green
 

@@ -28,6 +28,11 @@ echo "      Done."
 # 2. Run diagnostic
 echo ""
 echo "[2/2] Running CIRCA verification diagnostic..."
+# Fix permissions on datasets in case zip extraction stripped directory executable bits
+if [ -d "datasets" ]; then
+    echo "      Fixing dataset directory permissions (chmod -R 755)..."
+    chmod -R 755 datasets
+fi
 python scripts/runpod_setup.py
 
 echo ""

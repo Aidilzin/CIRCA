@@ -61,6 +61,7 @@ class _StubCameraWorker(QObject):
     new_frame = pyqtSignal(QImage)
     frame_ready_for_inference = pyqtSignal(object)
     camera_error = pyqtSignal(str)
+    auto_params_updated = pyqtSignal(float, float)
 
     def __init__(self, device_index: int = 0, parent=None):
         super().__init__(parent)
@@ -85,6 +86,7 @@ class _StubInferenceWorker(QObject):
     new_detections = pyqtSignal(object)
     inference_error = pyqtSignal(str)
     model_loaded = pyqtSignal()
+    benchmark_completed = pyqtSignal(str, float)
 
     def process_frame(self, frame):
         pass
@@ -93,6 +95,9 @@ class _StubInferenceWorker(QObject):
         pass
 
     def load_model(self, path):
+        pass
+
+    def run_benchmark(self, path):
         pass
 
 
@@ -488,10 +493,10 @@ class TestMainWindowDefaults:
 class TestSidebarToggle:
     """Verify ActivityBar/SidePanel tab toggle integration."""
 
-    def test_activity_bar_exists(self, win):
-        from ui.sidebar import ActivityBar
-        assert hasattr(win, "activity_bar")
-        assert isinstance(win.activity_bar, ActivityBar)
+    def test_top_settings_btn_exists(self, win):
+        from PyQt6.QtWidgets import QPushButton
+        assert hasattr(win, "top_settings_btn")
+        assert isinstance(win.top_settings_btn, QPushButton)
 
     def test_side_panel_exists(self, win):
         from ui.sidebar import SidePanel

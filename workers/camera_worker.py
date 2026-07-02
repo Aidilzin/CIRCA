@@ -57,7 +57,7 @@ from PyQt6.QtGui import QImage
 
 from core.debug import trace_execution
 from core.models import PreprocessParams
-from core.preprocessor import apply_clahe, apply_gamma, compute_variance
+from core.preprocessor import apply_clahe, apply_gamma, compute_variance, apply_denoise, auto_tune_parameters
 from core.utils import bgr_frame_to_qimage
 
 logger = logging.getLogger(__name__)
@@ -112,6 +112,10 @@ class CameraWorker(QObject):
     # Emitted when cv2.VideoCapture fails to open or read() returns False.
     # MainWindow connects this to the StatusFooter red status dot (UJ-03).
     camera_error: pyqtSignal = pyqtSignal(str)
+
+    # Emitted when parameters are dynamically calculated in auto-optimisation mode.
+    # Carries: (clahe_clip_limit: float, gamma: float)
+    auto_params_updated: pyqtSignal = pyqtSignal(float, float)
 
     # ------------------------------------------------------------------
     # Initialisation
@@ -204,7 +208,10 @@ class CameraWorker(QObject):
             # ----------------------------------------------------------
             if cap is None or not cap.isOpened():
                 cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
-                if not cap.isOpened():
+                if cap.isOpened():
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                else:
                     cap.release()
                     cap = None
                     msg = (
@@ -265,24 +272,41 @@ class CameraWorker(QObject):
             params = self._snapshot_params()
 
             # ----------------------------------------------------------
-            # Stage 4: FR5 — Motion / blur gate (Laplacian variance)
+            # Stage 4: Denoise first if enabled (removes camera graininess before blur/variance check)
             # ----------------------------------------------------------
             start_preprocess = time.perf_counter()
-            variance = compute_variance(frame)
+            if params.denoise:
+                frame_to_process = apply_denoise(frame)
+            else:
+                frame_to_process = frame
+
+            # ----------------------------------------------------------
+            # Stage 5: FR5 — Motion / blur gate (Laplacian variance on denoised frame)
+            # ----------------------------------------------------------
+            variance = compute_variance(frame_to_process)
 
             if variance < params.blur_threshold:
                 # Board is moving or out of focus.
                 if self._running:
                     try:
-                        self.new_frame.emit(bgr_frame_to_qimage(frame))
+                        self.new_frame.emit(bgr_frame_to_qimage(frame_to_process))
                     except ValueError:
                         pass  # Drop corrupted frames
                 continue
 
             # ----------------------------------------------------------
-            # Stage 5: Sharp frame — apply preprocessing pipeline (FR3, FR4)
+            # Stage 6: Sharp frame — apply preprocessing pipeline (FR3, FR4)
             # ----------------------------------------------------------
-            processed = apply_clahe(frame, params)  # FR3: CLAHE contrast enhance
+            # Auto-optimise contrast (CLAHE) & brightness (Gamma) dynamically if enabled
+            if params.auto_optimize:
+                auto_clahe, auto_gamma = auto_tune_parameters(frame_to_process)
+                # Override the parameters for this frame
+                params.clahe_clip_limit = auto_clahe
+                params.gamma = auto_gamma
+                if self._running:
+                    self.auto_params_updated.emit(auto_clahe, auto_gamma)
+
+            processed = apply_clahe(frame_to_process, params)  # FR3: CLAHE contrast enhance
             processed = apply_gamma(processed, params)  # FR4: Gamma shadow lift
             
             preprocess_duration_ms = (time.perf_counter() - start_preprocess) * 1000.0
@@ -330,6 +354,8 @@ class CameraWorker(QObject):
                 clahe_clip_limit=src.clahe_clip_limit,
                 gamma=src.gamma,
                 blur_threshold=src.blur_threshold,
+                auto_optimize=src.auto_optimize,
+                denoise=src.denoise,
             )
 
     # _wait_for_retry() was removed (2026-06-03).

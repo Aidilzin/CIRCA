@@ -210,3 +210,71 @@ def compute_variance(frame: np.ndarray) -> float:
     # NFR1 Optimization: cv2.meanStdDev is faster than laplacian.var().
     _, stddev = cv2.meanStdDev(laplacian)
     return float(stddev[0, 0] ** 2)
+
+
+# ---------------------------------------------------------------------------
+# Noise reduction filter & Auto-optimisation logic
+# ---------------------------------------------------------------------------
+
+def apply_denoise(frame: np.ndarray) -> np.ndarray:
+    """
+    Apply edge-preserving bilateral filtering to suppress camera sensor noise
+    (graininess) while retaining crisp defect edges critical for detection.
+
+    Bilateral filter is chosen over Gaussian because it preserves edge sharpness:
+    it weights pixels by both spatial proximity AND intensity similarity, so edges
+    between solder and copper remain sharp while uniform regions are smoothed.
+
+    Parameters chosen for real-time performance at 720p:
+      d=5        — neighbourhood diameter; d>9 is very slow
+      sigmaColor=35 — compresses colour range; keeps component edges intact
+      sigmaSpace=5  — spatial kernel width
+    """
+    if frame is None or frame.size == 0:
+        raise ValueError("apply_denoise received an empty frame.")
+    return cv2.bilateralFilter(frame, d=5, sigmaColor=35, sigmaSpace=5)
+
+
+def auto_tune_parameters(frame: np.ndarray) -> tuple[float, float]:
+    """
+    Analyze frame luminance histogram to calculate optimal CLAHE and Gamma values.
+    
+    Returns:
+        tuple[clahe_clip_limit, gamma]
+    """
+    if frame is None or frame.size == 0:
+        return 2.0, 1.0
+        
+    grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    mean_val, std_val = cv2.meanStdDev(grey)
+    mean_brightness = float(mean_val[0, 0])
+    std_brightness = float(std_val[0, 0])
+
+    # 1. Calculate dynamic Gamma based on mean brightness (target range: 110-130)
+    if mean_brightness < 40:
+        gamma = 2.2      # Extremely dark shadows
+    elif mean_brightness < 85:
+        gamma = 1.6      # Dark bench light
+    elif mean_brightness < 115:
+        gamma = 1.3      # Slightly dark
+    elif mean_brightness < 135:
+        gamma = 1.0      # Target range, no correction
+    elif mean_brightness < 170:
+        gamma = 0.8      # Bright highlights
+    else:
+        gamma = 0.6      # Glare / overexposed
+
+    # 2. Calculate dynamic CLAHE based on standard deviation (contrast indicator)
+    # Capped at 2.2 max to prevent sensor noise/graininess amplification.
+    if std_brightness < 20:
+        clahe_clip = 2.2  # Low contrast
+    elif std_brightness < 35:
+        clahe_clip = 1.8  # Moderately low contrast
+    elif std_brightness < 50:
+        clahe_clip = 1.5  # Normal contrast
+    elif std_brightness < 65:
+        clahe_clip = 1.2  # High contrast
+    else:
+        clahe_clip = 1.0  # Very high contrast
+
+    return clahe_clip, gamma

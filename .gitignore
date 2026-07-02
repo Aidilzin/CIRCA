@@ -70,9 +70,11 @@ weights/
 # Jupyter
 .ipynb_checkpoints/
 
-# AI Agent folders
+# AI Agent folders & custom skills
+.antigravitycli/
 .claude/
 .gemini/
+**/skills/
 
 # Backup and Archive directories
 .OLD/
@@ -81,4 +83,43 @@ weights/
 restored_conversations_history.md
 
 # Local/Private Scripts
-scripts/upload_to_runpod.py
+scripts/upload_to_runpod.py
+
+# Thesis helper/one-off scripts (not production code)
+scripts/gen_fig3_1.py
+scripts/convert_ch4_to_docx.py
+scripts/package_runpod.ps1
+scripts/runpod_setup.sh
+scripts/upload_run_to_wandb.py
+
+# Intermediate/dev docs not needed in repo
+docs/circa_progress_report_presentation.html
+docs/circa_research_framework.html
+docs/hpo_analysis.md
+docs/phase1_comparison.md
+docs/phase1_vs_phase2_ablation.md
+docs/quantization_results.json
+docs/CIRCA_EXPERIMENT_CHECKLIST.md
+docs/CIRCA_EXPERIMENT_PLAN.md
+docs/CIRCA_HYPERPARAMETER_TUNING.md
+docs/CIRCA_TRAIN_ENGINE_GUIDE.md
+docs/CIRCA_DATASET_PREPROCESSING.md
+
+# Thesis formatting guides and course materials (not source)
+docs/CSP650_*.pdf
+docs/Thesis_Formatting*.pdf
+docs/Chapter_4_Results_and_Findings.pdf
+
+# Superseded thesis chapter draft
+docs/CIRCA_THESIS_CH1_4.md
+
+# Reference import files (personal citation manager)
+docs/references_pdf/
+
+# DOCX/PDF thesis builds (binary, regenerated from MD source)
+docs/CIRCA_THESIS_CHAPTER_4.docx
+docs/CIRCA_THESIS_CHAPTER_4.pdf
+docs/CIRCA_THESIS_FULL.docx
+
+# RunPod / deployment staging archives
+requirements_runpod.txt

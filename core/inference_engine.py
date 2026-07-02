@@ -44,6 +44,7 @@ Post-processing pipeline (per frame):
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import List
 
@@ -136,14 +137,18 @@ class InferenceEngine:
             # Import here so the module can be imported even without openvino
             # installed (tests mock this path). Import at method scope also
             # avoids polluting the module namespace with openvino symbols.
-            from openvino.runtime import Core  # type: ignore[import]
+            try:
+                from openvino.runtime import Core  # type: ignore[import]
+            except ImportError:
+                from openvino import Core  # type: ignore[import]
 
             ov_core = Core()
             model = ov_core.read_model(str(xml_path))
-            # "CPU" device: consistent performance on any repair bench PC.
-            # OpenVINO auto-selects iGPU if available via "AUTO" device,
-            # but CPU is more predictable for INT8 thermal behaviour (NFR6).
-            self._compiled_model = ov_core.compile_model(model, device_name="CPU")
+            # Resolve hardware device dynamically for maximum flexibility
+            # Defaults to "AUTO" to select best CPU/iGPU/GPU automatically,
+            # but allows explicit pinning via CIRCA_DEVICE env variable.
+            device_name = os.environ.get("CIRCA_DEVICE", "AUTO")
+            self._compiled_model = ov_core.compile_model(model, device_name=device_name)
 
         except Exception as exc:
             raise RuntimeError(
@@ -154,15 +159,21 @@ class InferenceEngine:
         self._input_layer = self._compiled_model.input(0)
         self._output_layer = self._compiled_model.output(0)
 
-        # Derive num_classes from the output shape: [1, 4+C, 8400] → C
+        # Derive num_classes and detect output layout format.
+        # YOLOv12 end-to-end format: [1, max_det, 6]
+        # YOLOv12 raw anchor format:  [1, 4 + C, num_anchors]
         output_shape = self._output_layer.shape
-        # output_shape[1] = 4 (bbox) + num_classes
-        self._num_classes = int(output_shape[1]) - 4
-        if self._num_classes < 1:
-            raise RuntimeError(
-                f"Unexpected model output shape {output_shape}. "
-                f"Expected [1, 4+num_classes, num_anchors]; got {list(output_shape)}."
-            )
+        if len(output_shape) == 3 and output_shape[2] == 6:
+            self._num_classes = len(CLASS_LABELS)
+            self._is_end_to_end = True
+        else:
+            self._num_classes = int(output_shape[1]) - 4
+            self._is_end_to_end = False
+            if self._num_classes < 1:
+                raise RuntimeError(
+                    f"Unexpected model output shape {output_shape}. "
+                    f"Expected [1, 4+num_classes, num_anchors]; got {list(output_shape)}."
+                )
 
         logger.info(
             "OpenVINO model loaded: %s | classes=%d | device=CPU",
@@ -310,6 +321,52 @@ class InferenceEngine:
         Returns:
             Filtered, NMS-suppressed List[BoundingBox] in original pixel space.
         """
+        if getattr(self, "_is_end_to_end", False):
+            # Squeeze batch dim: [1, max_det, 6] → [max_det, 6]
+            output = np.squeeze(raw_output, axis=0)
+            result_boxes: List[BoundingBox] = []
+            for row in output:
+                # Layout: [x_min, y_min, x_max, y_max, confidence, class_id]
+                x_min, y_min, x_max, y_max, confidence, class_id = row
+                if confidence >= params.confidence_threshold:
+                    class_id = int(class_id)
+                    class_name = CLASS_LABELS.get(class_id, f"class_{class_id}")
+                    
+                    # Convert [x_min, y_min, x_max, y_max] to model space [x, y, w, h]
+                    x1_coord = x_min
+                    y1_coord = y_min
+                    bw_coord = x_max - x_min
+                    bh_coord = y_max - y_min
+                    
+                    # Coordinate scaling (letterbox-aware)
+                    x_orig = (x1_coord - pad_x) / scale
+                    y_orig = (y1_coord - pad_y) / scale
+                    w_orig = bw_coord / scale
+                    h_orig = bh_coord / scale
+
+                    x_scaled = int(round(x_orig))
+                    y_scaled = int(round(y_orig))
+                    w_scaled = int(round(w_orig))
+                    h_scaled = int(round(h_orig))
+
+                    # Clamp to frame boundaries
+                    x_scaled = max(0, min(x_scaled, original_w - 1))
+                    y_scaled = max(0, min(y_scaled, original_h - 1))
+                    w_scaled = max(1, min(w_scaled, original_w - x_scaled))
+                    h_scaled = max(1, min(h_scaled, original_h - y_scaled))
+
+                    result_boxes.append(
+                        BoundingBox(
+                            x=x_scaled,
+                            y=y_scaled,
+                            width=w_scaled,
+                            height=h_scaled,
+                            class_name=class_name,
+                            confidence=float(confidence),
+                        )
+                    )
+            return result_boxes
+
         # Squeeze batch dim: [1, 4+C, A] → [4+C, A] → transpose → [A, 4+C]
         output = np.squeeze(raw_output, axis=0).T  # shape: [num_anchors, 4+C]
 

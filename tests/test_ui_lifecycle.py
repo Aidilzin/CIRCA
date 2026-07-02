@@ -18,7 +18,7 @@ import pytest
 from PyQt6.QtWidgets import QMainWindow
 
 from ui.main_window import MainWindow
-from ui.sidebar import ActivityBar, SidePanel
+from ui.sidebar import SidePanel
 from ui.status_footer import StatusFooter
 from ui.video_widget import VideoWidget
 from ui.warning_banner import WarningBanner
@@ -46,9 +46,11 @@ class TestMainWindowLayout:
     def test_has_status_footer(self, win):
         assert isinstance(win.status_footer, StatusFooter)
 
-    def test_has_activity_bar(self, win):
-        """MainWindow must have the VS Code-style ActivityBar sidebar component."""
-        assert isinstance(win.activity_bar, ActivityBar)
+    def test_has_top_settings_btn(self, win):
+        """MainWindow must have the settings toggle configuration button in the top bar."""
+        from PyQt6.QtWidgets import QPushButton
+        assert hasattr(win, "top_settings_btn")
+        assert isinstance(win.top_settings_btn, QPushButton)
 
     def test_has_side_panel(self, win):
         """MainWindow must have the SidePanel for settings and optimisation controls."""
@@ -113,9 +115,9 @@ class TestMainWindowDefaults:
 
 
 class TestSidePanelIntegration:
-    def test_activity_bar_click_opens_side_panel(self, win):
-        """Clicking the optimization button should expand the side panel."""
-        win.activity_bar.optimization_btn.click()
+    def test_settings_btn_click_opens_side_panel(self, win):
+        """Clicking the settings button should expand the side panel."""
+        win.top_settings_btn.click()
         # After click, panel should be expanded (maximumWidth > 0)
         # Note: animation sets maximumWidth, so check it changed from 0
         assert win.side_panel.maximumWidth() > 0 or win.side_panel._expanded is True
