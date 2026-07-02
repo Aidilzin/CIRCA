@@ -181,7 +181,7 @@ MANDATORY BEFORE STARTING ANY TASK:
 - [x] **H3:** Final `project-context.md` update — all phases ✅, final metrics, acceptance criteria verdict
 - [x] **H4:** `docs/CIRCA_EXPERIMENT_CHECKLIST.md` — check off all Phase 4–7 items
 - [x] **H5:** W&B dashboard verification — all Phase 1–4 runs visible with correct tags
-- [ ] **H6:** `git tag -a v1.0-thesis -m "CIRCA thesis submission version"`
+- [x] **H6:** `git tag -a v1.0-thesis -m "CIRCA thesis submission version"`
 
 ---
 
