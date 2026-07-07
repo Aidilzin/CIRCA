@@ -1,7 +1,7 @@
 # CIRCA Thesis Completion — Progress Tracker
 
 > **Linked Plan:** [implementation_plan.md](file:///C:/Users/aidil/.gemini/antigravity-ide/brain/41752283-5141-4f08-8f81-29ab83bf8575/implementation_plan.md)
-> **Last Updated:** 2026-07-08 by **Antigravity** — Static image inspection rework complete. VideoWidget → ImageInspectWidget, tiled inference wired into InferenceWorker, PCB guard integrated into pipeline, thesis live-feed references replaced, 483/484 tests passing.
+> **Last Updated:** 2026-07-08 by **Antigravity** — Rerun Phase 6 benchmarks for static image inspection with tiled inference on CPU and NVIDIA RTX 3060 GPU. Updated Table 4.11-4.14 in thesis and regenerated Figure 4.5. All 483 tests passing.
 > **Submission Deadline:** ✅ **7 July 2026 — SUBMITTED**
 
 
@@ -197,7 +197,7 @@ MANDATORY BEFORE STARTING ANY TASK:
 | Benchmark Metric | Target | Actual | Pass? |
 |:--|:--:|:--:|:--:|
 | mAP@0.5 (test) | > 90% | **62.79%** | ❌ NO (Fail) |
-| Preprocessing latency | ≤ 5 ms | **4.68 ms (CPU) / 4.77 ms (GPU)** | ✅ YES |
-| Tiled inference latency | ≤ 10 s | **0.255 s (CPU, 1080p) / 0.178 s (GPU, 1080p)** | ✅ YES |
+| Preprocessing latency | ≤ 5 ms | **4.72 ms (CPU / GPU)** | ✅ YES |
+| Tiled inference latency | ≤ 10 s | **0.344 s (CPU, 1080p) / 0.350 s (GPU, 1080p)** | ✅ YES |
 
 

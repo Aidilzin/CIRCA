@@ -122,11 +122,11 @@ To prevent context drift and preserve localized repository knowledge across sess
     *   Medium: FP32 = 67.42% → INT8 = 67.09% (failed absolute target)
 
 ### Phase 6 — Hardware Benchmarking ✅ COMPLETE
-*   **Goal:** Benchmark latency, static-image processing time, and tiled inference latency CPU vs. integrated GPU.
-*   **Deployment Target:** Intel CPU / AMD iGPU virtual machine representing the Core i5 8th-gen target environment.
+*   **Goal:** Benchmark latency, static-image processing time, and tiled inference latency CPU vs. GPU.
+*   **Deployment Target:** Intel CPU / NVIDIA GeForce RTX 3060 GPU representing the deployment target environment.
 *   **Verdict:** YOLOv12-Nano FP16 is selected as the production model because it satisfies all speed criteria (preprocessing latency ≤ 5 ms, static image analysis time ≤ 10 s) while maintaining low inference latency when tiled:
-    *   **YOLOv12-Nano (CPU):** Preproc = 4.68 ms, Inference = 28.34 ms, Tiled (1080p, 9 tiles) = ~255 ms, Static Time = 0.101 s
-    *   **YOLOv12-Nano (GPU):** Preproc = 4.77 ms, Inference = 19.84 ms, Tiled (1080p, 9 tiles) = ~178 ms, Static Time = 0.089 s
+    *   **YOLOv12-Nano (CPU):** Preproc = 4.72 ms, Inference = 24.13 ms, Tiled (1080p, 15 tiles) = 344.72 ms, Static Time = 0.403 s
+    *   **YOLOv12-Nano (GPU):** Preproc = 4.72 ms, Inference = 23.54 ms, Tiled (1080p, 15 tiles) = 350.75 ms, Static Time = 0.370 s
 
 ### Phase 7 — Test Evaluation & Threshold Calibration ✅ COMPLETE
 *   **Goal:** Evaluate the chosen production variant (YOLOv12-Nano FP16) on the frozen test split, and run confidence sweeps on the validation split.
