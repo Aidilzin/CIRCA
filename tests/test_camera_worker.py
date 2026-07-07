@@ -361,7 +361,7 @@ class TestRunReadFailure:
 
 class TestRunBlurryFrame:
     def test_blurry_frame_emits_new_frame(self):
-        """Live feed must always be displayed, even for blurry/motion frames."""
+        """Camera worker must emit new_frame for every captured frame, even blurry/motion ones."""
         worker = CameraWorker()
         blurry = make_flat_frame()
         received: list[QImage] = []

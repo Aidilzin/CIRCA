@@ -204,12 +204,12 @@ class MainWindow(QMainWindow):
 
         self.workspace_layout.addWidget(self.top_bar)
 
-        # Split Workspace (Horizontal Splitter between Live Feed and Analytics)
+        # Split Workspace (Horizontal Splitter between Inspection Panel and Analytics)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setObjectName("WorkspaceSplitter")
         self.splitter.setHandleWidth(1)
 
-        # Live Feed Panel (Left side of splitter)
+        # Inspection Panel (Left side of splitter)
         feed_panel = QWidget()
         feed_layout = QVBoxLayout(feed_panel)
         feed_layout.setContentsMargins(0, 0, 0, 0)

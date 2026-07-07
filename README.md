@@ -204,7 +204,7 @@ CIRCA/
 ├── ui/
 │   ├── main_window.py         # Application shell
 │   ├── sidebar.py             # Activity bar + side panel (VS Code style)
-│   ├── video_widget.py        # Live feed + bounding box overlay
+│   ├── image_inspect_widget.py # Static PCB inspection panel + bounding box overlay
 │   ├── warning_banner.py      # Low-confidence advisory bar
 │   ├── status_footer.py       # Camera/model/detection status bar
 │   ├── theme.py               # Design tokens + QSS builder

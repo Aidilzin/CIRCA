@@ -33,7 +33,7 @@ Functional requirements covered:
     FR4  — apply_gamma() on sharp frames
     FR5  — compute_variance() motion gate; blurry frames skipped for inference
     FR12 — new_frame emitted for camera snapshot capture
-    FR19 — Preprocessing applied to captured frame (live feedback loop for Sarah, UJ-02)
+    FR19 — Preprocessing applied to captured frame (snapshot feedback for Sarah, UJ-02)
 
 UX Journey coverage (ux-design-specification.md):
   UJ-01 — Automated initiation; zero-click detection pipeline
@@ -184,7 +184,7 @@ class CameraWorker(QObject):
           2. cap.read() → if failed: emit camera_error, break loop (sudden disconnect)
           3. compute_variance() — FR5 motion gate
           4. Blurry frame path:
-               emit new_frame(raw_qimage)     — always show live feed (FR12)
+               emit new_frame(raw_qimage)     — show raw snapshot (FR12)
                continue                        — skip inference for blurry frame
           5. Sharp frame path:
                apply_clahe(frame, params)     — FR3
@@ -249,7 +249,7 @@ class CameraWorker(QObject):
             frame_std = np.std(frame)
             frame_mean = np.mean(frame)
             
-            # During live streaming, we are more lenient than during enumeration
+            # During camera capture active state, we are more lenient than during enumeration
             # because the user has already explicitly selected this camera.
             # We ONLY break if the sensor goes completely dead (std < 0.1)
             # OR if we see digital garbage (std > 3.0 + low mean).
@@ -313,7 +313,7 @@ class CameraWorker(QObject):
             logger.debug("CameraWorker: Preprocessing took %.2fms (variance=%.1f)", 
                          preprocess_duration_ms, variance)
 
-            # Emit to GUI (FR12 live display, FR19 real-time preprocessing preview).
+            # Emit to GUI (FR12 snapshot display, FR19 preprocessing preview).
             if self._running:
                 try:
                     self.new_frame.emit(bgr_frame_to_qimage(processed))

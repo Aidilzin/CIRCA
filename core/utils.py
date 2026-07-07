@@ -22,7 +22,7 @@ Functions:
 
 Functional requirements covered:
   FR2  — Camera device enumeration  → enumerate_cameras()
-  FR12 — Live feed display           → bgr_frame_to_qimage() (canonical conversion)
+  FR12 — Snapshot frame display      → bgr_frame_to_qimage() (canonical conversion)
 """
 
 from __future__ import annotations
