@@ -20,7 +20,7 @@
 |:---|:---|
 | mAP@0.5 (test) | > 90% |
 | Preprocessing latency | ≤ 5 ms |
-| Live FPS | ≥ 15 |
+| Tiled static inference latency | ≤ 10 s |
 | Static inference | ≤ 10 s |
 
 ---

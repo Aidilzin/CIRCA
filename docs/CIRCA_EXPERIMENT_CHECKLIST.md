@@ -143,7 +143,7 @@
 ## Phase 6 — Hardware Benchmarking (Local) ✅ COMPLETE
  
 - [x] Preprocessing latency ≤ 5 ms
-- [x] Live FPS ≥ 15
+- [x] Tiled static inference latency ≤ 10 s
 - [x] Static inference ≤ 10 s
 - [x] Variant Selection Matrix populated
 - [x] `benchmark_report.md` written

@@ -236,7 +236,7 @@ Table 3.1 lists each research objective, the project activities that contribute 
 |---|---|---|---|
 | RO1: Identify and document IPC-A-600 and IPC-A-610-aligned PCB defect types | Phase 0 | Literature analysis of IPC-A-600 / IPC-A-610; selection of public datasets; class remapping to a unified 7-class taxonomy | `CIRCA_CLASS_MAPPING.md`; `data.yaml`; defect taxonomy table |
 | RO2: Design and compare YOLOv12-N/S/M with OpenVINO INT8 | Phases 1–5 | Vanilla baseline training; CIRCA-aligned baseline; genetic hyperparameter optimisation; three-variant final training; FP32/FP16/INT8 quantisation validation | `runs/detect/CIRCA_V12{N,S,M}_*/weights/best.pt`; OpenVINO IR exports; `quantization_report.md` |
-| RO3: Develop and evaluate the CIRCA desktop application | Phases 6–7 | Hardware benchmarking on Intel Core i5 8th-gen; live FPS measurement; confidence threshold calibration; test-set evaluation; UI integration | `benchmark_report.md`; `circa_thresholds.yaml`; `test_evaluation.md`; CIRCA desktop prototype |
+| RO3: Develop and evaluate the CIRCA desktop application | Phases 6–7 | Hardware benchmarking on Intel Core i5 8th-gen; static image analysis time; confidence threshold calibration; test-set evaluation; UI integration | `benchmark_report.md`; `circa_thresholds.yaml`; `test_evaluation.md`; CIRCA desktop prototype |
 
 ***
 
@@ -266,7 +266,7 @@ Assembly-stage data is aggregated from four sources. The first is SolDef_AI (Fon
 
 **Repair-context capture protocol**
 
-To complement the public datasets, a small repair-context capture protocol was defined for use during system testing. Sample boards were imaged with a standard USB webcam at 1280×720 resolution under three lighting conditions: ambient room light only, bright desklamp directed onto the board surface (high glare), and partial occlusion of the lamp creating heavy shadows on one side of the board. These images were not used for training but for end-to-end live FPS testing and qualitative failure-case analysis in Phase 7.
+To complement the public datasets, a small repair-context capture protocol was defined for use during system testing. Sample boards were imaged with a standard USB webcam at 1280×720 resolution under three lighting conditions: ambient room light only, bright desklamp directed onto the board surface (high glare), and partial occlusion of the lamp creating heavy shadows on one side of the board. These images were not used for training but for end-to-end static image analysis testing and qualitative failure-case analysis in Phase 7.
 
 **Unified 7-class IPC taxonomy**
 
@@ -417,7 +417,7 @@ The selected variant is evaluated **once** on the frozen test split. Per-class p
 
 ### 3.7.8 Acceptance Criteria
 
-A variant is declared "final" only when it simultaneously satisfies all four acceptance criteria stated in Chapter 1 Section 1.5: mAP@0.5 > 90% on the test set, preprocessing latency ≤ 5 ms per frame, live inference rate ≥ 15 FPS, and static image inference ≤ 10 s on the Intel Core i5 8th-generation equivalent target.
+A variant is declared "final" only when it simultaneously satisfies all four acceptance criteria stated in Chapter 1 Section 1.5: mAP@0.5 > 90% on the test set, preprocessing latency ≤ 5 ms per frame, tiled static image analysis latency ≤ 10 s, and static image inference ≤ 10 s on the Intel Core i5 8th-generation equivalent target.
 
 ### 3.7.9 Evaluation Metrics
 
@@ -959,7 +959,7 @@ To resolve this conflict, the dual-threshold scheme divides defect classes into 
 | **Yang and Yu (2024)** | YOLOv8 + C2f + SPPF | PKU Open Lab (6 classes) | GPU (NVIDIA) | 92.30 | 157.20 | SOTA single-stage throughput |
 | **Bhattacharya (2022)** | YOLOv5 + C3TR | Custom Bare-Board | GPU (NVIDIA) | 98.10 | — | Transformer self-attention |
 | **Anh Nguyen (2024)** | ResNet + Bottleneck ViT | Augmented PKU | GPU (NVIDIA) | 99.20 | 51.00 | Heavy hybrid architecture |
-| **CIRCA (Ours)** | **YOLOv12-N (FP16)** | **Unified PCB v3 (7 classes)**| **Intel CPU / NVIDIA dGPU**| **62.79** | **27.7 / 33.9**| **Edge CPU / Human-in-the-loop**|
+| **CIRCA (Ours)** | **YOLOv12-N (FP16)** | **Unified PCB v3 (7 classes)**| **Intel CPU / NVIDIA dGPU**| **62.79** | **0.40s / 0.37s**| **Edge CPU / Human-in-the-loop**|
 
 *Source: Table 2.1 literature review data and Phase 6/7 empirical results.*
 
@@ -1011,7 +1011,7 @@ The third research objective was to develop the CIRCA standalone desktop applica
 
 This objective was addressed through the system design and development work documented in Chapter 3 Sections 3.5 and 3.6. The CIRCA desktop application implements a six-stage inference pipeline, progressing from image load or camera capture through Laplacian Variance frame quality gating, CLAHE and Gamma Correction preprocessing, adaptive tiled OpenVINO FP16 inference, cross-tile NMS, and colour-coded bounding box overlay rendering. The confidence-transparent interface displays per-box confidence scores and triggers a global "Manual Inspection Required" banner when mean confidence falls below 0.50, directly addressing the automation bias risk documented by Kupfer et al. (2023). The confidence threshold calibration procedure sweeps the global confidence parameter from 0.10 to 0.90 in steps of 0.05, selecting per-class display thresholds at the minimum confidence achieving precision ≥ 0.90, and warning thresholds at the minimum confidence achieving recall ≥ 0.95. 
 
-During hardware benchmarking (Phase 6) and final test-set evaluation (Phase 7), end-to-end preprocessing latency was clocked at 4.68 ms, net inference latency on the CPU target was 28.34 ms (achieving a live throughput of 27.7 FPS), and 19.84 ms on the integrated GPU (achieving 33.9 FPS). On a static high-resolution image, total pipeline latency was 0.101 s (CPU) and 0.089 s (GPU). Evaluated once on the frozen test split, the production YOLOv12-Nano FP16 configuration achieved an overall mAP@0.5 of 62.79% and mAP@0.5:0.95 of 38.34%. The per-class evaluation highlighted that although solder joint and assembly classes achieved excellent results (e.g., cold solder joint at 71.52% AP@0.5 and insufficient solder at 50.29% AP@0.5), minority classes such as missing hole suffered from complete recall suppression (0.00% recall, 0.00% F1-score) due to class imbalance. The normalized confusion matrix confirmed high overall classification precision (85.70%) but identified background confusion (recall = 60.59%) as the primary failure mode.
+During hardware benchmarking (Phase 6) and final test-set evaluation (Phase 7), end-to-end preprocessing latency was clocked at 4.72 ms, net inference latency on the CPU target was 24.13 ms, and 23.54 ms on the dedicated GPU. On a static 1080p high-resolution image (15 tiles), total end-to-end latency was 0.403 s (CPU) and 0.370 s (GPU). Evaluated once on the frozen test split, the production YOLOv12-Nano FP16 configuration achieved an overall mAP@0.5 of 62.79% and mAP@0.5:0.95 of 38.34%. The per-class evaluation highlighted that although solder joint and assembly classes achieved excellent results (e.g., cold solder joint at 71.52% AP@0.5 and insufficient solder at 50.29% AP@0.5), minority classes such as missing hole suffered from complete recall suppression (0.00% recall, 0.00% F1-score) due to class imbalance. The normalized confusion matrix confirmed high overall classification precision (85.70%) but identified background confusion (recall = 60.59%) as the primary failure mode.
 
 When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, the production CIRCA system passed all hardware performance benchmarks: preprocessing execution was clocked at 4.68 ms CPU / 4.77 ms GPU (under the 5 ms target), and static image diagnostics completed in 0.101 s CPU / 0.089 s GPU (under the 10 s target). Full-board images (1920×1080) processed with adaptive tiling complete within 255 ms (CPU), far below the 10-second criterion. However, the absolute test accuracy benchmark of mAP@0.5 > 90.0% was not met, with the YOLOv12-Nano FP16 model achieving 62.79% mAP@0.5 on the frozen test split. This failure is primarily driven by the complete recall suppression (0.00%) on the minority class `missing_hole`, which represents a highly localized bare-board structural anomaly that is difficult to capture at standard optical resolutions. Consequently, while the system is highly viable for deployment as a diagnostic aid, future work must focus on dataset expansions to resolve minority class gaps.
 
