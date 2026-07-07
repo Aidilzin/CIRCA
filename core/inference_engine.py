@@ -176,9 +176,10 @@ class InferenceEngine:
                 )
 
         logger.info(
-            "OpenVINO model loaded: %s | classes=%d | device=CPU",
+            "OpenVINO model loaded: %s | classes=%d | device=%s",
             xml_path.name,
             self._num_classes,
+            os.environ.get("CIRCA_DEVICE", "AUTO"),
         )
 
         # Pre-create the infer request once and reuse it every frame.

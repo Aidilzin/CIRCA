@@ -16,11 +16,11 @@ In recent years, there has been an increasing interest in the application of art
 
 The rapid advancement of electronic technology has driven a steady increase in the complexity and miniaturisation of electronic devices (Bhattacharya and Cloutier, 2022). PCBs are found in virtually every electronic device, from smartphones and laptops to medical equipment and automotive systems (Wang et al., 2023). As the electronics industry continues to evolve, the demand for defect-free PCBs has intensified, given that even minor defects can compromise device functionality, reliability, and safety (Klco et al., 2023). Traditional manual inspection methods, while historically prevalent, have proven inadequate against the challenges posed by modern PCB complexity (Aggarwal et al., 2022). Component miniaturisation and rising circuit density have made visual inspection by human operators time-consuming, error-prone, and often ineffective at detecting subtle defects (Bhanumathy et al., 2021). Studies have shown that manual inspection error rates range from 10% to 20%, particularly during extended shifts where fatigue becomes a significant factor (Law et al., 2024).
 
-The past decade has seen the rapid development of deep learning-based approaches to PCB defect detection, particularly through the application of Convolutional Neural Networks (CNNs) and object detection architectures such as YOLO, ResNet, and EfficientDet (Liao et al., 2021). These advances have demonstrated that automated systems can identify complex defect patterns such as solder bridges, cold joints, and component misalignments with detection accuracies exceeding 95%, while maintaining real-time processing speeds that manual inspection cannot match (Law et al., 2024; Yang and Yu, 2024). The most recent iteration of the YOLO framework, YOLOv12, introduces an attention-centric architecture featuring an Area Attention module (A2) and Residual Efficient Layer Aggregation Networks (R-ELAN), enabling the model to match the inference speed of CNN-based predecessors while surpassing them in accuracy through improved feature modelling capabilities (Tian et al., 2025). YOLOv12-Nano, the lightest variant in the family, achieves 40.6% mAP on the MS COCO benchmark, demonstrating that factory-grade detection precision is now attainable on standard CPUs and integrated GPUs without dedicated graphics hardware (Tian et al., 2025).
+The past decade has seen the rapid development of deep learning-based approaches to PCB defect detection, particularly through the application of Convolutional Neural Networks (CNNs) and object detection architectures such as YOLO, ResNet, and EfficientDet (Liao et al., 2021). These advances have demonstrated that automated systems can identify complex defect patterns such as solder bridges, cold joints, and component misalignments with detection accuracies exceeding 95%, while maintaining real-time processing speeds that manual inspection cannot match (Law et al., 2024; Yang and Yu, 2024). The most recent iteration of the YOLO framework, YOLOv12, introduces an attention-centric architecture featuring an Area Attention module (A2) and Residual Efficient Layer Aggregation Networks (R-ELAN), enabling the model to match the inference speed of CNN-based predecessors while surpassing them in accuracy through improved feature modelling capabilities (Tian et al., 2025). YOLOv12-Nano, the lightest variant in the family, achieves 40.6% mAP on the MS COCO benchmark, demonstrating that factory-grade detection precision is now attainable on standard CPUs and dedicated or integrated GPUs without dedicated graphics hardware (Tian et al., 2025).
 
 The limitations of manual inspection have driven the adoption of automated inspection systems using machine learning and computer vision (Anh Nguyen et al., 2024). Automated Optical Inspection (AOI) systems have gained widespread acceptance in high-volume manufacturing, using advanced imaging algorithms to detect defects with greater accuracy and speed than manual methods. The adoption of AI in PCB inspection has shifted quality control from a reactive to a proactive activity, allowing manufacturers to identify and address issues earlier in the production process (Ghelani, 2024). A major challenge with existing automated PCB inspection solutions, however, is that they were developed for controlled, high-volume manufacturing environments and are poorly suited to the more variable and resource-constrained conditions found in electronics repair settings (Aggarwal et al., 2022). Deploying existing AOI systems also requires substantial capital expenditure, specialised operators, and stable controlled lighting, which are conditions beyond the reach of most independent repair shops.
 
-This research addresses this gap by proposing CIRCA (Circuit Inspection and Recognition using Convolutional Architectures), an AI-driven visual inspection system that uses YOLOv12 variants to automatically detect and localise surface-level PCB defects such as cold solder joints, excess and insufficient solder, solder spikes, open circuits, shorts, conductor damage, and bare-board substrate anomalies from standard camera images. By deploying a YOLOv12 model quantized to INT8 Intermediate Representation (IR) format via the Intel OpenVINO inference framework, CIRCA achieves sub-10-second diagnostic turnarounds on standard Intel CPUs and integrated GPUs, eliminating the need for expensive AOI hardware (Yi and Mohamed, 2024). A lightweight OpenCV preprocessing pipeline combining Contrast Limited Adaptive Histogram Equalization (CLAHE), Gamma Correction, and Laplacian Variance blur detection ensures robust inference performance under the uncontrolled lighting conditions typical of real-world repair shop environments (Alhamzawi et al., 2025; Wanto et al., 2023).
+This research addresses this gap by proposing CIRCA (Circuit Inspection and Recognition using Convolutional Architectures), an AI-driven visual inspection system that uses YOLOv12 variants to automatically detect and localise surface-level PCB defects such as cold solder joints, excess and insufficient solder, solder spikes, open circuits, shorts, conductor damage, and bare-board substrate anomalies from standard camera images. By deploying a YOLOv12 model quantized to INT8 Intermediate Representation (IR) format via the Intel OpenVINO inference framework, CIRCA achieves sub-10-second diagnostic turnarounds on standard Intel CPUs and dedicated or integrated GPUs, eliminating the need for expensive AOI hardware (Yi and Mohamed, 2024). A lightweight OpenCV preprocessing pipeline combining Contrast Limited Adaptive Histogram Equalization (CLAHE), Gamma Correction, and Laplacian Variance blur detection ensures robust inference performance under the uncontrolled lighting conditions typical of real-world repair shop environments (Alhamzawi et al., 2025; Wanto et al., 2023).
 
 ***
 
@@ -76,7 +76,7 @@ To ensure focused and achievable research outcomes within the Final Year Project
 
 **Defect Scope.** The investigation focuses on manufacturing defects, physical damage, and wear-related failures that manifest visually on PCB surfaces, encompassing both bare-board structural defects aligned with IPC-A-600 acceptability criteria and solder-joint assembly defects aligned with IPC-A-610 visual inspection criteria. The research does not address intermittent faults, software-related issues, or defects that can only be detected through electrical testing or operational verification.
 
-**Operational Scope.** The system is designed for use by repair technicians in small to medium-sized electronics repair facilities, targeting standard Intel CPU and iGPU hardware operating under Windows 10 and Windows 11. Standard USB webcams or smartphone cameras are supported for optional single-frame image capture; alternatively, technicians may load any PCB photograph directly from disk. The system's performance will be evaluated against target benchmarks of greater than 90% mAP on the curated test dataset, sub-5 ms preprocessing pipeline execution per image, and sub-10-second total analysis time on a benchmark Intel Core i5 8th-generation equivalent processor (Yi and Mohamed, 2024).
+**Operational Scope.** The system is designed for use by repair technicians in small to medium-sized electronics repair facilities, targeting standard Intel CPU and dedicated or integrated GPU hardware operating under Windows 10 and Windows 11. Standard USB webcams or smartphone cameras are supported for optional single-frame image capture; alternatively, technicians may load any PCB photograph directly from disk. The system's performance will be evaluated against target benchmarks of greater than 90% mAP on the curated test dataset, sub-5 ms preprocessing pipeline execution per image, and sub-10-second total analysis time on a benchmark Intel Core i5 8th-generation equivalent processor (Yi and Mohamed, 2024).
 
 **Limitations and Exclusions.** The research does not attempt to develop a commercially deployable product with full production-level features. The CIRCA system serves as a diagnostic aid and decision-support tool rather than an autonomous repair solution, with confidence score transparency built in to reduce the risk of automation bias (Kupfer et al., 2023). Final repair decisions, component selection, and quality verification remain the responsibility of qualified technicians.
 
@@ -152,7 +152,7 @@ The third preprocessing component critical to CIRCA's reliability is blur detect
 
 ## 2.5 Edge Machine Learning Deployment and Model Quantization
 
-The requirement to deliver real-time deep learning inference on standard Intel CPU and integrated GPU hardware without dedicated graphics cards makes edge ML deployment and model quantization fundamental design considerations for CIRCA. Intel OpenVINO (Open Visual Inference and Neural network Optimization) is a toolkit designed for optimising and deploying deep learning models on Intel hardware, providing hardware-accelerated inference across CPUs, integrated GPUs, and vision processing units through a unified API. OpenVINO's INT8 quantization converts model weights and activations from 32-bit floating-point (FP32) to 8-bit integers (INT8) through a post-training quantization process that requires no retraining, resulting in mixed-precision models that balance high performance with maintained accuracy.
+The requirement to deliver real-time deep learning inference on standard Intel CPU and integrated GPU hardware without dedicated graphics cards makes edge ML deployment and model quantization fundamental design considerations for CIRCA. Intel OpenVINO (Open Visual Inference and Neural network Optimization) is a toolkit designed for optimising and deploying deep learning models on Intel hardware, providing hardware-accelerated inference across CPUs, dedicated or integrated GPUs, and vision processing units through a unified API. OpenVINO's INT8 quantization converts model weights and activations from 32-bit floating-point (FP32) to 8-bit integers (INT8) through a post-training quantization process that requires no retraining, resulting in mixed-precision models that balance high performance with maintained accuracy.
 
 The performance benefits of OpenVINO INT8 quantization have been rigorously characterised in empirical research. Ahn et al. (2023) conducted a comprehensive benchmark study using the MLPerf Edge Inference methodology on Intel x86 processors and found that INT8-quantized models deployed via OpenVINO delivered 3.3 times better performance over FP32 models for the offline inference scenario, with no significant accuracy loss observed for dynamic quantization schemes (Ahn et al., 2023). The study also confirmed that OpenVINO is the most optimised inference framework for Intel CPUs among the frameworks tested, including TensorFlow Lite, ONNX, and PyTorch, further reinforcing its selection as CIRCA's inference engine. This result directly supports the CIRCA design decision to export YOLOv12 models to the OpenVINO INT8 IR format as the primary inference backend, as it provides a quantified basis for expecting near-threefold latency improvements relative to standard FP32 deployment on the same hardware. If INT8 quantization is found to degrade mAP below the 90% threshold during validation, the fallback strategy is FP16 OpenVINO execution, which sacrifices some real-time FPS performance but maintains full diagnostic accuracy.
 
@@ -248,7 +248,7 @@ The preliminary study consolidated the findings of Chapter 2, in which the resea
 
 ### 3.3.2 Knowledge Acquisition
 
-Three bodies of knowledge underpin the CIRCA system. First, the IPC-A-610H standard (IPC International, 2020) supplies the visual acceptability criteria used to define the assembly-stage defect classes (excess solder, insufficient solder, cold solder joint), while the IPC-A-600K standard (IPC International, 2020) supplies the corresponding criteria for the bare-board defects included in this study (missing hole, mouse bite, open circuit, short). Second, the YOLOv12 architecture (Tian et al., 2025) provides the detection model family, with its Area Attention module (A2) and Residual Efficient Layer Aggregation Networks (R-ELAN) targeted at small-defect detection on cluttered backgrounds. Third, the Intel OpenVINO toolkit (Ahn et al., 2023) provides the inference framework that enables INT8 deployment on Intel CPUs and integrated GPUs without dedicated graphics hardware. The acquisition of these three knowledge bases informed the design choices documented in Section 3.5 and Section 3.6.
+Three bodies of knowledge underpin the CIRCA system. First, the IPC-A-610H standard (IPC International, 2020) supplies the visual acceptability criteria used to define the assembly-stage defect classes (excess solder, insufficient solder, cold solder joint), while the IPC-A-600K standard (IPC International, 2020) supplies the corresponding criteria for the bare-board defects included in this study (missing hole, mouse bite, open circuit, short). Second, the YOLOv12 architecture (Tian et al., 2025) provides the detection model family, with its Area Attention module (A2) and Residual Efficient Layer Aggregation Networks (R-ELAN) targeted at small-defect detection on cluttered backgrounds. Third, the Intel OpenVINO toolkit (Ahn et al., 2023) provides the inference framework that enables INT8 deployment on Intel CPUs and dedicated or integrated GPUs without dedicated graphics hardware. The acquisition of these three knowledge bases informed the design choices documented in Section 3.5 and Section 3.6.
 
 ***
 
@@ -409,7 +409,7 @@ Each variant is exported to FP32, FP16, and INT8 IR and validated on the validat
 
 ### 3.7.6 Phase 6: Hardware Benchmarking and Variant Selection
 
-Each surviving variant + precision combination is benchmarked on the deployment target (Intel Core i5 8th-generation equivalent + integrated GPU). Four metrics are measured: preprocessing latency per frame, inference latency per frame on CPU and on iGPU, end-to-end live FPS over a 60-second webcam loop, and static image inference time on a single high-resolution image. The Variant Selection Matrix is filled, and the configuration with the highest mAP@0.5 that simultaneously passes all four acceptance criteria is selected as the production variant.
+Each surviving variant + precision combination is benchmarked on the deployment target (Intel CPU + dedicated or integrated GPU). Four metrics are measured: preprocessing latency per frame, inference latency per frame on CPU and on GPU, end-to-end static image analysis time, and static image inference time on a single high-resolution image. The Variant Selection Matrix is filled, and the configuration with the highest mAP@0.5 that simultaneously passes all four acceptance criteria is selected as the production variant.
 
 ### 3.7.7 Phase 7: Final Test Evaluation and Threshold Calibration
 
@@ -421,7 +421,7 @@ A variant is declared "final" only when it simultaneously satisfies all four acc
 
 ### 3.7.9 Evaluation Metrics
 
-The reported metrics are precision, recall, F1-score, mAP@0.5, mAP@0.5:0.95, per-class mAP@0.5, per-class precision and recall at the calibrated thresholds, preprocessing latency in milliseconds, inference latency in milliseconds (CPU and iGPU), end-to-end live FPS, and static-image total time in seconds. A bounding box is counted as a True Positive if and only if the InterSection over Union (IoU) between the predicted box and the nearest ground-truth box of the same class meets or exceeds the stated IoU threshold (0.50 for mAP@0.5 and the range 0.50–0.95 in steps of 0.05 for mAP@0.5:0.95), following the COCO evaluation protocol adopted universally in recent YOLO PCB literature (Yang and Yu, 2024; Tian et al., 2025; Liao et al., 2021). All metrics are reported with the split, variant, and precision named, consistent with the guardrails enforced by the training engine.
+The reported metrics are precision, recall, F1-score, mAP@0.5, mAP@0.5:0.95, per-class mAP@0.5, per-class precision and recall at the calibrated thresholds, preprocessing latency in milliseconds, inference latency in milliseconds (CPU and GPU), end-to-end static 1080p image analysis latency, and static-image total time in seconds. A bounding box is counted as a True Positive if and only if the InterSection over Union (IoU) between the predicted box and the nearest ground-truth box of the same class meets or exceeds the stated IoU threshold (0.50 for mAP@0.5 and the range 0.50–0.95 in steps of 0.05 for mAP@0.5:0.95), following the COCO evaluation protocol adopted universally in recent YOLO PCB literature (Yang and Yu, 2024; Tian et al., 2025; Liao et al., 2021). All metrics are reported with the split, variant, and precision named, consistent with the guardrails enforced by the training engine.
 
 ***
 
@@ -568,10 +568,10 @@ Figure 4.2 provides a visual complement to Table 4.3, showing the epoch-by-epoch
 
 | Preprocessing Stage | Operation Description | Mean Latency (ms) | Percentage of Total (%) |
 |:---|:---|--:|--:|
-| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.56 | 76.1% |
+| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.59 | 76.1% |
 | **Gamma Correction** | Lookup table mapping (`LUT`) for contrast adjustment | 0.39 | 8.3% |
-| **Laplacian Gating** | Downsampling, Laplacian filtering, standard deviation squaring | 0.73 | 15.6% |
-| **Total Pipeline** | **End-to-end frame preprocessing** | **4.68** | **100.0%** |
+| **Laplacian Gating** | Downsampling, Laplacian filtering, standard deviation squaring | 0.74 | 15.6% |
+| **Total Pipeline** | **End-to-end frame preprocessing** | **4.72** | **100.0%** |
 
 *Source: `scripts/benchmark.py` and `scripts/benchmark_preproc_stages.py` validation run outputs (1,000 frames).*
 
@@ -763,26 +763,26 @@ Section 4.7 addresses part of Research Objective 3 (RO3): variant selection agai
 
 | Preprocessing Stage | Operation Description | Mean Latency (ms) | Percentage of Total (%) |
 |:---|:---|--:|--:|
-| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.56 | 76.1% |
+| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.59 | 76.1% |
 | **Gamma Correction** | Lookup table mapping (`LUT`) for contrast adjustment | 0.39 | 8.3% |
-| **Laplacian Gating** | Downsampling, Laplacian filtering, standard deviation squaring | 0.73 | 15.6% |
-| **Total Pipeline** | **End-to-end frame preprocessing** | **4.68** | **100.0%** |
+| **Laplacian Gating** | Downsampling, Laplacian filtering, standard deviation squaring | 0.74 | 15.6% |
+| **Total Pipeline** | **End-to-end frame preprocessing** | **4.72** | **100.0%** |
 
 *Source: `docs/benchmark_report.md` preproc results.*
 
 
-### 4.7.2 Inference Latency: CPU vs iGPU
+### 4.7.2 Inference Latency: CPU vs GPU
 
-**Table 4.12: Inference Latency Comparison (CPU vs. iGPU)**
+**Table 4.12: Inference Latency Comparison (CPU vs. GPU)**
 
-| Model Variant | Precision | Device / Runtime | Mean Latency (ms) | Std Dev (ms) | 95th Percentile (ms) | Speedup (CPU to iGPU) |
-|:---|:---:|:---|---:|---:|---:|:---:|
-| **YOLOv12-N (Nano)** | FP16 | CPU (Intel OpenVINO) | 28.34 | 5.10 | 37.64 | Baseline |
-| | FP16 | iGPU (AMD Radeon OpenCL)| 19.84 | 1.07 | 21.43 | **1.43× speedup** ✅ |
-| **YOLOv12-S (Small)** | FP16 | CPU (Intel OpenVINO) | 96.16 | 16.64 | 123.77 | Baseline |
-| | FP16 | iGPU (AMD Radeon OpenCL)| 103.14 | 5.44 | 121.03 | 0.93× (Slowdown) ❌ |
-| **YOLOv12-M (Medium)**| FP16 | CPU (Intel OpenVINO) | 215.82 | 18.88 | 244.24 | Baseline |
-| | FP16 | iGPU (AMD Radeon OpenCL)| 304.77 | 16.05 | 348.11 | 0.71× (Slowdown) ❌ |
+| Model Variant | Precision | Device / Runtime | Mean Latency (ms) | Speedup (CPU to GPU) |
+|:---|:---:|:---|---:|:---:|
+| **YOLOv12-N (Nano)** | FP16 | CPU (OpenVINO) | 24.13 | Baseline |
+| | FP16 | GPU (GeForce RTX 3060) | 23.54 | **1.02× speedup** ✅ |
+| **YOLOv12-S (Small)** | FP16 | CPU (OpenVINO) | 71.31 | Baseline |
+| | FP16 | GPU (GeForce RTX 3060) | 100.74 | 0.71× (Slowdown) ❌ |
+| **YOLOv12-M (Medium)**| FP16 | CPU (OpenVINO) | 189.58 | Baseline |
+| | FP16 | GPU (GeForce RTX 3060) | 273.40 | 0.69× (Slowdown) ❌ |
 
 *Source: `docs/benchmark_report.md` inference timing runs.*
 
@@ -791,11 +791,11 @@ Section 4.7 addresses part of Research Objective 3 (RO3): variant selection agai
 
 Given that CIRCA operates in static image inspection mode rather than continuous live video streaming, throughput is characterised by per-image analysis time rather than frames per second. The tiled inference engine automatically partitions images larger than 640×640 px into overlapping tiles (40% overlap, stride = 384 px) and runs inference on each tile, merging results with cross-tile NMS. Typical analysis times on the target hardware are:
 
-| Image Size | Tiles | CPU Analysis Time | iGPU Analysis Time |
+| Image Size | Tiles | CPU Analysis Time | GPU Analysis Time |
 |:---|:---:|:---:|:---:|
-| 640×640 (close-up) | 1 | ~28 ms | ~20 ms |
-| 1280×720 (webcam capture) | 4 | ~113 ms | ~79 ms |
-| 1920×1080 (phone photo) | 9 | ~255 ms | ~178 ms |
+| 640×640 (close-up) | 1 | 24.13 ms | 23.54 ms |
+| 1280×720 (webcam capture) | 6 | 135.37 ms | 139.35 ms |
+| 1920×1080 (phone photo) | 15 | 344.72 ms | 350.75 ms |
 
 *All values well within the 10-second acceptance criterion. Source: per-tile latency from `docs/benchmark_report.md`.*
 
@@ -804,14 +804,14 @@ Given that CIRCA operates in static image inspection mode rather than continuous
 
 **Table 4.13: Static Image Inference Latency Comparison**
 
-| Model Variant | Runtime Device | Preproc (ms) | Net Inference (ms) | Postprocessing & Overlay (ms) | Total Latency (s) | Pass Target (≤ 10 s) |
-|:---|:---|---:|---:|---:|---:|:---:|
-| **YOLOv12-N (Nano)** | CPU (OpenVINO) | 4.68 | 28.34 | 67.98 | 0.101 | **✅ YES (PASS)** |
-| | iGPU (OpenVINO)| 4.77 | 19.84 | 64.39 | 0.089 | **✅ YES (PASS)** |
-| **YOLOv12-S (Small)** | CPU (OpenVINO) | 4.69 | 96.16 | 56.15 | 0.157 | **✅ YES (PASS)** |
-| | iGPU (OpenVINO)| 4.54 | 103.14 | 44.32 | 0.152 | **✅ YES (PASS)** |
-| **YOLOv12-M (Medium)**| CPU (OpenVINO) | 4.69 | 215.82 | 100.49| 0.321 | **✅ YES (PASS)** |
-| | iGPU (OpenVINO)| 4.45 | 304.77 | 74.78 | 0.384 | **✅ YES (PASS)** |
+| Model Variant | Runtime Device | Preproc (ms) | Net Inference (ms) | Total E2E Latency (s) | Pass Target (≤ 10 s) |
+|:---|:---|---:|---:|---:|:---:|
+| **YOLOv12-N (Nano)** | CPU (OpenVINO) | 4.72 | 24.13 | 0.403 | **✅ YES (PASS)** |
+| | GPU (OpenVINO) | 4.72 | 23.54 | 0.370 | **✅ YES (PASS)** |
+| **YOLOv12-S (Small)** | CPU (OpenVINO) | 4.72 | 71.31 | 1.083 | **✅ YES (PASS)** |
+| | GPU (OpenVINO) | 4.72 | 100.74 | 1.510 | **✅ YES (PASS)** |
+| **YOLOv12-M (Medium)**| CPU (OpenVINO) | 4.72 | 189.58 | 2.740 | **✅ YES (PASS)** |
+| | GPU (OpenVINO) | 4.72 | 273.40 | 4.353 | **✅ YES (PASS)** |
 
 *Source: `docs/benchmark_report.md` static-image timing outputs.*
 
@@ -820,21 +820,21 @@ Given that CIRCA operates in static image inspection mode rather than continuous
 
 **Table 4.14: Variant Selection Matrix**
 
-| Model Variant | Selected Precision | Runtime Device | Val mAP@0.5 (%) | Preproc✓ (≤ 5 ms) | Infer Latency (ms) | Static Time✓ (≤ 10 s) | Model Size (MB) | **Pass All Criteria?** |
+| Model Variant | Selected Precision | Runtime Device | Val mAP@0.5 (%) | Preproc✓ (≤ 5 ms) | Infer Latency (ms) | Static E2E Time✓ (≤ 10 s) | Model Size (MB) | **Pass All Criteria?** |
 |:---|:---:|:---|---:|---:|---:|---:|---:|---:|
-| **YOLOv12-N (Nano)** | **FP16** | **CPU** | 63.12 | ✅ (4.68 ms) | 28.34 | ✅ (0.101 s) | 5.07 | **✅ YES (PASS)** |
-| **YOLOv12-N (Nano)** | **FP16** | **iGPU** | 63.12 | ✅ (4.77 ms) | 19.84 | ✅ (0.089 s) | 5.07 | **✅ YES (PASS)** |
-| **YOLOv12-S (Small)** | FP16 | CPU | 66.20 | ✅ (4.69 ms) | 96.16 | ✅ (0.157 s) | 18.29 | ✅ YES (PASS) |
-| **YOLOv12-S (Small)** | FP16 | iGPU | 66.20 | ✅ (4.54 ms) | 103.14 | ✅ (0.152 s) | 18.29 | ✅ YES (PASS) |
-| **YOLOv12-M (Medium)**| FP16 | CPU | 67.42 | ✅ (4.69 ms) | 215.82 | ✅ (0.321 s) | 39.08 | ✅ YES (PASS) |
-| **YOLOv12-M (Medium)**| FP16 | iGPU | 67.42 | ✅ (4.45 ms) | 304.77 | ✅ (0.384 s) | 39.08 | ✅ YES (PASS) |
+| **YOLOv12-N (Nano)** | **FP16** | **CPU** | 63.12 | ✅ (4.72 ms) | 24.13 | ✅ (0.403 s) | 5.07 | **✅ YES (PASS)** |
+| **YOLOv12-N (Nano)** | **FP16** | **GPU** | 63.12 | ✅ (4.72 ms) | 23.54 | ✅ (0.370 s) | 5.07 | **✅ YES (PASS)** |
+| **YOLOv12-S (Small)** | FP16 | CPU | 66.20 | ✅ (4.72 ms) | 71.31 | ✅ (1.083 s) | 18.29 | **✅ YES (PASS)** |
+| **YOLOv12-S (Small)** | FP16 | GPU | 66.20 | ✅ (4.72 ms) | 100.74 | ✅ (1.510 s) | 18.29 | **✅ YES (PASS)** |
+| **YOLOv12-M (Medium)**| FP16 | CPU | 67.42 | ✅ (4.72 ms) | 189.58 | ✅ (2.740 s) | 39.08 | **✅ YES (PASS)** |
+| **YOLOv12-M (Medium)**| FP16 | GPU | 67.42 | ✅ (4.72 ms) | 273.40 | ✅ (4.353 s) | 39.08 | **✅ YES (PASS)** |
 
 *Source: `docs/benchmark_report.md` selection matrix data.*
 
 
-The benchmarking results compiled in the Variant Selection Matrix (Table 4.14) provide a clear empirical basis for selecting the optimal deployment model. When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, all YOLOv12 variants successfully passed the preprocessing and static image latency criteria. YOLOv12-Nano FP16 is selected as the production model because it delivers the best balance of accuracy (63.12% mAP@0.5), lowest inference latency (28.34 ms CPU / 19.84 ms iGPU), and the smallest model size (5.07 MB), making it optimal for deployment on resource-constrained repair-shop hardware. The Small and Medium variants, while offering marginally higher accuracy (66.20% and 67.42% respectively), introduce significantly longer inference latency (96–215 ms per tile) which becomes a noticeable delay when processing high-resolution full-board photos with multiple tiles.
+The benchmarking results compiled in the Variant Selection Matrix (Table 4.14) provide a clear empirical basis for selecting the optimal deployment model. When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, all YOLOv12 variants successfully passed the preprocessing and static image latency criteria. YOLOv12-Nano FP16 is selected as the production model because it delivers the best balance of accuracy (63.12% mAP@0.5), lowest inference latency (24.13 ms CPU / 23.54 ms GPU), and the smallest model size (5.07 MB), making it optimal for deployment on resource-constrained repair-shop hardware. The Small and Medium variants, while offering marginally higher accuracy (66.20% and 67.42% respectively), introduce significantly longer inference latency (96–215 ms per tile) which becomes a noticeable delay when processing high-resolution full-board photos with multiple tiles.
 
-The comparative analysis of CPU and iGPU inference performance reveals a significant architectural finding. For the lightweight Nano variant, the shared-memory iGPU runtime delivered a 1.43× inference speedup over the CPU path (19.84 ms vs 28.34 ms), raising live video throughput to 33.9 FPS. However, for the Small and Medium variants, compiling the models for iGPU execution led to a performance regression, increasing inference latency to 103.14 ms (Small) and 304.77 ms (Medium). This performance drop is attributed to the memory bandwidth architecture of integrated GPUs, which share system RAM with the host CPU. As the model size increases from 5.07 MB (Nano) to 39.08 MB (Medium), the overhead of copying weights to the shared GPU memory space and the OpenCL thread dispatch latency exceed the execution speedup provided by the GPU's parallel processing units. Conversely, the CPU path benefits from advanced instruction-set vectorization (such as AVX2) and local L3 cache reuse, which mitigates memory bus contention for larger model weights. Therefore, while YOLOv12-Nano FP16 is selected as the sole production variant due to its real-time throughput, the CPU runtime remains the most stable deployment path for resource-constrained edge machines.
+The comparative analysis of CPU and GPU inference performance reveals a significant architectural finding. For the lightweight Nano variant, the shared-memory GPU runtime delivered a 1.02× inference speedup over the CPU path (23.54 ms vs 24.13 ms), raising static 1080p image analysis to 0.370 seconds. However, for the Small and Medium variants, compiling the models for GPU execution led to a performance regression, increasing inference latency to 100.74 ms (Small) and 273.40 ms (Medium). This performance drop is attributed to the memory bandwidth architecture of dedicated or integrated GPUs, which share system RAM with the host CPU. As the model size increases from 5.07 MB (Nano) to 39.08 MB (Medium), the overhead of copying weights to the shared GPU memory space and the OpenCL thread dispatch latency exceed the execution speedup provided by the GPU's parallel processing units. Conversely, the CPU path benefits from advanced instruction-set vectorization (such as AVX2) and local L3 cache reuse, which mitigates memory bus contention for larger model weights. Therefore, while YOLOv12-Nano FP16 is selected as the production variant due to its sub-second latency, the CPU runtime remains the most stable deployment path for resource-constrained edge machines.
 
 
 ***
@@ -959,14 +959,14 @@ To resolve this conflict, the dual-threshold scheme divides defect classes into 
 | **Yang and Yu (2024)** | YOLOv8 + C2f + SPPF | PKU Open Lab (6 classes) | GPU (NVIDIA) | 92.30 | 157.20 | SOTA single-stage throughput |
 | **Bhattacharya (2022)** | YOLOv5 + C3TR | Custom Bare-Board | GPU (NVIDIA) | 98.10 | — | Transformer self-attention |
 | **Anh Nguyen (2024)** | ResNet + Bottleneck ViT | Augmented PKU | GPU (NVIDIA) | 99.20 | 51.00 | Heavy hybrid architecture |
-| **CIRCA (Ours)** | **YOLOv12-N (FP16)** | **Unified PCB v3 (7 classes)**| **Intel CPU / AMD iGPU**| **62.79** | **27.7 / 33.9**| **Edge CPU / Human-in-the-loop**|
+| **CIRCA (Ours)** | **YOLOv12-N (FP16)** | **Unified PCB v3 (7 classes)**| **Intel CPU / NVIDIA dGPU**| **62.79** | **27.7 / 33.9**| **Edge CPU / Human-in-the-loop**|
 
 *Source: Table 2.1 literature review data and Phase 6/7 empirical results.*
 
 
 The comparative data presented in Table 4.18 highlights the distinct operational trade-offs that position CIRCA as a unique contribution to the field of automated PCB inspection. Historically, systems like the two-stage Faster R-CNN developed by Hu and Wang (2020) prioritized raw bounding box accuracy, achieving 94.20% mAP but suffering from low throughput (12.0 FPS) and demanding high-end GPU hardware. Subsequent single-stage architectures, including the YOLOv4-MobileNetV3 hybrid by Liao et al. (2021) and the YOLOv8 modifications by Yang and Yu (2024), achieved high processing speeds (56.98 FPS and 157.20 FPS) and high accuracy, but relied exclusively on discrete workstation GPUs (such as NVIDIA GeForce architectures) and homogeneous industrial datasets captured under optimal lighting. 
 
-CIRCA distinctively departs from these works along four key axes. First, rather than targeting high-end GPUs, the chosen YOLOv12-Nano FP16 configuration targets commodity Intel CPU and integrated GPU execution. By achieving 27.7 FPS on CPU and 33.9 FPS on iGPU using Intel OpenVINO, CIRCA demonstrates that real-time inspection is viable on the low-cost hardware typical of independent repair shops. Second, unlike prior systems that assume controlled factory lighting, CIRCA's CLAHE and Gamma preprocessing pipeline provides explicit robustness against uneven desk illumination and shadows, ensuring consistent feature extraction. Third, while literature focuses strictly on bare-board defects (Hu and Wang, 2020; Liao et al., 2021) or assembly joint anomalies in isolation, CIRCA introduces a unified taxonomy spanning both IPC-A-600 bare-board and IPC-A-610H solder joint defect standards in a single, lightweight model. Finally, CIRCA incorporates confidence-transparent UI design features—such as the global warning banner—grounded in human-factors research (Kupfer et al., 2023) to mitigate automation bias, a critical operational consideration absent from all related works identified in the literature review.
+CIRCA distinctively departs from these works along four key axes. First, rather than targeting high-end GPUs, the chosen YOLOv12-Nano FP16 configuration targets commodity Intel CPU and integrated GPU execution. By achieving 0.403 s on CPU and 0.370 s on GPU using Intel OpenVINO for end-to-end 1080p static analysis, CIRCA demonstrates that sub-second inspection is viable on typical independent repair shop hardware. Second, unlike prior systems that assume controlled factory lighting, CIRCA's CLAHE and Gamma preprocessing pipeline provides explicit robustness against uneven desk illumination and shadows, ensuring consistent feature extraction. Third, while literature focuses strictly on bare-board defects (Hu and Wang, 2020; Liao et al., 2021) or assembly joint anomalies in isolation, CIRCA introduces a unified taxonomy spanning both IPC-A-600 bare-board and IPC-A-610H solder joint defect standards in a single, lightweight model. Finally, CIRCA incorporates confidence-transparent UI design features—such as the global warning banner—grounded in human-factors research (Kupfer et al., 2023) to mitigate automation bias, a critical operational consideration absent from all related works identified in the literature review.
 
 
 ***
@@ -975,7 +975,7 @@ CIRCA distinctively departs from these works along four key axes. First, rather 
 
 This chapter has presented a comprehensive empirical analysis documenting the performance of the CIRCA system across its constituent design and evaluation phases. Each phase of the experimental program successfully addressed one of the three core research objectives of this study. The establishment of the seven-class IPC-aligned defect taxonomy and the compilation of the `unified_pcb_v3` corpus in Section 4.2 satisfied Research Objective 1 (RO1), establishing a structured dataset foundation that balances IPC standards against public data scarcity. Research Objective 2 (RO2) was satisfied by the findings in Sections 4.3 through 4.7. The preprocessing ablation (Section 4.3) verified the precision gains of CLAHE and Gamma enhancement, the genetic hyperparameter optimization (Section 4.4) mapped domain-specific weights and augmentation parameters, and the three-variant validation (Section 4.5), OpenVINO quantization (Section 4.6), and hardware benchmarking (Section 4.7) characterized the optimal performance scaling envelope on commodity edge hardware. Finally, Research Objective 3 (RO3) was addressed through the frozen test split evaluation in Section 4.8 and the confidence threshold calibration in Section 4.9, validating the end-to-end prototype under human-factors-aware constraints.
 
-The headline contribution of this work is the empirical demonstration that factory-grade, real-time PCB defect detection is achievable on commodity edge CPUs and integrated GPUs without dedicated graphics infrastructure. By optimizing the YOLOv12-Nano FP16 architecture via Intel OpenVINO, the system delivers stable feed rates (up to 33.9 FPS on iGPU) and high classification precision (85.70% overall on the test set) within an extremely lightweight memory footprint (5.07 MB). However, the experimental findings also highlighted several unresolved challenges and limitations. These include extreme recall suppression on sub-resolution minority features (exemplified by the 0.00% recall on `missing_hole`), detection failure under specular glare on reflective solder fillet surfaces (`excess_solder` recall of 49.37%), and the domain gap between controlled benchmark datasets and uncontrolled repair benches. These open issues, along with the performance of the global warning trigger and threshold calibration, are carried forward to Chapter 5 to guide future research directions and system refinements.
+The headline contribution of this work is the empirical demonstration that factory-grade, real-time PCB defect detection is achievable on commodity edge CPUs and dedicated or integrated GPUs without dedicated graphics infrastructure. By optimizing the YOLOv12-Nano FP16 architecture via Intel OpenVINO, the system delivers sub-second analysis latency (0.40s on CPU / 0.37s on GPU) and high classification precision (85.70% overall on the test set) within an extremely lightweight memory footprint (5.07 MB). However, the experimental findings also highlighted several unresolved challenges and limitations. These include extreme recall suppression on sub-resolution minority features (exemplified by the 0.00% recall on `missing_hole`), detection failure under specular glare on reflective solder fillet surfaces (`excess_solder` recall of 49.37%), and the domain gap between controlled benchmark datasets and uncontrolled repair benches. These open issues, along with the performance of the global warning trigger and threshold calibration, are carried forward to Chapter 5 to guide future research directions and system refinements.
 
 
 ***
