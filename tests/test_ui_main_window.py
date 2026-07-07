@@ -42,7 +42,7 @@ from core.models import BoundingBox, DetectionResult, InferenceParams
 from ui.sidebar import SidePanel
 from ui.main_window import MainWindow, _DEFAULT_CONFIDENCE_THRESHOLD
 from ui.status_footer import StatusFooter
-from ui.video_widget import VideoWidget
+from ui.image_inspect_widget import ImageInspectWidget
 from ui.warning_banner import WarningBanner
 from ui.theme import (
     WINDOW_MIN_WIDTH,
@@ -146,8 +146,8 @@ class TestMainWindowLayout:
     def test_is_qmainwindow(self, win):
         assert isinstance(win, QMainWindow)
 
-    def test_has_video_widget(self, win):
-        assert isinstance(win.video_widget, VideoWidget)
+    def test_has_inspect_widget(self, win):
+        assert isinstance(win.inspect_widget, ImageInspectWidget)
 
     def test_has_warning_banner(self, win):
         assert isinstance(win.warning_banner, WarningBanner)
@@ -186,23 +186,21 @@ class TestCameraWorkerRouting:
         win.camera_worker.camera_error.emit("USB unplugged")
         assert win.status_footer._camera_indicator.dot_color != "#4CAF50"  # Not green
 
-    def test_camera_error_updates_video_widget_status_text(self, win):
-        """camera_error -> VideoWidget shows 'Please connect a camera' status text."""
+    def test_camera_error_updates_inspect_widget_status_text(self, win):
+        """camera_error no longer clears inspect_widget in image-inspect mode."""
         win.camera_worker.camera_error.emit("Device gone")
-        assert win.video_widget._status_text == "Please connect a camera"
+        # Widget stays in EMPTY state (static image inspection — no camera stream)
+        assert win.inspect_widget._state == win.inspect_widget._State.EMPTY
 
-    def test_new_frame_reaches_video_widget(self, win):
-        """new_frame signal → VideoWidget stores a frame with matching dimensions."""
+    def test_new_frame_reaches_inspect_widget(self, win):
+        """new_frame is NOT auto-routed to inspect_widget in image-inspect mode."""
         from PyQt6.QtGui import QColor
 
         img = QImage(64, 64, QImage.Format.Format_RGB888)
         img.fill(QColor("#FF0000"))
         win.camera_worker.new_frame.emit(img)
-        # Check that a frame was stored (not None) with the expected dimensions.
-        # Object identity is not guaranteed across QueuedConnection delivery.
-        assert win.video_widget._current_frame is not None
-        assert win.video_widget._current_frame.width() == 64
-        assert win.video_widget._current_frame.height() == 64
+        # ImageInspectWidget ignores camera frames — _qimage stays None
+        assert win.inspect_widget._qimage is None
 
 
 # ===========================================================================
@@ -225,8 +223,8 @@ class TestInferenceWorkerRouting:
         win.inference_worker.inference_error.emit("OpenVINO crash")
         assert win.status_footer._model_indicator.dot_color == COLOR_STATUS_ERROR
 
-    def test_new_detections_reaches_video_widget(self, win):
-        """new_detections signal → VideoWidget stores the DetectionResult."""
+    def test_new_detections_reaches_inspect_widget(self, win):
+        """new_detections signal → ImageInspectWidget stores the DetectionResult."""
         result = DetectionResult(
             boxes=[
                 BoundingBox(
@@ -240,7 +238,7 @@ class TestInferenceWorkerRouting:
             ]
         )
         win.inference_worker.new_detections.emit(result)
-        assert win.video_widget._detections is result
+        assert win.inspect_widget._detections is result
 
     def test_new_detections_updates_detection_count(self, win):
         """new_detections → StatusFooter detection count updated."""
@@ -472,9 +470,9 @@ class TestMainWindowDefaults:
     def test_inference_worker_created(self, win):
         assert isinstance(win.inference_worker, _StubInferenceWorker)
 
-    def test_video_widget_initial_status_has_text(self, win):
-        """VideoWidget starts with a non-empty status string."""
-        assert len(win.video_widget._status_text) > 0
+    def test_inspect_widget_initial_status_has_text(self, win):
+        """ImageInspectWidget starts in EMPTY state (replaces old status_text check)."""
+        assert win.inspect_widget._state == win.inspect_widget._State.EMPTY
 
     def test_side_panel_clahe_default(self, win):
         """CLAHE slider default = 2.0 (UX spec)."""
@@ -541,8 +539,9 @@ class TestUsbHotplug:
         assert win.side_panel.camera_combo.itemText(0) == "New Camera"
 
     def test_on_cameras_found_hotplug_with_no_cameras_sets_placeholder(self, win):
+        """With no cameras, hotplug does not crash. Widget stays in EMPTY state."""
         win._on_cameras_found_hotplug([])
-        assert win.video_widget._status_text == "Please connect a camera"
+        assert win.inspect_widget._state == win.inspect_widget._State.EMPTY
 
     def test_on_cameras_found_hotplug_with_cameras_idle(self, win):
         """Hotplug with cameras found while not started — autoconnect is attempted."""
@@ -554,21 +553,25 @@ class TestUsbHotplug:
 
 
 # ===========================================================================
-# VideoWidget status text wiring (Change 3)
+# ImageInspectWidget status text wiring (Change 3)
 # ===========================================================================
 
 
-class TestVideoWidgetStatusTextWiring:
-    """Verify MainWindow drives set_status_text() at correct lifecycle moments."""
+class TestImageInspectWidgetStatusTextWiring:
+    """Verify MainWindow drives image inspect widget at correct lifecycle moments."""
 
     def test_camera_error_status_is_unavailable(self, win):
-        """_on_camera_error -> VideoWidget shows 'Please connect a camera'."""
+        """_on_camera_error no longer clears inspect_widget in image-inspect mode."""
         win._on_camera_error("USB dropout")
-        assert win.video_widget._status_text == "Please connect a camera"
+        assert win.inspect_widget._state in (
+            win.inspect_widget._State.EMPTY,
+            win.inspect_widget._State.RESULT,
+        )
 
     def test_usb_removal_no_cameras_shows_placeholder_text(self, win):
+        """Hotplug removal: widget stays in EMPTY state."""
         win._on_cameras_found_hotplug([])
-        assert win.video_widget._status_text == "Please connect a camera"
+        assert win.inspect_widget._state == win.inspect_widget._State.EMPTY
 
     def test_usb_insert_with_cameras_attempts_connect(self, win):
         win._camera_thread_started = False
@@ -579,10 +582,7 @@ class TestVideoWidgetStatusTextWiring:
         assert win.status_footer._camera_indicator.dot_color != "#F44336"
 
     def test_clear_frame_and_set_status_text_independent(self, win):
-        """clear_frame + set_status_text together produce correct idle state."""
-        from PyQt6.QtGui import QImage, QColor
-
-        win.video_widget.clear_feed()
-        win.video_widget.set_status_text("Please connect a camera")
-        assert win.video_widget._current_frame is None
-        assert win.video_widget._status_text == "Please connect a camera"
+        """clear_feed() on ImageInspectWidget resets to EMPTY state."""
+        win.inspect_widget.clear_feed()
+        assert win.inspect_widget._state == win.inspect_widget._State.EMPTY
+        assert win.inspect_widget._qimage is None

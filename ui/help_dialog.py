@@ -89,9 +89,9 @@ class HelpDialog(QDialog):
         desc1 = QLabel(
             "Welcome to CIRCA, your intelligent decision-support assistant for printed circuit board (PCB) diagnostics and rework.\n\n"
             "The workspace uses a split-screen design:\n"
-            "• Left Pane: Real-time digital microscope video stream.\n"
+            "• Left Pane: High-resolution static image inspection workspace.\n"
             "• Right Pane: Dynamic advisory card, statistics, and rework checklist.\n\n"
-            "This layout keeps critical live feeds and log diagnostics visible simultaneously."
+            "This layout keeps critical inspection results and log diagnostics visible simultaneously."
         )
         desc1.setWordWrap(True)
         desc1.setFont(QFont(FONT_UI, 11))
@@ -106,9 +106,9 @@ class HelpDialog(QDialog):
         p2_lay.setContentsMargins(0, 0, 0, 0)
         p2_lay.setSpacing(12)
         desc2 = QLabel(
-            "Live Microscope feed features a digital HUD overlay:\n"
-            "• Live Resolution & FPS counter displayed in the top-right.\n"
-            "• Sharpness Estimator in the bottom-left. Alerts turn yellow if the camera goes out-of-focus.\n"
+            "The inspection panel features a digital HUD overlay:\n"
+            "• Image Resolution & Analysis Time displayed in the top-right.\n"
+            "• PCB Scene Guard in the bottom-left validates that the loaded image is a PCB.\n"
             "• Glowing Bounding Boxes surround board defects with class tags.\n"
             "• High-Contrast outlines ensure bounding boxes remain legible over any PCB color mask."
         )
@@ -127,7 +127,7 @@ class HelpDialog(QDialog):
         desc3 = QLabel(
             "Managing & Repairing defects is simple:\n"
             "• The Rework Checklist logs active board faults sequentially.\n"
-            "• Hovering over checklist items highlights the defect's exact location on the camera feed with a thick glowing border.\n"
+            "• Hovering over checklist items highlights the defect's exact location on the image with a thick glowing border.\n"
             "• Each fault includes an accessibility pill (e.g. [COLD] or [SHORT]) pairing text with color to support color-blind operators.\n"
             "• Log repairs by checking them off or clicking 'Log Rework Done'."
         )

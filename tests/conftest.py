@@ -5,7 +5,7 @@ Shared pytest fixtures for the entire CIRCA test suite.
 
 QApplication strategy:
   All PyQt6 tests require a QApplication (or QCoreApplication) instance.
-  Since VideoWidget tests require QApplication (a QWidget subclass), and
+  Since ImageInspectWidget tests require QApplication (a QWidget subclass), and
   worker tests used QCoreApplication, we create a single QApplication at
   session scope.
 

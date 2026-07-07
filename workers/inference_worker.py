@@ -69,6 +69,7 @@ from PyQt6.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal, pyqtSlot
 
 from core.debug import trace_execution
 from core.inference_engine import InferenceEngine
+from core.tiled_inference import TiledInferenceEngine
 from core.models import DetectionResult, InferenceParams
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class InferenceWorker(QObject):
     # Emitted after each successful inference pass.
     # Carries a DetectionResult (zero or more BoundingBox objects).
     # Declared as object because DetectionResult is a plain Python dataclass
-    # (not a registered Qt metatype). MainWindow connects this to VideoWidget.
+    # (not a registered Qt metatype). MainWindow connects this to ImageInspectWidget.
     new_detections: pyqtSignal = pyqtSignal(object)
 
     # Emitted on any exception during model loading or inference.
@@ -120,8 +121,9 @@ class InferenceWorker(QObject):
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
 
-        # InferenceEngine instance — None until load_model() succeeds.
+        # InferenceEngine and TiledInferenceEngine — None until load_model() succeeds.
         self._engine: Optional[InferenceEngine] = None
+        self._tiled_engine: Optional[TiledInferenceEngine] = None
 
         # Live inference parameters from GUI sliders.
         # Protected by QMutex for thread-safe updates from GUI thread.
@@ -163,6 +165,7 @@ class InferenceWorker(QObject):
         try:
             logger.info("InferenceWorker: loading model from '%s'…", model_path)
             self._engine = InferenceEngine(model_path)
+            self._tiled_engine = TiledInferenceEngine(self._engine)
             logger.info("InferenceWorker: model loaded successfully.")
             self.model_loaded.emit()
         except Exception as exc:
@@ -247,7 +250,7 @@ class InferenceWorker(QObject):
             return
 
         try:
-            if self._engine is None:
+            if self._engine is None or self._tiled_engine is None:
                 # Model not loaded yet. Drop silently — this is normal during
                 # the startup window between thread.start() and load_model().
                 logger.debug("InferenceWorker: frame dropped — model not loaded.")
@@ -256,9 +259,15 @@ class InferenceWorker(QObject):
             params = self._snapshot_params()
 
             start_inference = time.perf_counter()
-            result: DetectionResult = self._engine.run(frame, params)
+            result: DetectionResult = self._tiled_engine.run_tiled(frame, params)
             inference_duration_ms = (time.perf_counter() - start_inference) * 1000.0
             result.inference_time_ms = inference_duration_ms
+            # Count tiles used (for HUD display)
+            h, w = frame.shape[:2]
+            from core.tiled_inference import TILE_SIZE, TILE_STRIDE
+            tiles_x = max(1, (w - TILE_SIZE + TILE_STRIDE - 1) // TILE_STRIDE + 1) if w > TILE_SIZE else 1
+            tiles_y = max(1, (h - TILE_SIZE + TILE_STRIDE - 1) // TILE_STRIDE + 1) if h > TILE_SIZE else 1
+            result.tile_count = tiles_x * tiles_y
 
             logger.debug(
                 "InferenceWorker: %d detection(s), avg_conf=%.2f, took %.2fms",
@@ -266,12 +275,18 @@ class InferenceWorker(QObject):
                 result.average_confidence,
                 inference_duration_ms,
             )
-            self.new_detections.emit(result)
+            try:
+                self.new_detections.emit(result)
+            except RuntimeError:
+                pass
 
         except Exception as exc:
             msg = f"Inference failed — {type(exc).__name__}: {exc}"
             logger.error(msg, exc_info=True)
-            self.inference_error.emit(msg)
+            try:
+                self.inference_error.emit(msg)
+            except RuntimeError:
+                pass
         finally:
             # Always release — even on exception — so the worker recovers
             # automatically on the next frame rather than deadlocking.

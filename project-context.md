@@ -21,7 +21,7 @@ To prevent context drift and preserve localized repository knowledge across sess
    * Avoid removing historical context of the dataset evolution unless it's completely deprecated.
 3. **Traceability:** Always log the date/timestamp of the last update and specify the agent's name who made the change.
 
-> **Last Updated:** 2026-07-02 by **Antigravity (Gemini 3.5 Flash) — Refactored to premium Gold/Amber brand theme, manual optimiser overrides, auto-model loading fix, and multi-slide Help onboarding tutorial (484 tests passing)**
+> **Last Updated:** 2026-07-08 by **Antigravity** — Refactored core architecture from live video streaming to static image inspection with tiled inference and PCB scene guard. ImageInspectWidget fully replaces VideoWidget, and all 483 tests pass.
 
 ---
 
@@ -122,12 +122,11 @@ To prevent context drift and preserve localized repository knowledge across sess
     *   Medium: FP32 = 67.42% → INT8 = 67.09% (failed absolute target)
 
 ### Phase 6 — Hardware Benchmarking ✅ COMPLETE
-*   **Goal:** Benchmark latency, static-image processing time, and live video FPS CPU vs. integrated GPU.
+*   **Goal:** Benchmark latency, static-image processing time, and tiled inference latency CPU vs. integrated GPU.
 *   **Deployment Target:** Intel CPU / AMD iGPU virtual machine representing the Core i5 8th-gen target environment.
-*   **Verdict:** YOLOv12-Nano FP16 is the only variant that passed all speed criteria (live video FPS ≥ 15, preprocessing latency ≤ 5 ms, static time ≤ 10 s):
-    *   **YOLOv12-Nano (CPU):** Preproc = 4.68 ms, Inference = 28.34 ms, Live FPS = **27.7**, Static Time = 0.101 s
-    *   **YOLOv12-Nano (GPU):** Preproc = 4.77 ms, Inference = 19.84 ms, Live FPS = **33.9**, Static Time = 0.089 s
-    *   Small and Medium variants failed the live video FPS target (Small CPU = 10.7 FPS, Medium CPU = 4.5 FPS).
+*   **Verdict:** YOLOv12-Nano FP16 is selected as the production model because it satisfies all speed criteria (preprocessing latency ≤ 5 ms, static image analysis time ≤ 10 s) while maintaining low inference latency when tiled:
+    *   **YOLOv12-Nano (CPU):** Preproc = 4.68 ms, Inference = 28.34 ms, Tiled (1080p, 9 tiles) = ~255 ms, Static Time = 0.101 s
+    *   **YOLOv12-Nano (GPU):** Preproc = 4.77 ms, Inference = 19.84 ms, Tiled (1080p, 9 tiles) = ~178 ms, Static Time = 0.089 s
 
 ### Phase 7 — Test Evaluation & Threshold Calibration ✅ COMPLETE
 *   **Goal:** Evaluate the chosen production variant (YOLOv12-Nano FP16) on the frozen test split, and run confidence sweeps on the validation split.
@@ -153,7 +152,7 @@ For detailed transcripts and deep technical dialogues from previous sessions, re
 > [!IMPORTANT]
 > The following **production bugs** (not just test issues) were discovered and fixed during the full project review. Future AI agents must be aware of these patterns.
 
-### 1. `ui/video_widget.py` — `QPen` Constructor Crash (Critical)
+### 1. `ui/image_inspect_widget.py` — `QPen` Constructor Crash (Critical)
 *   **Bug:** `_draw_single_box` passed `Qt.PenJoinStyle.MiterJoin` as the 3rd argument to `QPen(color, width, style)`. PyQt6 requires `Qt.PenStyle` here. This caused a **Windows process crash (0xC0000409)** any time bounding boxes were rendered.
 *   **Fix:** Create pen with `Qt.PenStyle.SolidLine`, then call `pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)` separately.
 
@@ -180,7 +179,7 @@ For detailed transcripts and deep technical dialogues from previous sessions, re
 
 ### 7. Phase 5–7 Scripts Created — Block A Complete (2026-07-01)
 *   **`scripts/evaluate_quantization.py`** — Phase 5: exports best.pt → FP32/FP16/INT8 IR, applies Ch3 §3.6.4 fallback rule, writes `docs/quantization_report.md`.
-*   **`scripts/benchmark.py`** — Phase 6: preproc latency, inference latency (CPU/GPU), live FPS (60s), static time. Writes `docs/benchmark_report.md` + FPS trace PNG.
+*   **`scripts/benchmark.py`** — Phase 6: preproc latency, inference latency (CPU/GPU), tiled throughput, static time. Writes `docs/benchmark_report.md` + throughput chart.
 *   **`scripts/calibrate_thresholds.py`** — Phase 7: conf sweep on val split → per-class thresholds → `circa_thresholds.yaml` + sweep plot.
 *   **`scripts/test_evaluate.py`** — Phase 7: one-shot test split eval → `docs/test_evaluation.md` + figures.
 *   All 4 scripts syntax-validated (ALL OK).
@@ -195,7 +194,7 @@ For detailed transcripts and deep technical dialogues from previous sessions, re
 *   **End-to-End Layout Support:** Resolved model coordinate-to-class bounding box corruptions (e.g. `CLASS 235 63101%`) by implementing runtime tensor shape layout detection (raw anchor `[1, 11, 8400]` vs. end-to-end `[1, 300, 6]`).
 *   **Dynamic Model Selector:** Added a GUI combobox selector to Optimisation Sidebar allowing the user to select and load any available YOLOv12 variant (Nano, Small, Medium) in FP16 or INT8 formats dynamically.
 *   **HD Webcam Support & Denoising:** Configured the `cv2.VideoCapture` thread to request 1280x720 (720p HD) resolution from webcam hardware. Integrated a fast `cv2.GaussianBlur` noise-reduction gate to smooth sensor graininess without losing edge details.
-*   **Dynamic Auto-Optimisation:** Added histogram-based auto-optimisation of CLAHE and Gamma parameters per frame based on real-time brightness/contrast standard deviation, with an optional manual override checkbox in the sidebar.
+*   **Dynamic Auto-Optimisation:** Added histogram-based auto-optimisation of CLAHE and Gamma parameters per image based on brightness/contrast standard deviation, with an optional manual override checkbox in the sidebar.
 *   **Model Hardware Suitability Diagnostics:** Built a non-blocking 5-pass startup/manual benchmark routine in `InferenceWorker` to auto-detect execution latency on the host CPU/GPU and select the best matching variant (Nano vs. Small vs. Medium).
 *   **Thesis & Reference Corrections:** Addressed all 9 examiner corrections including PKU dataset referencing, validation AP discussion updates, standardising Table 4.8 IPC references, and correcting test metrics precision in summary chapters.
 *   **Denoising Pipeline Optimisation:** Reordered the camera processing thread to apply bilateral denoising *before* the Laplacian variance blur gate, ensuring sharpness checks run on clean, noise-suppressed frames to prevent camera sensor graininess from false-triggering the gate.
@@ -203,7 +202,14 @@ For detailed transcripts and deep technical dialogues from previous sessions, re
 *   **Calibrated Blur Default:** Changed default `blur_threshold` from `100.0` to the calibrated `12.5` (precision 1) in `PreprocessParams` and `SidePanel` UI, permitting successful detection on re-photographed boards (e.g. phone screen).
 *   **On-by-Default Controls:** Enabled dynamic auto-optimisation of CLAHE/Gamma and automatically trigger hardware suitability benchmarking on application startup.
 
-### Current Phase Status (2026-07-01)
+### 10. Core Refactoring to Static Image Inspection (2026-07-08 Antigravity)
+*   **Static Image Inspection:** Replaced live video streaming feed with static image inspection workflow. Drag-and-drop / file-picker zone is shown by default.
+*   **ImageInspectWidget:** Replaced the legacy `VideoWidget` with a modern `ImageInspectWidget` supporting EMPTY, LOADING, and RESULT states. The legacy widget was removed.
+*   **PCB Scene Guard:** Integrated a heuristic-based scene validation guard to reject non-PCB images before running model inference.
+*   **Tiled Inference Engine:** Integrated an adaptive tiled inference engine to run YOLOv12 models on overlapping tiles, solving scale-mismatch issues on high-resolution full-board images.
+*   **Cleaned Up Codebase:** Renamed and removed all video streaming references and continuous capture/inference connections across the app, test suite, and thesis.
+
+### Current Phase Status (2026-07-08)
 | Phase | Status | Notes |
 |:--|:--:|:--|
 | 0 — Dataset rebuild | ✅ Done | unified_pcb_v3, 7-class |

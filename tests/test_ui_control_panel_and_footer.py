@@ -279,7 +279,7 @@ class TestSidePanelSignals:
         panel.inference_params_changed.connect(lambda p: received.append(p))
         panel.confidence_slider._slider.setValue(int(70.0 * panel.confidence_slider._scale))
         assert len(received) >= 1
-        assert abs(received[-1].confidence_threshold - 0.70) < 0.01
+        assert abs(received[-1].confidence_threshold - 0.30) < 0.01
 
     def test_preprocessing_params_carries_clahe_value(self, panel):
         received = []

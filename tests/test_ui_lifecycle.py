@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import QMainWindow
 from ui.main_window import MainWindow
 from ui.sidebar import SidePanel
 from ui.status_footer import StatusFooter
-from ui.video_widget import VideoWidget
+from ui.image_inspect_widget import ImageInspectWidget
 from ui.warning_banner import WarningBanner
 from ui.theme import (
     WINDOW_MIN_WIDTH,
@@ -34,8 +34,8 @@ class TestMainWindowLayout:
     def test_is_qmainwindow(self, win):
         assert isinstance(win, QMainWindow)
 
-    def test_has_video_widget(self, win):
-        assert isinstance(win.video_widget, VideoWidget)
+    def test_has_inspect_widget(self, win):
+        assert isinstance(win.inspect_widget, ImageInspectWidget)
 
     def test_has_warning_banner(self, win):
         assert isinstance(win.warning_banner, WarningBanner)
@@ -98,8 +98,9 @@ class TestCloseEvent:
 
 
 class TestMainWindowDefaults:
-    def test_video_widget_initial_status_has_text(self, win):
-        assert len(win.video_widget._status_text) > 0
+    def test_inspect_widget_initial_status_has_text(self, win):
+        """ImageInspectWidget starts in EMPTY state (no status text string needed)."""
+        assert win.inspect_widget._state == win.inspect_widget._State.EMPTY
 
     def test_side_panel_clahe_default(self, win):
         """SidePanel CLAHE slider must default to 2.0 (UX spec)."""
@@ -151,6 +152,6 @@ class TestUsbHotplug:
         assert win.side_panel.camera_combo.itemText(0) == "New Camera"
 
     def test_on_cameras_found_hotplug_empty_clears_status(self, win):
-        """When no cameras found after hotplug removal, status reverts to idle."""
+        """When no cameras found after hotplug removal, widget stays EMPTY."""
         win._on_cameras_found_hotplug([])
-        assert "connect" in win.video_widget._status_text.lower()
+        assert win.inspect_widget._state == win.inspect_widget._State.EMPTY

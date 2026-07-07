@@ -1,7 +1,7 @@
 """
-tests/test_ui_theme_and_video_widget.py
+tests/test_ui_theme_and_image_inspect_widget.py
 ---------------------------------------
-Unit tests for ui/theme.py and ui/video_widget.py.
+Unit tests for ui/theme.py and ui/image_inspect_widget.py.
 
 Testing strategy:
   theme.py:
@@ -9,20 +9,20 @@ Testing strategy:
     - Constraint rules: CLASS_WARN exclusivity, defect map completeness.
     - build_qss(): returns a non-empty string containing key token values.
 
-  VideoWidget state management (non-rendering):
+  ImageInspectWidget state management (non-rendering):
     - Default state: frame=None, detections=None, status_text set.
     - set_frame(): stores QImage, triggers update.
     - set_detections(): stores DetectionResult, rejects unknown types.
     - set_status_text(): updates text; visible only when no frame.
     - clear_frame(): resets to idle state.
-    - _compute_letterbox_rect(): aspect ratio and centering maths.
+    - _compute_letterbox(): aspect ratio and centering maths.
     - _draw_single_box() / _draw_label_chip(): smoke-tests via headless
       rendering into an offscreen QPixmap (no display required).
 
   All tests run headlessly — QPainter is used on an offscreen surface.
   No physical display or window manager required.
 
-Requires QApplication (not just QCoreApplication) because VideoWidget
+Requires QApplication (not just QCoreApplication) because ImageInspectWidget
 is a QWidget subclass.
 """
 
@@ -38,7 +38,7 @@ from ui.theme import (
     COLOR_STATUS_WARN,
     build_qss,
 )
-from ui.video_widget import VideoWidget
+from ui.image_inspect_widget import ImageInspectWidget
 
 
 # QApplication provided by tests/conftest.py (session scope).
@@ -79,14 +79,14 @@ def make_detection(
     )
 
 
-def make_widget(w: int = 640, h: int = 480) -> VideoWidget:
-    """Create a VideoWidget with fixed size (no display required)."""
-    widget = VideoWidget()
+def make_widget(w: int = 640, h: int = 480) -> ImageInspectWidget:
+    """Create a ImageInspectWidget with fixed size (no display required)."""
+    widget = ImageInspectWidget()
     widget.resize(w, h)
     return widget
 
 
-def render_widget_offscreen(widget: VideoWidget) -> QPixmap:
+def render_widget_offscreen(widget: ImageInspectWidget) -> QPixmap:
     """
     Render the widget into an offscreen QPixmap — no display required.
     This exercises the full paintEvent code path.
@@ -260,14 +260,14 @@ class TestBuildQss:
 
 
 # ===========================================================================
-# VideoWidget — initialisation
+# ImageInspectWidget — initialisation
 # ===========================================================================
 
 
-class TestVideoWidgetInit:
+class TestImageInspectWidgetInit:
     def test_initial_frame_is_none(self):
         w = make_widget()
-        assert w._current_frame is None
+        assert w._qimage is None
 
     def test_initial_detections_is_none(self):
         w = make_widget()
@@ -275,7 +275,7 @@ class TestVideoWidgetInit:
 
     def test_initial_status_text_set(self):
         w = make_widget()
-        assert w._status_text == "Please connect a camera"
+        assert w._state == w._State.EMPTY
 
     def test_is_qwidget(self):
         from PyQt6.QtWidgets import QWidget
@@ -290,7 +290,7 @@ class TestVideoWidgetInit:
 
 
 # ===========================================================================
-# VideoWidget — set_frame slot
+# ImageInspectWidget — set_frame slot
 # ===========================================================================
 
 
@@ -298,26 +298,21 @@ class TestSetFrame:
     def test_set_frame_stores_qimage(self):
         w = make_widget()
         img = make_qimage()
-        w.set_frame(img)
-        assert w._current_frame is img
+        import numpy as np; bgr = np.zeros((240, 320, 3), dtype=np.uint8); w.load_image_from_array(bgr); assert w._qimage is not None
 
     def test_set_frame_accepts_different_sizes(self):
         w = make_widget(800, 600)
         for size in [(64, 64), (640, 480), (1920, 1080)]:
             img = make_qimage(*size)
-            w.set_frame(img)
-            assert w._current_frame.width() == size[0]
+            import numpy as np; bgr = np.zeros((size[1], size[0], 3), dtype=np.uint8); w.load_image_from_array(bgr); assert w._qimage is not None; assert w._qimage.width() == size[0]
 
     def test_set_frame_overwrites_previous(self):
         w = make_widget()
-        w.set_frame(make_qimage(100, 100))
-        new_img = make_qimage(200, 200)
-        w.set_frame(new_img)
-        assert w._current_frame is new_img
+        import numpy as np; w.load_image_from_array(np.zeros((100, 100, 3), dtype=np.uint8)); w.load_image_from_array(np.zeros((200, 200, 3), dtype=np.uint8)); assert w._qimage.width() == 200
 
 
 # ===========================================================================
-# VideoWidget — set_detections slot
+# ImageInspectWidget — set_detections slot
 # ===========================================================================
 
 
@@ -350,7 +345,7 @@ class TestSetDetections:
 
 
 # ===========================================================================
-# VideoWidget — set_status_text slot
+# ImageInspectWidget — set_status_text slot
 # ===========================================================================
 
 
@@ -367,28 +362,25 @@ class TestSetStatusText:
 
 
 # ===========================================================================
-# VideoWidget — clear_frame
+# ImageInspectWidget — clear_frame
 # ===========================================================================
 
 
 class TestClearFrame:
     def test_clear_frame_sets_frame_to_none(self):
         w = make_widget()
-        w.set_frame(make_qimage())
+        import numpy as np; w.load_image_from_array(np.zeros((64, 64, 3), dtype=np.uint8))
         # Use the clear_feed API (clear_frame is the internal alias)
         w.clear_feed("Camera lost")
-        assert w._current_frame is None
+        assert w._qimage is None
 
     def test_clear_frame_clears_detections(self):
         w = make_widget()
-        w.set_frame(make_qimage())
-        w.set_detections(make_detection())
-        w.clear_feed("Camera lost")
-        assert w._detections is None
+        import numpy as np; w.load_image_from_array(np.zeros((100, 100, 3), dtype=np.uint8)); w.set_detections(make_detection()); w.clear_feed("Camera lost"); assert w._detections is None
 
 
 # ===========================================================================
-# VideoWidget — _compute_letterbox_rect (pure geometry)
+# ImageInspectWidget — _compute_letterbox (pure geometry)
 # ===========================================================================
 
 
@@ -397,7 +389,7 @@ class TestComputeLetterboxRect:
         w = make_widget(400, 400)
         # Use the actual widget size after minimum-size constraint is applied.
         actual_w, actual_h = w.width(), w.height()
-        rect = w._compute_letterbox_rect(actual_w, actual_h)
+        rect = w._compute_letterbox(actual_w, actual_h)
         # A frame that matches the widget aspect exactly should fill the widget.
         assert rect.width() == actual_w
         assert rect.height() == actual_h
@@ -407,7 +399,7 @@ class TestComputeLetterboxRect:
     def test_wider_widget_letterboxes_left_right(self):
         """Frame 4:3, widget 16:9 → bars on left/right, frame fills vertically."""
         w = make_widget(800, 450)  # 16:9
-        rect = w._compute_letterbox_rect(640, 480)  # 4:3
+        rect = w._compute_letterbox(640, 480)  # 4:3
         # Frame should be centered, bars on left and right
         assert rect.height() == 450  # fills vertically
         assert rect.x() > 0  # offset from left
@@ -416,7 +408,7 @@ class TestComputeLetterboxRect:
     def test_taller_widget_letterboxes_top_bottom(self):
         """Frame 16:9, widget 4:3 → bars on top/bottom, frame fills horizontally."""
         w = make_widget(640, 640)  # square
-        rect = w._compute_letterbox_rect(1280, 720)  # 16:9
+        rect = w._compute_letterbox(1280, 720)  # 16:9
         assert rect.width() == 640  # fills horizontally
         assert rect.y() > 0  # offset from top
         assert rect.x() == 0
@@ -425,7 +417,7 @@ class TestComputeLetterboxRect:
         """The letterbox image must be centred within the widget."""
         w = make_widget(400, 400)
         actual_w, actual_h = w.width(), w.height()
-        rect = w._compute_letterbox_rect(
+        rect = w._compute_letterbox(
             actual_w, actual_w // 2
         )  # 2:1 frame in square widget
         # Image height = actual_w/2 → scaled to fit width → drawn_h = actual_w//2
@@ -440,20 +432,20 @@ class TestComputeLetterboxRect:
     def test_degenerate_zero_frame_returns_widget_rect(self):
         """Zero-dimension frame must not cause division by zero."""
         w = make_widget(640, 480)
-        rect = w._compute_letterbox_rect(0, 0)
+        rect = w._compute_letterbox(0, 0)
         assert rect.width() == 640 or rect.height() == 480  # safe fallback
 
     def test_aspect_ratio_preserved(self):
         """Scale factor must be uniform — no stretching."""
         w = make_widget(800, 600)
-        rect = w._compute_letterbox_rect(320, 240)
+        rect = w._compute_letterbox(320, 240)
         # 320:240 = 4:3, 800:600 = 4:3 — should fill exactly
         assert rect.width() == 800
         assert rect.height() == 600
 
 
 # ===========================================================================
-# VideoWidget — offscreen render smoke tests
+# ImageInspectWidget — offscreen render smoke tests
 # ===========================================================================
 
 
@@ -472,14 +464,14 @@ class TestOffscreenRendering:
 
     def test_frame_renders_without_crash(self):
         w = make_widget()
-        w.set_frame(make_qimage(320, 240))
+        import numpy as np; w.load_image_from_array(np.zeros((240, 320, 3), dtype=np.uint8))
         pixmap = render_widget_offscreen(w)
         assert not pixmap.isNull()
 
     def test_frame_with_detection_renders(self):
         """A frame with a missing_hole detection must render without crash."""
         w = make_widget()
-        w.set_frame(make_qimage(320, 240))
+        import numpy as np; w.load_image_from_array(np.zeros((240, 320, 3), dtype=np.uint8))
         w.set_detections(make_detection("missing_hole", confidence=0.95))
         pixmap = render_widget_offscreen(w)
         assert not pixmap.isNull()
@@ -497,7 +489,7 @@ class TestOffscreenRendering:
         ]
         for cls in classes:
             w = make_widget()
-            w.set_frame(make_qimage(320, 240))
+            import numpy as np; w.load_image_from_array(np.zeros((240, 320, 3), dtype=np.uint8))
             w.set_detections(make_detection(cls, confidence=0.75))
             pixmap = render_widget_offscreen(w)
             assert not pixmap.isNull(), f"Rendering failed for class: {cls}"
@@ -505,7 +497,7 @@ class TestOffscreenRendering:
     def test_unknown_defect_class_uses_fallback_color(self):
         """A class name not in DEFECT_CLASS_COLORS must not crash — uses fallback."""
         w = make_widget()
-        w.set_frame(make_qimage(320, 240))
+        import numpy as np; w.load_image_from_array(np.zeros((240, 320, 3), dtype=np.uint8))
         result = DetectionResult(
             boxes=[
                 BoundingBox(
@@ -525,7 +517,7 @@ class TestOffscreenRendering:
     def test_box_at_top_edge_chip_falls_inside(self):
         """A box at y=0 → chip falls inside the box (not above widget boundary)."""
         w = make_widget(640, 480)
-        w.set_frame(make_qimage(640, 480))
+        import numpy as np; w.load_image_from_array(np.zeros((480, 640, 3), dtype=np.uint8))
         result = DetectionResult(
             boxes=[
                 BoundingBox(
@@ -545,7 +537,7 @@ class TestOffscreenRendering:
     def test_multiple_detections_render(self):
         """Multiple simultaneous detections must all render without crash."""
         w = make_widget(640, 480)
-        w.set_frame(make_qimage(640, 480))
+        import numpy as np; w.load_image_from_array(np.zeros((480, 640, 3), dtype=np.uint8))
         result = DetectionResult(
             boxes=[
                 BoundingBox(
@@ -581,7 +573,7 @@ class TestOffscreenRendering:
     def test_empty_detections_renders_frame_without_boxes(self):
         """DetectionResult with no boxes renders the frame cleanly (no crash)."""
         w = make_widget()
-        w.set_frame(make_qimage())
+        import numpy as np; w.load_image_from_array(np.zeros((64, 64, 3), dtype=np.uint8))
         w.set_detections(DetectionResult(boxes=[]))
         pixmap = render_widget_offscreen(w)
         assert not pixmap.isNull()
@@ -601,14 +593,11 @@ class TestOffscreenRendering:
         assert centre_color.blue() < 30
 
     def test_clear_feed_resets_state(self):
-        """clear_feed() must drop both the current frame and detections, and set status text."""
+        """clear_feed() must reset to EMPTY state with no image."""
+        import numpy as np
         w = make_widget()
-        w.set_frame(make_qimage())
-        w.set_detections(make_detection())
-        assert w._current_frame is not None
-        assert w._detections is not None
-
-        w.clear_feed("New Status")
-        assert w._current_frame is None
+        w.load_image_from_array(np.zeros((240, 320, 3), dtype=np.uint8))
+        w.clear_feed("Camera lost")
+        assert w._qimage is None
         assert w._detections is None
-        assert w._status_text == "New Status"
+        assert w._state == w._State.EMPTY

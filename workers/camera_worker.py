@@ -29,11 +29,11 @@ Signal received (slot):
 
 Functional requirements covered:
   FR1  — UVC capture via cv2.VideoCapture with CAP_DSHOW
-  FR3  — apply_clahe() on sharp frames
-  FR4  — apply_gamma() on sharp frames
-  FR5  — compute_variance() motion gate; blurry frames skipped for inference
-  FR12 — new_frame emitted every frame for live display (never drops display)
-  FR19 — Preprocessing applied to preview (live feedback loop for Sarah, UJ-02)
+    FR3  — apply_clahe() on sharp frames
+    FR4  — apply_gamma() on sharp frames
+    FR5  — compute_variance() motion gate; blurry frames skipped for inference
+    FR12 — new_frame emitted for camera snapshot capture
+    FR19 — Preprocessing applied to captured frame (live feedback loop for Sarah, UJ-02)
 
 UX Journey coverage (ux-design-specification.md):
   UJ-01 — Automated initiation; zero-click detection pipeline
@@ -100,7 +100,7 @@ class CameraWorker(QObject):
     # ------------------------------------------------------------------
 
     # Always emitted — raw frame when blurry, preprocessed frame when sharp.
-    # VideoWidget connects to this for live display (FR12).
+    # ImageInspectWidget capture routine connects to this to grab snapshots.
     new_frame: pyqtSignal = pyqtSignal(QImage)
 
     # Emitted ONLY for frames where Laplacian variance >= blur_threshold.

@@ -34,7 +34,7 @@ from ui.theme import (
     WINDOW_MIN_WIDTH,
     build_qss
 )
-from ui.video_widget import VideoWidget
+from ui.image_inspect_widget import ImageInspectWidget
 from ui.warning_banner import WarningBanner
 from ui.help_dialog import HelpDialog
 from workers.camera_worker import CameraWorker
@@ -104,14 +104,14 @@ class MainWindow(QMainWindow):
         try:
             from PyQt6.QtMultimedia import QMediaDevices
             self._media_devices = QMediaDevices(self)
-            self._media_devices.videoInputsChanged.connect(self._on_video_inputs_changed)
+            self._media_devices.videoInputsChanged.connect(self._on_camera_inputs_changed)
         except Exception as e:
             logger.error("Failed to initialize QMediaDevices: %s", e)
 
     @pyqtSlot()
-    def _on_video_inputs_changed(self):
+    def _on_camera_inputs_changed(self):
         """Triggered when a camera is plugged/unplugged."""
-        logger.info("USB Video Input change detected — debouncing scan...")
+        logger.info("USB Camera Input change detected — debouncing scan...")
         self._usb_debounce_timer.start(1000)
 
     def _build_ui(self):
@@ -177,6 +177,16 @@ class MainWindow(QMainWindow):
                 btn.setIconSize(pixmap.size())
             return btn
 
+        # Action Button: Load Image (primary workflow)
+        self.top_load_btn = create_icon_button("folder_open", "Load PCB Image for Inspection")
+        self.top_load_btn.setObjectName("TopLoadButton")
+        tb_layout.addWidget(self.top_load_btn)
+
+        # Action Button: Capture from Camera
+        self.top_capture_btn = create_icon_button("camera", "Capture Single Frame from Camera")
+        self.top_capture_btn.setObjectName("TopCaptureButton")
+        tb_layout.addWidget(self.top_capture_btn)
+
         # Action Button: Help Onboarding
         self.top_help_btn = create_icon_button("info", "Quick Onboarding Guide & Help")
         self.top_help_btn.setObjectName("TopHelpButton")
@@ -208,8 +218,8 @@ class MainWindow(QMainWindow):
         self.warning_banner = WarningBanner()
         feed_layout.addWidget(self.warning_banner)
 
-        self.video_widget = VideoWidget()
-        feed_layout.addWidget(self.video_widget, stretch=1)
+        self.inspect_widget = ImageInspectWidget()
+        feed_layout.addWidget(self.inspect_widget, stretch=1)
         self.splitter.addWidget(feed_panel)
 
         # Analytics Dashboard Panel (Right side of splitter)
@@ -241,28 +251,31 @@ class MainWindow(QMainWindow):
         self.inference_worker.moveToThread(self.inference_thread)
 
     def _connect_signals(self):
-
-
         # Top nav bar buttons
+        self.top_load_btn.clicked.connect(self._on_load_image_clicked)
+        self.top_capture_btn.clicked.connect(self._on_capture_clicked)
         self.top_help_btn.clicked.connect(self._show_onboarding_guide)
         self.top_settings_btn.clicked.connect(self.side_panel.toggle)
         self.top_export_btn.clicked.connect(self.analytics_dashboard._on_export_clicked)
 
-        # Engine signals
+        # Image inspect widget: user loaded/captured an image → run inference
+        self.inspect_widget.image_loaded.connect(self._on_image_loaded)
+
+        # Camera worker (used only for optional single-frame capture)
         self.camera_thread.started.connect(self.camera_worker.run)
-        self.camera_worker.new_frame.connect(self.video_widget.set_frame)
-        self.camera_worker.frame_ready_for_inference.connect(self.inference_worker.process_frame)
         self.camera_worker.camera_error.connect(self._on_camera_error)
-        self.inference_worker.new_detections.connect(self.video_widget.set_detections)
+
+        # Inference results flow back to the inspect widget
+        self.inference_worker.new_detections.connect(self.inspect_widget.set_detections)
         self.inference_worker.new_detections.connect(self._on_new_detections)
         self.inference_worker.model_loaded.connect(self._on_model_loaded)
         self.inference_worker.inference_error.connect(self._on_inference_error)
 
         # Analytics connections
-        self.video_widget.fps_updated.connect(self.status_footer.set_fps)
-        self.video_widget.fps_updated.connect(self.analytics_dashboard.handle_fps)
+        self.inspect_widget.fps_updated.connect(self.status_footer.set_fps)
+        self.inspect_widget.fps_updated.connect(self.analytics_dashboard.handle_fps)
         self.inference_worker.new_detections.connect(self.analytics_dashboard.handle_detections)
-        self.analytics_dashboard.defect_hovered.connect(self.video_widget.set_highlight_index)
+        self.analytics_dashboard.defect_hovered.connect(self.inspect_widget.set_highlight_index)
 
         # Parameter signals from Side Panel
         self.side_panel.preprocessing_params_changed.connect(self.camera_worker.update_params)
@@ -276,6 +289,7 @@ class MainWindow(QMainWindow):
         self.inference_worker.benchmark_completed.connect(self._on_benchmark_completed)
 
     def _start_workers(self):
+        self._capture_pending: bool = False
         self.status_footer.set_model_loading()
 
     @pyqtSlot(object)
@@ -329,24 +343,6 @@ class MainWindow(QMainWindow):
     @pyqtSlot(list)
     def _on_cameras_found_startup(self, cameras):
         self.side_panel.populate_cameras(cameras)
-        device_index = self.side_panel.camera_combo.currentData()
-        if cameras and isinstance(device_index, int) and device_index >= 0:
-            # ── Bug fix: update the worker to the ACTUAL selected device index ──
-            # _create_workers() used a placeholder index=0. Now that we know
-            # which device the user has, reconfigure the worker before starting.
-            if self.camera_worker._device_index != device_index:
-                logger.info(
-                    "Startup: updating CameraWorker device_index from %d to %d",
-                    self.camera_worker._device_index,
-                    device_index,
-                )
-                self.camera_worker._device_index = device_index
-            self.status_footer.set_camera_active()
-            self._camera_thread_started = True
-            self.camera_thread.start()
-        else:
-            self.status_footer.set_camera_idle()
-            self.video_widget.clear_feed("Please connect a camera")
         # Auto-detect best model on startup (on-by-default feature)
         self._on_recommend_model_requested()
         # Show onboarding guide on startup
@@ -357,39 +353,98 @@ class MainWindow(QMainWindow):
         self.side_panel.populate_cameras(cameras)
         if not cameras:
             self.status_footer.set_camera_idle()
-            self.video_widget.clear_feed("Please connect a camera")
+            self.inspect_widget.clear_feed("Please connect a camera")
         elif not self._camera_thread_started:
             # Auto-reconnect if we found a camera and we're currently idle
             logger.info("Hotplug: camera found while idle, attempting auto-connect...")
             idx = self.side_panel.camera_combo.currentData()
             if isinstance(idx, int) and idx >= 0:
-                self.video_widget.set_status_text("Connecting…")
+                self.inspect_widget.set_status_text("Connecting…")
                 self._on_camera_selected(idx)
+
+    @pyqtSlot(object)
+    def _on_image_loaded(self, bgr_frame: object) -> None:
+        """Received from ImageInspectWidget when user loads or captures an image.
+        Runs PCB guard, then dispatches to inference worker."""
+        import numpy as np
+        from core.pcb_guard import is_likely_pcb
+
+        if not isinstance(bgr_frame, np.ndarray) or bgr_frame.size == 0:
+            return
+
+        ok, reason = is_likely_pcb(bgr_frame)
+        if not ok:
+            self.inspect_widget.set_rejected(reason)
+            self.status_footer.set_status_text("PCB Guard: " + reason)
+            return
+
+        self.inspect_widget.set_analyzing()
+        self.status_footer.set_status_text("Analysing…")
+        # Fire inference exactly once on this frame
+        QTimer.singleShot(0, lambda: self.inference_worker.process_frame(bgr_frame))
+
+    @pyqtSlot()
+    def _on_load_image_clicked(self) -> None:
+        """Open file picker and load selected image into inspect widget."""
+        from PyQt6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load PCB Image",
+            "",
+            "Images (*.jpg *.jpeg *.png *.bmp *.tif *.tiff)",
+        )
+        if path:
+            self.inspect_widget.load_image_from_path(path)
+
+    @pyqtSlot()
+    def _on_capture_clicked(self) -> None:
+        """Grab a single frame from the camera and send to inspect widget."""
+        if not self._camera_thread_started:
+            # Start camera briefly if not running
+            device_index = self.side_panel.camera_combo.currentData()
+            if not isinstance(device_index, int) or device_index < 0:
+                self.status_footer.set_status_text("No camera selected")
+                return
+            self._on_camera_selected(device_index)
+        self._capture_pending = True
+        # Re-wire camera to deliver one frame to image inspect widget
+        try:
+            self.camera_worker.new_frame.disconnect()
+        except Exception:
+            pass
+        self.camera_worker.new_frame.connect(self._on_capture_frame)
+
+    @pyqtSlot("QImage")
+    def _on_capture_frame(self, qimage) -> None:
+        """Receive a single camera frame and pass its BGR data to inspect."""
+        if not self._capture_pending:
+            return
+        self._capture_pending = False
+        try:
+            self.camera_worker.new_frame.disconnect(self._on_capture_frame)
+        except Exception:
+            pass
+        # Convert QImage to BGR numpy array
+        import numpy as np
+        qimage = qimage.convertToFormat(qimage.Format.Format_RGB888)
+        w, h = qimage.width(), qimage.height()
+        ptr = qimage.bits()
+        ptr.setsize(h * w * 3)
+        rgb = np.frombuffer(ptr, dtype=np.uint8).reshape((h, w, 3))
+        import cv2
+        bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        self.inspect_widget.load_image_from_array(bgr)
 
     @pyqtSlot(str)
     def _on_camera_error(self, message: str) -> None:
-        """Handle a camera_error signal from CameraWorker.
-
-        The worker has already set _running=False and broken out of its loop,
-        so it will not emit any more frames. We must still quit+wait the thread
-        before marking ourselves as idle — otherwise the QThread gets destroyed
-        while its internal thread is still unwinding, which causes Qt to print
-        "QThread: Destroyed while thread is still running" and can crash.
-        """
         logger.error("Camera error signal received: %s", message)
         self.status_footer.set_camera_error(message)
-
-        # Stop and wait for the thread to finish before we clear state.
-        # The worker already set _running=False, so quit() + wait() is safe.
         if self.camera_thread.isRunning():
             self.camera_thread.quit()
             if not self.camera_thread.wait(3000):
-                logger.warning("_on_camera_error: camera thread did not stop in 3 s — forcing termination.")
                 self.camera_thread.terminate()
                 self.camera_thread.wait()
-
         self._camera_thread_started = False
-        self.video_widget.clear_feed("Please connect a camera")
 
     @pyqtSlot()
     def _on_model_loaded(self) -> None:
@@ -430,8 +485,9 @@ class MainWindow(QMainWindow):
         self.camera_thread.started.disconnect()  # Clear old connection
         self.camera_thread.started.connect(self.camera_worker.run)
 
-        self.camera_worker.new_frame.connect(self.video_widget.set_frame)
-        self.camera_worker.frame_ready_for_inference.connect(self.inference_worker.process_frame)
+        # In static image inspection mode, we do NOT connect camera streaming signals.
+        # Captures are initiated on-demand by clicking "Capture", which dynamically
+        # connects self._on_capture_frame to self.camera_worker.new_frame.
         self.camera_worker.camera_error.connect(self._on_camera_error)
         self.side_panel.preprocessing_params_changed.connect(self.camera_worker.update_params)
         # Push the current slider state into the new worker so it doesn't start

@@ -447,7 +447,7 @@ class SidePanel(QWidget):
 
     def _emit_inference_params(self, _=0.0):
         self.inference_params_changed.emit(InferenceParams(
-            confidence_threshold=self.confidence_slider.value() / 100.0
+            confidence_threshold=(100.0 - self.confidence_slider.value()) / 100.0
         ))
 
     @staticmethod

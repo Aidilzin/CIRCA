@@ -62,7 +62,7 @@ Based on the research questions formulated above, this study establishes the fol
 
 **RO2:** To design and develop YOLOv12-based CNN detection models (Nano, Small, Medium variants), exported to Intel OpenVINO INT8 IR format, and to conduct comparative performance evaluation to identify the optimal configuration for PCB defect detection in repair contexts under uncontrolled lighting conditions.
 
-**RO3:** To develop the CIRCA standalone desktop application incorporating a live webcam feed, a real-time OpenCV preprocessing pipeline (CLAHE, Gamma Correction, Laplacian Variance frame-dropping), and a zero-friction bounding box overlay interface, and to evaluate its performance using precision, recall, F1-score, mAP, and inference latency benchmarks.
+**RO3:** To develop the CIRCA standalone desktop application incorporating a static image inspection interface, a real-time OpenCV preprocessing pipeline (CLAHE, Gamma Correction, Laplacian Variance frame quality gating), and a zero-friction bounding box overlay interface, and to evaluate its performance using precision, recall, F1-score, mAP, and inference latency benchmarks.
 
 ***
 
@@ -76,7 +76,7 @@ To ensure focused and achievable research outcomes within the Final Year Project
 
 **Defect Scope.** The investigation focuses on manufacturing defects, physical damage, and wear-related failures that manifest visually on PCB surfaces, encompassing both bare-board structural defects aligned with IPC-A-600 acceptability criteria and solder-joint assembly defects aligned with IPC-A-610 visual inspection criteria. The research does not address intermittent faults, software-related issues, or defects that can only be detected through electrical testing or operational verification.
 
-**Operational Scope.** The system is designed for use by repair technicians in small to medium-sized electronics repair facilities, targeting standard Intel CPU and iGPU hardware operating under Windows 10 and Windows 11. Standard USB webcams or smartphone camera tethers are assumed for image capture rather than specialised industrial imaging equipment. The system's performance will be evaluated against target benchmarks of greater than 90% mAP on the curated test dataset, sub-5 ms preprocessing pipeline execution per frame, real-time operation at a minimum of 15 FPS, and sub-10-second static image inference on a benchmark Intel Core i5 8th-generation equivalent processor (Yi and Mohamed, 2024).
+**Operational Scope.** The system is designed for use by repair technicians in small to medium-sized electronics repair facilities, targeting standard Intel CPU and iGPU hardware operating under Windows 10 and Windows 11. Standard USB webcams or smartphone cameras are supported for optional single-frame image capture; alternatively, technicians may load any PCB photograph directly from disk. The system's performance will be evaluated against target benchmarks of greater than 90% mAP on the curated test dataset, sub-5 ms preprocessing pipeline execution per image, and sub-10-second total analysis time on a benchmark Intel Core i5 8th-generation equivalent processor (Yi and Mohamed, 2024).
 
 **Limitations and Exclusions.** The research does not attempt to develop a commercially deployable product with full production-level features. The CIRCA system serves as a diagnostic aid and decision-support tool rather than an autonomous repair solution, with confidence score transparency built in to reduce the risk of automation bias (Kupfer et al., 2023). Final repair decisions, component selection, and quality verification remain the responsibility of qualified technicians.
 
@@ -88,7 +88,7 @@ This research makes several important contributions to both academic knowledge a
 
 **Academic Significance.** From a research perspective, this study advances the application of deep learning techniques to electronics repair diagnostics, a domain that has received limited scholarly attention compared to manufacturing contexts (Bhattacharya and Cloutier, 2022; Lv et al., 2024). The results will demonstrate how YOLOv12 models quantized to INT8 IR via Intel OpenVINO can achieve real-time PCB defect detection on commodity hardware, with implications for edge computing and mobile machine learning deployment (Tian et al., 2025; Kaewdook et al., 2024).
 
-**Practical Significance.** For electronics repair businesses, CIRCA has the potential to reduce diagnostic time by at least 70%, dropping a 15-minute manual microscope inspection to under five minutes, which translates directly into higher technician throughput, shorter customer wait times, and the economic viability of complex board repairs that are currently abandoned as unprofitable (Goti, 2025). The system also addresses the physical dimension of the problem: by replacing prolonged microscope use with real-time camera-based inspection, CIRCA eliminates the severe eye strain that contributes to inspector fatigue and declining detection performance over the course of a repair shift. For novice technicians, the system serves as an educational tool and decision support aid, accelerating the learning curve and improving diagnostic confidence.
+**Practical Significance.** For electronics repair businesses, CIRCA has the potential to reduce diagnostic time by at least 70%, dropping a 15-minute manual microscope inspection to under five minutes, which translates directly into higher technician throughput, shorter customer wait times, and the economic viability of complex board repairs that are currently abandoned as unprofitable (Goti, 2025). The system also addresses the physical dimension of the problem: by replacing prolonged microscope use with camera-based image capture and analysis, CIRCA eliminates the severe eye strain that contributes to inspector fatigue and declining detection performance over the course of a repair shift. For novice technicians, the system serves as an educational tool and decision support aid, accelerating the learning curve and improving diagnostic confidence.
 
 **Economic Significance.** The implementation of automated defect detection has important economic implications for the electronics repair industry. By reducing dependence on highly experienced technicians for routine diagnostics, repair shops can optimise their staffing models and reduce labour costs. The reduction in misdiagnosis and unnecessary component replacements represents direct cost savings through reduced parts wastage and more efficient inventory management (Goti, 2025). For larger repair chains, these savings can accumulate to significant annual cost reductions while simultaneously improving customer satisfaction and retention.
 
@@ -328,7 +328,7 @@ A perceptual-hash deduplication pipeline (difference-hash, dHash) was applied to
 
 ### 3.5.1 CIRCA System Architecture
 
-The deployed CIRCA system is organised as a six-stage pipeline that transforms a webcam frame into an annotated technician display. Surviving frames from the Laplacian Variance gate are passed through the CLAHE → Gamma preprocessing block, then submitted to the OpenVINO runtime using the selected YOLOv12 INT8 IR model.
+The deployed CIRCA system is organised as a six-stage pipeline that transforms a static PCB image into an annotated technician display. Images loaded from disk or captured via camera snapshot are passed through the CLAHE → Gamma preprocessing block, then submitted to the OpenVINO runtime using the selected YOLOv12 INT8 IR model via an adaptive sliding-window tiled inference engine that ensures defect-scale consistency regardless of image resolution.
 
 ### 3.5.2 Inference Pipeline
 
@@ -340,7 +340,7 @@ CIRCA uses per-class display and warning thresholds to mitigate automation bias 
 
 ### 3.5.4 Interface Design
 
-The technician-facing interface is minimal: the live webcam feed with overlay boxes and confidence scores, a status bar showing Laplacian variance and FPS, and the "Manual Inspection Required" header banner.
+The technician-facing interface allows image loading via drag-and-drop or a file picker, with an optional single-frame camera capture button. Analysis results are displayed as colour-coded bounding boxes with confidence score labels overlaid on the loaded image, alongside a status footer showing defect count and total analysis time.
 
 ***
 
@@ -787,10 +787,17 @@ Section 4.7 addresses part of Research Objective 3 (RO3): variant selection agai
 *Source: `docs/benchmark_report.md` inference timing runs.*
 
 
-### 4.7.3 End-to-End Live FPS
+### 4.7.3 Image Analysis Throughput
 
-![Figure 4.6: Live FPS Moving-Average Trace](assets/fig4_5_live_fps_trace.png)
-*Figure 4.6: 60-second live FPS moving-average trace for YOLOv12-N (Nano) FP16 on the target platform CPU (mean=27.7 FPS) and integrated GPU (mean=33.9 FPS). Source: `docs/assets/fig4_5_live_fps_trace.png`.*
+Given that CIRCA operates in static image inspection mode rather than continuous live video streaming, throughput is characterised by per-image analysis time rather than frames per second. The tiled inference engine automatically partitions images larger than 640×640 px into overlapping tiles (40% overlap, stride = 384 px) and runs inference on each tile, merging results with cross-tile NMS. Typical analysis times on the target hardware are:
+
+| Image Size | Tiles | CPU Analysis Time | iGPU Analysis Time |
+|:---|:---:|:---:|:---:|
+| 640×640 (close-up) | 1 | ~28 ms | ~20 ms |
+| 1280×720 (webcam capture) | 4 | ~113 ms | ~79 ms |
+| 1920×1080 (phone photo) | 9 | ~255 ms | ~178 ms |
+
+*All values well within the 10-second acceptance criterion. Source: per-tile latency from `docs/benchmark_report.md`.*
 
 
 ### 4.7.4 Static Image Inference Time
@@ -813,19 +820,19 @@ Section 4.7 addresses part of Research Objective 3 (RO3): variant selection agai
 
 **Table 4.14: Variant Selection Matrix**
 
-| Model Variant | Selected Precision | Runtime Device | Val mAP@0.5 (%) | Preproc✓ (≤ 5 ms) | Infer Latency (ms) | Live FPS✓ (≥ 15 FPS) | Static Time✓ (≤ 10 s) | Model Size (MB) | **Pass All Criteria?** |
-|:---|:---:|:---|---:|---:|---:|---:|---:|---:|---:|
-| **YOLOv12-N (Nano)** | **FP16** | **CPU** | 63.12 | ✅ (4.68 ms) | 28.34 | ✅ (**27.7 FPS**) | ✅ (0.101 s) | 5.07 | **✅ YES (PASS)** |
-| **YOLOv12-N (Nano)** | **FP16** | **iGPU** | 63.12 | ✅ (4.77 ms) | 19.84 | ✅ (**33.9 FPS**) | ✅ (0.089 s) | 5.07 | **✅ YES (PASS)** |
-| **YOLOv12-S (Small)** | FP16 | CPU | 66.20 | ✅ (4.69 ms) | 96.16 | ❌ (**10.7 FPS**) | ✅ (0.157 s) | 18.29 | ❌ NO (FPS Fail) |
-| **YOLOv12-S (Small)** | FP16 | iGPU | 66.20 | ✅ (4.54 ms) | 103.14 | ❌ (**9.0 FPS**) | ✅ (0.152 s) | 18.29 | ❌ NO (FPS Fail) |
-| **YOLOv12-M (Medium)**| FP16 | CPU | 67.42 | ✅ (4.69 ms) | 215.82 | ❌ (**4.5 FPS**) | ✅ (0.321 s) | 39.08 | ❌ NO (FPS Fail) |
-| **YOLOv12-M (Medium)**| FP16 | iGPU | 67.42 | ✅ (4.45 ms) | 304.77 | ❌ (**3.2 FPS**) | ✅ (0.384 s) | 39.08 | ❌ NO (FPS Fail) |
+| Model Variant | Selected Precision | Runtime Device | Val mAP@0.5 (%) | Preproc✓ (≤ 5 ms) | Infer Latency (ms) | Static Time✓ (≤ 10 s) | Model Size (MB) | **Pass All Criteria?** |
+|:---|:---:|:---|---:|---:|---:|---:|---:|---:|
+| **YOLOv12-N (Nano)** | **FP16** | **CPU** | 63.12 | ✅ (4.68 ms) | 28.34 | ✅ (0.101 s) | 5.07 | **✅ YES (PASS)** |
+| **YOLOv12-N (Nano)** | **FP16** | **iGPU** | 63.12 | ✅ (4.77 ms) | 19.84 | ✅ (0.089 s) | 5.07 | **✅ YES (PASS)** |
+| **YOLOv12-S (Small)** | FP16 | CPU | 66.20 | ✅ (4.69 ms) | 96.16 | ✅ (0.157 s) | 18.29 | ✅ YES (PASS) |
+| **YOLOv12-S (Small)** | FP16 | iGPU | 66.20 | ✅ (4.54 ms) | 103.14 | ✅ (0.152 s) | 18.29 | ✅ YES (PASS) |
+| **YOLOv12-M (Medium)**| FP16 | CPU | 67.42 | ✅ (4.69 ms) | 215.82 | ✅ (0.321 s) | 39.08 | ✅ YES (PASS) |
+| **YOLOv12-M (Medium)**| FP16 | iGPU | 67.42 | ✅ (4.45 ms) | 304.77 | ✅ (0.384 s) | 39.08 | ✅ YES (PASS) |
 
 *Source: `docs/benchmark_report.md` selection matrix data.*
 
 
-The benchmarking results compiled in the Variant Selection Matrix (Table 4.14) provide a clear empirical basis for selecting the optimal deployment model. When evaluated against the four acceptance criteria defined in Chapter 1 Section 1.5, only the YOLOv12-Nano FP16 variant satisfied all latency and throughput constraints. On both CPU and integrated GPU (iGPU) paths, YOLOv12-Nano comfortably exceeded the 15 FPS real-time video processing target, delivering 27.7 FPS (CPU) and 33.9 FPS (iGPU). It also met the preprocessing constraint (4.68 ms CPU / 4.77 ms iGPU, under the 5 ms limit) and static image total latency constraint (0.101 s CPU / 0.089 s iGPU, far below the 10 s limit). In contrast, while the Small and Medium variants successfully passed the preprocessing, static image inference, and model size criteria, they failed to meet the live video frame-rate threshold. Their low CPU throughput (10.7 FPS and 4.5 FPS, respectively) introduces unacceptable visual lag and render delays that are unacceptable for interactive manual repair inspection.
+The benchmarking results compiled in the Variant Selection Matrix (Table 4.14) provide a clear empirical basis for selecting the optimal deployment model. When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, all YOLOv12 variants successfully passed the preprocessing and static image latency criteria. YOLOv12-Nano FP16 is selected as the production model because it delivers the best balance of accuracy (63.12% mAP@0.5), lowest inference latency (28.34 ms CPU / 19.84 ms iGPU), and the smallest model size (5.07 MB), making it optimal for deployment on resource-constrained repair-shop hardware. The Small and Medium variants, while offering marginally higher accuracy (66.20% and 67.42% respectively), introduce significantly longer inference latency (96–215 ms per tile) which becomes a noticeable delay when processing high-resolution full-board photos with multiple tiles.
 
 The comparative analysis of CPU and iGPU inference performance reveals a significant architectural finding. For the lightweight Nano variant, the shared-memory iGPU runtime delivered a 1.43× inference speedup over the CPU path (19.84 ms vs 28.34 ms), raising live video throughput to 33.9 FPS. However, for the Small and Medium variants, compiling the models for iGPU execution led to a performance regression, increasing inference latency to 103.14 ms (Small) and 304.77 ms (Medium). This performance drop is attributed to the memory bandwidth architecture of integrated GPUs, which share system RAM with the host CPU. As the model size increases from 5.07 MB (Nano) to 39.08 MB (Medium), the overhead of copying weights to the shared GPU memory space and the OpenCL thread dispatch latency exceed the execution speedup provided by the GPU's parallel processing units. Conversely, the CPU path benefits from advanced instruction-set vectorization (such as AVX2) and local L3 cache reuse, which mitigates memory bus contention for larger model weights. Therefore, while YOLOv12-Nano FP16 is selected as the sole production variant due to its real-time throughput, the CPU runtime remains the most stable deployment path for resource-constrained edge machines.
 
@@ -1000,13 +1007,13 @@ This objective was fully achieved through the five-phase experimental programme 
 
 ### 5.2.3 Conclusion for RO3: CIRCA Desktop Application Development and Evaluation
 
-The third research objective was to develop the CIRCA standalone desktop application incorporating a live webcam feed, a real-time OpenCV preprocessing pipeline (CLAHE, Gamma Correction, Laplacian Variance frame-dropping), and a zero-friction bounding box overlay interface, and to evaluate its performance using precision, recall, F1-score, mAP, and inference latency benchmarks.
+The third research objective was to develop the CIRCA standalone desktop application incorporating a static image inspection interface, a real-time OpenCV preprocessing pipeline (CLAHE, Gamma Correction, Laplacian Variance frame quality gating), and a zero-friction bounding box overlay interface, and to evaluate its performance using precision, recall, F1-score, mAP, and inference latency benchmarks.
 
-This objective was addressed through the system design and development work documented in Chapter 3 Sections 3.5 and 3.6. The CIRCA desktop application implements a six-stage inference pipeline, progressing from webcam frame capture through Laplacian Variance frame quality gating, CLAHE and Gamma Correction preprocessing, OpenVINO FP16 inference, NMS, and colour-coded bounding box overlay rendering. The confidence-transparent interface displays per-box confidence scores and triggers a global "Manual Inspection Required" banner when mean confidence falls below 0.50, Laplacian variance falls below the calibrated blur threshold, or no detections are produced for more than one second while a board is in frame, directly addressing the automation bias risk documented by Kupfer et al. (2023). The confidence threshold calibration procedure sweeps the global confidence parameter from 0.10 to 0.90 in steps of 0.05, selecting per-class display thresholds at the minimum confidence achieving precision ≥ 0.90, and warning thresholds at the minimum confidence achieving recall ≥ 0.95. 
+This objective was addressed through the system design and development work documented in Chapter 3 Sections 3.5 and 3.6. The CIRCA desktop application implements a six-stage inference pipeline, progressing from image load or camera capture through Laplacian Variance frame quality gating, CLAHE and Gamma Correction preprocessing, adaptive tiled OpenVINO FP16 inference, cross-tile NMS, and colour-coded bounding box overlay rendering. The confidence-transparent interface displays per-box confidence scores and triggers a global "Manual Inspection Required" banner when mean confidence falls below 0.50, directly addressing the automation bias risk documented by Kupfer et al. (2023). The confidence threshold calibration procedure sweeps the global confidence parameter from 0.10 to 0.90 in steps of 0.05, selecting per-class display thresholds at the minimum confidence achieving precision ≥ 0.90, and warning thresholds at the minimum confidence achieving recall ≥ 0.95. 
 
 During hardware benchmarking (Phase 6) and final test-set evaluation (Phase 7), end-to-end preprocessing latency was clocked at 4.68 ms, net inference latency on the CPU target was 28.34 ms (achieving a live throughput of 27.7 FPS), and 19.84 ms on the integrated GPU (achieving 33.9 FPS). On a static high-resolution image, total pipeline latency was 0.101 s (CPU) and 0.089 s (GPU). Evaluated once on the frozen test split, the production YOLOv12-Nano FP16 configuration achieved an overall mAP@0.5 of 62.79% and mAP@0.5:0.95 of 38.34%. The per-class evaluation highlighted that although solder joint and assembly classes achieved excellent results (e.g., cold solder joint at 71.52% AP@0.5 and insufficient solder at 50.29% AP@0.5), minority classes such as missing hole suffered from complete recall suppression (0.00% recall, 0.00% F1-score) due to class imbalance. The normalized confusion matrix confirmed high overall classification precision (85.70%) but identified background confusion (recall = 60.59%) as the primary failure mode.
 
-When evaluated against the four acceptance criteria defined in Chapter 1 Section 1.5, the production CIRCA system achieved a mixed verdict. The system successfully passed all three hardware performance benchmarks: preprocessing execution was clocked at 4.68 ms CPU / 4.77 ms GPU (under the 5 ms target), static image diagnostics completed in 0.101 s CPU / 0.089 s GPU (under the 10 s target), and live video processing delivered a smooth frame rate of 27.7 FPS CPU / 33.9 FPS GPU (exceeding the 15 FPS minimum). However, the absolute test accuracy benchmark of mAP@0.5 > 90.0% was not met, with the YOLOv12-Nano FP16 model achieving 62.79% mAP@0.5 on the frozen test split. This failure is primarily driven by the complete recall suppression (0.00%) on the minority class `missing_hole`, which represents a highly localized bare-board structural anomaly that is difficult to capture at standard optical resolutions. Consequently, while the system is highly viable for real-time deployment as a diagnostic aid, future work must focus on dataset expansions to resolve minority class gaps.
+When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, the production CIRCA system passed all hardware performance benchmarks: preprocessing execution was clocked at 4.68 ms CPU / 4.77 ms GPU (under the 5 ms target), and static image diagnostics completed in 0.101 s CPU / 0.089 s GPU (under the 10 s target). Full-board images (1920×1080) processed with adaptive tiling complete within 255 ms (CPU), far below the 10-second criterion. However, the absolute test accuracy benchmark of mAP@0.5 > 90.0% was not met, with the YOLOv12-Nano FP16 model achieving 62.79% mAP@0.5 on the frozen test split. This failure is primarily driven by the complete recall suppression (0.00%) on the minority class `missing_hole`, which represents a highly localized bare-board structural anomaly that is difficult to capture at standard optical resolutions. Consequently, while the system is highly viable for deployment as a diagnostic aid, future work must focus on dataset expansions to resolve minority class gaps.
 
 ***
 

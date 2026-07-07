@@ -61,10 +61,20 @@ def make_default_params(**overrides) -> InferenceParams:
 
 
 def inject_mock_engine(worker: InferenceWorker, result: DetectionResult) -> MagicMock:
-    """Inject a mock InferenceEngine that returns `result` from run()."""
+    """Inject a mock InferenceEngine AND TiledInferenceEngine.
+
+    InferenceWorker now calls self._tiled_engine.run_tiled() instead of
+    self._engine.run().  This helper wires both so tests keep working.
+    run_tiled is backed by engine.run so call-count assertions still work.
+    """
     mock_engine = MagicMock()
     mock_engine.run.return_value = result
     worker._engine = mock_engine
+
+    mock_tiled = MagicMock()
+    mock_tiled.run_tiled.side_effect = lambda frame, params: mock_engine.run(frame, params)
+    worker._tiled_engine = mock_tiled
+
     return mock_engine
 
 
@@ -308,13 +318,16 @@ class TestProcessFrameBackpressure:
 
     def test_lock_released_after_inference_exception(self):
         """
-        Critical: even if InferenceEngine.run() raises, the lock must be
+        Critical: even if the tiled engine raises, the lock must be
         released in the finally block. Failure here deadlocks the worker.
         """
         worker = InferenceWorker()
         mock_engine = MagicMock()
         mock_engine.run.side_effect = RuntimeError("OpenVINO crash")
         worker._engine = mock_engine
+        mock_tiled = MagicMock()
+        mock_tiled.run_tiled.side_effect = RuntimeError("OpenVINO crash")
+        worker._tiled_engine = mock_tiled
 
         worker.process_frame(make_bgr_frame())
 
@@ -338,15 +351,17 @@ class TestProcessFrameBackpressure:
         lock_held = threading.Event()
         inference_done = threading.Event()
 
-        # Mock engine that holds the lock long enough for the second caller
-        def slow_run(frame, params):
+        # Mock tiled engine that holds the lock long enough for the second caller
+        def slow_run_tiled(frame, params):
             lock_held.set()
             inference_done.wait(timeout=2.0)
             return result
 
         mock_engine = MagicMock()
-        mock_engine.run.side_effect = slow_run
         worker._engine = mock_engine
+        mock_tiled = MagicMock()
+        mock_tiled.run_tiled.side_effect = slow_run_tiled
+        worker._tiled_engine = mock_tiled
 
         # First call runs inference in a background thread
         first_thread = threading.Thread(
@@ -373,9 +388,9 @@ class TestProcessFrameBackpressure:
         inference_done.set()
         first_thread.join(timeout=2.0)
 
-        # engine.run() called exactly once — second call was dropped before run()
-        assert mock_engine.run.call_count == 1, (
-            f"Expected engine.run() called once; got {mock_engine.run.call_count}. "
+        # run_tiled() called exactly once — second call was dropped before it
+        assert mock_tiled.run_tiled.call_count == 1, (
+            f"Expected run_tiled() called once; got {mock_tiled.run_tiled.call_count}. "
             "Second frame must be dropped, not processed."
         )
 
@@ -484,8 +499,12 @@ class TestProcessFrameErrorHandling:
     def test_emits_inference_error_on_engine_exception(self):
         worker = InferenceWorker()
         mock_engine = MagicMock()
-        mock_engine.run.side_effect = RuntimeError("OpenVINO timeout")
+        exc = RuntimeError("OpenVINO timeout")
+        mock_engine.run.side_effect = exc
         worker._engine = mock_engine
+        mock_tiled = MagicMock()
+        mock_tiled.run_tiled.side_effect = exc
+        worker._tiled_engine = mock_tiled
 
         errors: list[str] = []
         worker.inference_error.connect(lambda e: errors.append(e))
@@ -498,8 +517,12 @@ class TestProcessFrameErrorHandling:
     def test_no_new_detections_emitted_on_engine_exception(self):
         worker = InferenceWorker()
         mock_engine = MagicMock()
-        mock_engine.run.side_effect = ValueError("bad frame shape")
+        exc = ValueError("bad frame shape")
+        mock_engine.run.side_effect = exc
         worker._engine = mock_engine
+        mock_tiled = MagicMock()
+        mock_tiled.run_tiled.side_effect = exc
+        worker._tiled_engine = mock_tiled
 
         received: list = []
         worker.new_detections.connect(lambda r: received.append(r))
@@ -511,8 +534,12 @@ class TestProcessFrameErrorHandling:
     def test_error_message_contains_exception_type(self):
         worker = InferenceWorker()
         mock_engine = MagicMock()
-        mock_engine.run.side_effect = MemoryError("OOM")
+        exc = MemoryError("OOM")
+        mock_engine.run.side_effect = exc
         worker._engine = mock_engine
+        mock_tiled = MagicMock()
+        mock_tiled.run_tiled.side_effect = exc
+        worker._tiled_engine = mock_tiled
 
         errors: list[str] = []
         worker.inference_error.connect(lambda e: errors.append(e))
@@ -529,18 +556,25 @@ class TestProcessFrameErrorHandling:
         worker = InferenceWorker()
         mock_engine = MagicMock()
 
-        # First call fails
-        mock_engine.run.side_effect = RuntimeError("first call fails")
+        # First call fails — wire both engine and tiled engine to raise
+        exc = RuntimeError("first call fails")
+        mock_engine.run.side_effect = exc
         worker._engine = mock_engine
+        mock_tiled = MagicMock()
+        mock_tiled.run_tiled.side_effect = exc
+        worker._tiled_engine = mock_tiled
+
         errors: list[str] = []
         worker.inference_error.connect(lambda e: errors.append(e))
         worker.process_frame(make_bgr_frame())
         assert len(errors) == 1
 
-        # Second call succeeds
+        # Second call succeeds — reset both mocks
         result = make_detection_result()
         mock_engine.run.side_effect = None
         mock_engine.run.return_value = result
+        mock_tiled.run_tiled.side_effect = None
+        mock_tiled.run_tiled.return_value = result
         received: list = []
         worker.new_detections.connect(lambda r: received.append(r))
         worker.process_frame(make_bgr_frame())

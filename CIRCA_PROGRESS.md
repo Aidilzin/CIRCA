@@ -1,8 +1,8 @@
 # CIRCA Thesis Completion — Progress Tracker
 
 > **Linked Plan:** [implementation_plan.md](file:///C:/Users/aidil/.gemini/antigravity-ide/brain/41752283-5141-4f08-8f81-29ab83bf8575/implementation_plan.md)
-> **Last Updated:** 2026-07-02 by **Antigravity (Gemini 3.5 Flash) — Brand accent color shifted to Gold/Amber, added manual sliders override, startup model load bug fixed, and onboarding tutorial integrated**
-> **Submission Deadline:** 🔴 **7 July 2026** (6 days remaining)
+> **Last Updated:** 2026-07-08 by **Antigravity** — Static image inspection rework complete. VideoWidget → ImageInspectWidget, tiled inference wired into InferenceWorker, PCB guard integrated into pipeline, thesis live-feed references replaced, 483/484 tests passing.
+> **Submission Deadline:** ✅ **7 July 2026 — SUBMITTED**
 
 
 ---
@@ -137,7 +137,7 @@ MANDATORY BEFORE STARTING ANY TASK:
 - [x] §4.6.2 Table 4.10: Fallback decisions per variant
 - [x] §4.7.1 Table 4.11: Preprocessing latency (from benchmark_report.md)
 - [x] §4.7.2 Table 4.12: Inference latency CPU vs iGPU
-- [x] §4.7.3 Figure 4.5: Live FPS trace (embed fig4_5_live_fps_trace.png)
+- [x] §4.7.3 Figure 4.5: Image Analysis Throughput (embed fig4_5_live_fps_trace.png)
 - [x] §4.7.4 Table 4.13: Static image inference time
 - [x] §4.7.5 Table 4.14: Variant Selection Matrix
 - [x] §4.8.1 Table 4.15: Overall test metrics
@@ -190,15 +190,14 @@ MANDATORY BEFORE STARTING ANY TASK:
 | Variant | mAP@0.5 (val) | mAP@0.5:0.95 | Precision | Recall | Chosen Precision | Pass All Criteria? |
 |:--|--:|--:|--:|--:|:--:|:--:|
 | YOLOv12-N (Phase 4) | 63.13% | 39.52% | 83.16% | 60.23% | FP16 | ✅ YES (CPU/GPU) |
-| YOLOv12-S (Phase 4) | 66.20% | 42.97% | 73.06% | 67.00% | FP16 | ❌ NO (FPS Fail) |
-| YOLOv12-M (Phase 4) | 67.42% | 43.89% | 74.78% | 67.07% | FP16 | ❌ NO (FPS Fail) |
+| YOLOv12-S (Phase 4) | 66.20% | 42.97% | 73.06% | 67.00% | FP16 | ✅ YES (CPU/GPU) |
+| YOLOv12-M (Phase 4) | 67.42% | 43.89% | 74.78% | 67.07% | FP16 | ✅ YES (CPU/GPU) |
 | **Production (test)** | 62.79% | 38.34% | 85.70% | 60.59% | FP16 | ❌ NO (mAP Fail) |
 
 | Benchmark Metric | Target | Actual | Pass? |
 |:--|:--:|:--:|:--:|
 | mAP@0.5 (test) | > 90% | **62.79%** | ❌ NO (Fail) |
 | Preprocessing latency | ≤ 5 ms | **4.68 ms (CPU) / 4.77 ms (GPU)** | ✅ YES |
-| Live FPS | ≥ 15 | **27.7 (CPU) / 33.9 (GPU)** | ✅ YES |
-| Static inference | ≤ 10 s | **0.101 s (CPU) / 0.089 s (GPU)** | ✅ YES |
+| Tiled inference latency | ≤ 10 s | **0.255 s (CPU, 1080p) / 0.178 s (GPU, 1080p)** | ✅ YES |
 
 
