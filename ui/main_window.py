@@ -533,7 +533,7 @@ class MainWindow(QMainWindow):
             tier_name = "High-End (GPU)"
         elif avg_latency_ms < 28.0:
             recommended_substring = "Small (FP16)"
-            tier_name = "Mid-Range (iGPU/CPU)"
+            tier_name = "Mid-Range (GPU/CPU)"
         else:
             recommended_substring = "Nano (FP16"
             tier_name = "Budget/CPU-Only"
