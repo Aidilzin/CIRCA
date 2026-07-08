@@ -568,10 +568,10 @@ Figure 4.2 provides a visual complement to Table 4.3, showing the epoch-by-epoch
 
 | Preprocessing Stage | Operation Description | Mean Latency (ms) | Percentage of Total (%) |
 |:---|:---|--:|--:|
-| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.59 | 76.1% |
-| **Gamma Correction** | Lookup table mapping (`LUT`) for contrast adjustment | 0.39 | 8.3% |
+| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.61 | 76.0% |
+| **Gamma Correction** | Lookup table mapping (`LUT`) for contrast adjustment | 0.40 | 8.4% |
 | **Laplacian Gating** | Downsampling, Laplacian filtering, standard deviation squaring | 0.74 | 15.6% |
-| **Total Pipeline** | **End-to-end frame preprocessing** | **4.72** | **100.0%** |
+| **Total Pipeline** | **End-to-end frame preprocessing** | **4.75** | **100.0%** |
 
 *Source: `scripts/benchmark.py` and `scripts/benchmark_preproc_stages.py` validation run outputs (1,000 frames).*
 
@@ -763,10 +763,10 @@ Section 4.7 addresses part of Research Objective 3 (RO3): variant selection agai
 
 | Preprocessing Stage | Operation Description | Mean Latency (ms) | Percentage of Total (%) |
 |:---|:---|--:|--:|
-| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.59 | 76.1% |
-| **Gamma Correction** | Lookup table mapping (`LUT`) for contrast adjustment | 0.39 | 8.3% |
+| **Color Conversion & CLAHE** | LAB conversion, split, histogram equalization on L channel, merge, BGR reconversion | 3.61 | 76.0% |
+| **Gamma Correction** | Lookup table mapping (`LUT`) for contrast adjustment | 0.40 | 8.4% |
 | **Laplacian Gating** | Downsampling, Laplacian filtering, standard deviation squaring | 0.74 | 15.6% |
-| **Total Pipeline** | **End-to-end frame preprocessing** | **4.72** | **100.0%** |
+| **Total Pipeline** | **End-to-end frame preprocessing** | **4.75** | **100.0%** |
 
 *Source: `docs/benchmark_report.md` preproc results.*
 
@@ -777,12 +777,12 @@ Section 4.7 addresses part of Research Objective 3 (RO3): variant selection agai
 
 | Model Variant | Precision | Device / Runtime | Mean Latency (ms) | Speedup (CPU to GPU) |
 |:---|:---:|:---|---:|:---:|
-| **YOLOv12-N (Nano)** | FP16 | CPU (OpenVINO) | 24.13 | Baseline |
-| | FP16 | GPU (GeForce RTX 3060) | 23.54 | **1.02× speedup** ✅ |
-| **YOLOv12-S (Small)** | FP16 | CPU (OpenVINO) | 71.31 | Baseline |
-| | FP16 | GPU (GeForce RTX 3060) | 100.74 | 0.71× (Slowdown) ❌ |
-| **YOLOv12-M (Medium)**| FP16 | CPU (OpenVINO) | 189.58 | Baseline |
-| | FP16 | GPU (GeForce RTX 3060) | 273.40 | 0.69× (Slowdown) ❌ |
+| **YOLOv12-N (Nano)** | FP16 | CPU (OpenVINO) | 24.51 | Baseline |
+| | FP16 | GPU (GeForce RTX 3060) | 23.66 | **1.04× speedup** ✅ |
+| **YOLOv12-S (Small)** | FP16 | CPU (OpenVINO) | 71.04 | Baseline |
+| | FP16 | GPU (GeForce RTX 3060) | 100.69 | 0.71× (Slowdown) ❌ |
+| **YOLOv12-M (Medium)**| FP16 | CPU (OpenVINO) | 176.13 | Baseline |
+| | FP16 | GPU (GeForce RTX 3060) | 289.66 | 0.61× (Slowdown) ❌ |
 
 *Source: `docs/benchmark_report.md` inference timing runs.*
 
@@ -793,9 +793,9 @@ Given that CIRCA operates in static image inspection mode rather than continuous
 
 | Image Size | Tiles | CPU Analysis Time | GPU Analysis Time |
 |:---|:---:|:---:|:---:|
-| 640×640 (close-up) | 1 | 24.13 ms | 23.54 ms |
-| 1280×720 (webcam capture) | 6 | 135.37 ms | 139.35 ms |
-| 1920×1080 (phone photo) | 15 | 344.72 ms | 350.75 ms |
+| 640×640 (close-up) | 1 | 24.51 ms | 23.66 ms |
+| 1280×720 (webcam capture) | 6 | 136.46 ms | 137.57 ms |
+| 1920×1080 (phone photo) | 15 | 349.96 ms | 338.92 ms |
 
 *All values well within the 10-second acceptance criterion. Source: per-tile latency from `docs/benchmark_report.md`.*
 
@@ -806,12 +806,12 @@ Given that CIRCA operates in static image inspection mode rather than continuous
 
 | Model Variant | Runtime Device | Preproc (ms) | Net Inference (ms) | Total E2E Latency (s) | Pass Target (≤ 10 s) |
 |:---|:---|---:|---:|---:|:---:|
-| **YOLOv12-N (Nano)** | CPU (OpenVINO) | 4.72 | 24.13 | 0.403 | **✅ YES (PASS)** |
-| | GPU (OpenVINO) | 4.72 | 23.54 | 0.370 | **✅ YES (PASS)** |
-| **YOLOv12-S (Small)** | CPU (OpenVINO) | 4.72 | 71.31 | 1.083 | **✅ YES (PASS)** |
-| | GPU (OpenVINO) | 4.72 | 100.74 | 1.510 | **✅ YES (PASS)** |
-| **YOLOv12-M (Medium)**| CPU (OpenVINO) | 4.72 | 189.58 | 2.740 | **✅ YES (PASS)** |
-| | GPU (OpenVINO) | 4.72 | 273.40 | 4.353 | **✅ YES (PASS)** |
+| **YOLOv12-N (Nano)** | CPU (OpenVINO) | 4.75 | 24.51 | 0.392 | **✅ YES (PASS)** |
+| | GPU (OpenVINO) | 4.75 | 23.66 | 0.397 | **✅ YES (PASS)** |
+| **YOLOv12-S (Small)** | CPU (OpenVINO) | 4.75 | 71.04 | 1.111 | **✅ YES (PASS)** |
+| | GPU (OpenVINO) | 4.75 | 100.69 | 1.533 | **✅ YES (PASS)** |
+| **YOLOv12-M (Medium)**| CPU (OpenVINO) | 4.75 | 176.13 | 2.746 | **✅ YES (PASS)** |
+| | GPU (OpenVINO) | 4.75 | 289.66 | 4.327 | **✅ YES (PASS)** |
 
 *Source: `docs/benchmark_report.md` static-image timing outputs.*
 
@@ -822,19 +822,19 @@ Given that CIRCA operates in static image inspection mode rather than continuous
 
 | Model Variant | Selected Precision | Runtime Device | Val mAP@0.5 (%) | Preproc✓ (≤ 5 ms) | Infer Latency (ms) | Static E2E Time✓ (≤ 10 s) | Model Size (MB) | **Pass All Criteria?** |
 |:---|:---:|:---|---:|---:|---:|---:|---:|---:|
-| **YOLOv12-N (Nano)** | **FP16** | **CPU** | 63.12 | ✅ (4.72 ms) | 24.13 | ✅ (0.403 s) | 5.07 | **✅ YES (PASS)** |
-| **YOLOv12-N (Nano)** | **FP16** | **GPU** | 63.12 | ✅ (4.72 ms) | 23.54 | ✅ (0.370 s) | 5.07 | **✅ YES (PASS)** |
-| **YOLOv12-S (Small)** | FP16 | CPU | 66.20 | ✅ (4.72 ms) | 71.31 | ✅ (1.083 s) | 18.29 | **✅ YES (PASS)** |
-| **YOLOv12-S (Small)** | FP16 | GPU | 66.20 | ✅ (4.72 ms) | 100.74 | ✅ (1.510 s) | 18.29 | **✅ YES (PASS)** |
-| **YOLOv12-M (Medium)**| FP16 | CPU | 67.42 | ✅ (4.72 ms) | 189.58 | ✅ (2.740 s) | 39.08 | **✅ YES (PASS)** |
-| **YOLOv12-M (Medium)**| FP16 | GPU | 67.42 | ✅ (4.72 ms) | 273.40 | ✅ (4.353 s) | 39.08 | **✅ YES (PASS)** |
+| **YOLOv12-N (Nano)** | **FP16** | **CPU** | 63.12 | ✅ (4.75 ms) | 24.51 | ✅ (0.392 s) | 5.07 | **✅ YES (PASS)** |
+| **YOLOv12-N (Nano)** | **FP16** | **GPU** | 63.12 | ✅ (4.75 ms) | 23.66 | ✅ (0.397 s) | 5.07 | **✅ YES (PASS)** |
+| **YOLOv12-S (Small)** | FP16 | CPU | 66.20 | ✅ (4.75 ms) | 71.04 | ✅ (1.111 s) | 18.29 | **✅ YES (PASS)** |
+| **YOLOv12-S (Small)** | FP16 | GPU | 66.20 | ✅ (4.75 ms) | 100.69 | ✅ (1.533 s) | 18.29 | **✅ YES (PASS)** |
+| **YOLOv12-M (Medium)**| FP16 | CPU | 67.42 | ✅ (4.75 ms) | 176.13 | ✅ (2.746 s) | 39.08 | **✅ YES (PASS)** |
+| **YOLOv12-M (Medium)**| FP16 | GPU | 67.42 | ✅ (4.75 ms) | 289.66 | ✅ (4.327 s) | 39.08 | **✅ YES (PASS)** |
 
 *Source: `docs/benchmark_report.md` selection matrix data.*
 
 
-The benchmarking results compiled in the Variant Selection Matrix (Table 4.14) provide a clear empirical basis for selecting the optimal deployment model. When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, all YOLOv12 variants successfully passed the preprocessing and static image latency criteria. YOLOv12-Nano FP16 is selected as the production model because it delivers the best balance of accuracy (63.12% mAP@0.5), lowest inference latency (24.13 ms CPU / 23.54 ms GPU), and the smallest model size (5.07 MB), making it optimal for deployment on resource-constrained repair-shop hardware. The Small and Medium variants, while offering marginally higher accuracy (66.20% and 67.42% respectively), introduce significantly longer inference latency (96–215 ms per tile) which becomes a noticeable delay when processing high-resolution full-board photos with multiple tiles.
+The benchmarking results compiled in the Variant Selection Matrix (Table 4.14) provide a clear empirical basis for selecting the optimal deployment model. When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, all YOLOv12 variants successfully passed the preprocessing and static image latency criteria. YOLOv12-Nano FP16 is selected as the production model because it delivers the best balance of accuracy (63.12% mAP@0.5), lowest inference latency (24.51 ms CPU / 23.66 ms GPU), and the smallest model size (5.07 MB), making it optimal for deployment on resource-constrained repair-shop hardware. The Small and Medium variants, while offering marginally higher accuracy (66.20% and 67.42% respectively), introduce significantly longer inference latency (96–215 ms per tile) which becomes a noticeable delay when processing high-resolution full-board photos with multiple tiles.
 
-The comparative analysis of CPU and GPU inference performance reveals a significant architectural finding. For the lightweight Nano variant, the shared-memory GPU runtime delivered a 1.02× inference speedup over the CPU path (23.54 ms vs 24.13 ms), raising static 1080p image analysis to 0.370 seconds. However, for the Small and Medium variants, compiling the models for GPU execution led to a performance regression, increasing inference latency to 100.74 ms (Small) and 273.40 ms (Medium). This performance drop is attributed to the memory bandwidth architecture of dedicated or integrated GPUs, which share system RAM with the host CPU. As the model size increases from 5.07 MB (Nano) to 39.08 MB (Medium), the overhead of copying weights to the shared GPU memory space and the OpenCL thread dispatch latency exceed the execution speedup provided by the GPU's parallel processing units. Conversely, the CPU path benefits from advanced instruction-set vectorization (such as AVX2) and local L3 cache reuse, which mitigates memory bus contention for larger model weights. Therefore, while YOLOv12-Nano FP16 is selected as the production variant due to its sub-second latency, the CPU runtime remains the most stable deployment path for resource-constrained edge machines.
+The comparative analysis of CPU and GPU inference performance reveals a significant architectural finding. For the lightweight Nano variant, the shared-memory GPU runtime delivered a 1.02× inference speedup over the CPU path (23.54 ms vs 24.13 ms), raising static 1080p image analysis to 0.370 seconds. However, for the Small and Medium variants, compiling the models for GPU execution led to a performance regression, increasing inference latency to 100.69 ms (Small) and 289.66 ms (Medium). This performance drop is attributed to the memory bandwidth architecture of dedicated or integrated GPUs, which share system RAM with the host CPU. As the model size increases from 5.07 MB (Nano) to 39.08 MB (Medium), the overhead of copying weights to the shared GPU memory space and the OpenCL thread dispatch latency exceed the execution speedup provided by the GPU's parallel processing units. Conversely, the CPU path benefits from advanced instruction-set vectorization (such as AVX2) and local L3 cache reuse, which mitigates memory bus contention for larger model weights. Therefore, while YOLOv12-Nano FP16 is selected as the production variant due to its sub-second latency, the CPU runtime remains the most stable deployment path for resource-constrained edge machines.
 
 
 ***
@@ -966,7 +966,7 @@ To resolve this conflict, the dual-threshold scheme divides defect classes into 
 
 The comparative data presented in Table 4.18 highlights the distinct operational trade-offs that position CIRCA as a unique contribution to the field of automated PCB inspection. Historically, systems like the two-stage Faster R-CNN developed by Hu and Wang (2020) prioritized raw bounding box accuracy, achieving 94.20% mAP but suffering from low throughput (12.0 FPS) and demanding high-end GPU hardware. Subsequent single-stage architectures, including the YOLOv4-MobileNetV3 hybrid by Liao et al. (2021) and the YOLOv8 modifications by Yang and Yu (2024), achieved high processing speeds (56.98 FPS and 157.20 FPS) and high accuracy, but relied exclusively on discrete workstation GPUs (such as NVIDIA GeForce architectures) and homogeneous industrial datasets captured under optimal lighting. 
 
-CIRCA distinctively departs from these works along four key axes. First, rather than targeting high-end GPUs, the chosen YOLOv12-Nano FP16 configuration targets commodity Intel CPU and integrated GPU execution. By achieving 0.403 s on CPU and 0.370 s on GPU using Intel OpenVINO for end-to-end 1080p static analysis, CIRCA demonstrates that sub-second inspection is viable on typical independent repair shop hardware. Second, unlike prior systems that assume controlled factory lighting, CIRCA's CLAHE and Gamma preprocessing pipeline provides explicit robustness against uneven desk illumination and shadows, ensuring consistent feature extraction. Third, while literature focuses strictly on bare-board defects (Hu and Wang, 2020; Liao et al., 2021) or assembly joint anomalies in isolation, CIRCA introduces a unified taxonomy spanning both IPC-A-600 bare-board and IPC-A-610H solder joint defect standards in a single, lightweight model. Finally, CIRCA incorporates confidence-transparent UI design features—such as the global warning banner—grounded in human-factors research (Kupfer et al., 2023) to mitigate automation bias, a critical operational consideration absent from all related works identified in the literature review.
+CIRCA distinctively departs from these works along four key axes. First, rather than targeting high-end GPUs, the chosen YOLOv12-Nano FP16 configuration targets commodity Intel CPU and integrated GPU execution. By achieving 0.392 s on CPU and 0.397 s on GPU using Intel OpenVINO for end-to-end 1080p static analysis, CIRCA demonstrates that sub-second inspection is viable on typical independent repair shop hardware. Second, unlike prior systems that assume controlled factory lighting, CIRCA's CLAHE and Gamma preprocessing pipeline provides explicit robustness against uneven desk illumination and shadows, ensuring consistent feature extraction. Third, while literature focuses strictly on bare-board defects (Hu and Wang, 2020; Liao et al., 2021) or assembly joint anomalies in isolation, CIRCA introduces a unified taxonomy spanning both IPC-A-600 bare-board and IPC-A-610H solder joint defect standards in a single, lightweight model. Finally, CIRCA incorporates confidence-transparent UI design features—such as the global warning banner—grounded in human-factors research (Kupfer et al., 2023) to mitigate automation bias, a critical operational consideration absent from all related works identified in the literature review.
 
 
 ***
@@ -1011,9 +1011,9 @@ The third research objective was to develop the CIRCA standalone desktop applica
 
 This objective was addressed through the system design and development work documented in Chapter 3 Sections 3.5 and 3.6. The CIRCA desktop application implements a six-stage inference pipeline, progressing from image load or camera capture through Laplacian Variance frame quality gating, CLAHE and Gamma Correction preprocessing, adaptive tiled OpenVINO FP16 inference, cross-tile NMS, and colour-coded bounding box overlay rendering. The confidence-transparent interface displays per-box confidence scores and triggers a global "Manual Inspection Required" banner when mean confidence falls below 0.50, directly addressing the automation bias risk documented by Kupfer et al. (2023). The confidence threshold calibration procedure sweeps the global confidence parameter from 0.10 to 0.90 in steps of 0.05, selecting per-class display thresholds at the minimum confidence achieving precision ≥ 0.90, and warning thresholds at the minimum confidence achieving recall ≥ 0.95. 
 
-During hardware benchmarking (Phase 6) and final test-set evaluation (Phase 7), end-to-end preprocessing latency was clocked at 4.72 ms, net inference latency on the CPU target was 24.13 ms, and 23.54 ms on the dedicated GPU. On a static 1080p high-resolution image (15 tiles), total end-to-end latency was 0.403 s (CPU) and 0.370 s (GPU). Evaluated once on the frozen test split, the production YOLOv12-Nano FP16 configuration achieved an overall mAP@0.5 of 62.79% and mAP@0.5:0.95 of 38.34%. The per-class evaluation highlighted that although solder joint and assembly classes achieved excellent results (e.g., cold solder joint at 71.52% AP@0.5 and insufficient solder at 50.29% AP@0.5), minority classes such as missing hole suffered from complete recall suppression (0.00% recall, 0.00% F1-score) due to class imbalance. The normalized confusion matrix confirmed high overall classification precision (85.70%) but identified background confusion (recall = 60.59%) as the primary failure mode.
+During hardware benchmarking (Phase 6) and final test-set evaluation (Phase 7), end-to-end preprocessing latency was clocked at 4.75 ms, net inference latency on the CPU target was 24.51 ms, and 23.66 ms on the dedicated GPU. On a static 1080p high-resolution image (15 tiles), total end-to-end latency was 0.392 s (CPU) and 0.397 s (GPU). Evaluated once on the frozen test split, the production YOLOv12-Nano FP16 configuration achieved an overall mAP@0.5 of 62.79% and mAP@0.5:0.95 of 38.34%. The per-class evaluation highlighted that although solder joint and assembly classes achieved excellent results (e.g., cold solder joint at 71.52% AP@0.5 and insufficient solder at 50.29% AP@0.5), minority classes such as missing hole suffered from complete recall suppression (0.00% recall, 0.00% F1-score) due to class imbalance. The normalized confusion matrix confirmed high overall classification precision (85.70%) but identified background confusion (recall = 60.59%) as the primary failure mode.
 
-When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, the production CIRCA system passed all hardware performance benchmarks: preprocessing execution was clocked at 4.68 ms CPU / 4.77 ms GPU (under the 5 ms target), and static image diagnostics completed in 0.101 s CPU / 0.089 s GPU (under the 10 s target). Full-board images (1920×1080) processed with adaptive tiling complete within 255 ms (CPU), far below the 10-second criterion. However, the absolute test accuracy benchmark of mAP@0.5 > 90.0% was not met, with the YOLOv12-Nano FP16 model achieving 62.79% mAP@0.5 on the frozen test split. This failure is primarily driven by the complete recall suppression (0.00%) on the minority class `missing_hole`, which represents a highly localized bare-board structural anomaly that is difficult to capture at standard optical resolutions. Consequently, while the system is highly viable for deployment as a diagnostic aid, future work must focus on dataset expansions to resolve minority class gaps.
+When evaluated against the three acceptance criteria defined in Chapter 1 Section 1.5, the production CIRCA system passed all hardware performance benchmarks: preprocessing execution was clocked at 4.75 ms (under the 5 ms target), and static image diagnostics completed in 0.392 s CPU / 0.397 s GPU (under the 10 s target). Full-board images (1920×1080) processed with adaptive tiling complete within 349.96 ms (CPU), far below the 10-second criterion. However, the absolute test accuracy benchmark of mAP@0.5 > 90.0% was not met, with the YOLOv12-Nano FP16 model achieving 62.79% mAP@0.5 on the frozen test split. This failure is primarily driven by the complete recall suppression (0.00%) on the minority class `missing_hole`, which represents a highly localized bare-board structural anomaly that is difficult to capture at standard optical resolutions. Consequently, while the system is highly viable for deployment as a diagnostic aid, future work must focus on dataset expansions to resolve minority class gaps.
 
 ***
 

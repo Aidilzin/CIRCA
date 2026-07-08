@@ -43,33 +43,45 @@ from core.tiled_inference import TiledInferenceEngine
 from core.models import InferenceParams
 from core.pcb_guard import is_likely_pcb
 
-# Benchmark parameters
-NUM_WARMUP = 10
-NUM_TRIALS_PREPROC = 100
-NUM_TRIALS_INFER = 30
-NUM_TRIALS_TILED = 10
+# Benchmark parameters (optimized for 5 full-size benchmark boards)
+NUM_WARMUP = 5
+NUM_TRIALS_PREPROC = 50
+NUM_TRIALS_INFER = 10
+NUM_TRIALS_TILED = 5
 
-def load_first_val_image(data_yaml_path: str) -> np.ndarray:
-    """Loads a representative image from the validation set."""
-    import yaml
-    with open(data_yaml_path, "r") as f:
-        cfg = yaml.safe_load(f)
-    
-    val_rel = cfg.get("val", "val/images")
-    val_dir = project_root / "datasets" / "unified_pcb_v3_preproc" / val_rel
-    if not val_dir.exists():
-        val_dir = project_root / "datasets" / "unified_pcb_v3" / val_rel
-    
+def load_benchmark_images(data_yaml_path: str) -> list[np.ndarray]:
+    """Loads all curated full-sized benchmark PCB images if available, otherwise falls back to val set."""
+    bench_dir = project_root / "datasets" / "benchmark_real_pcbs"
+    images = []
     exts = {".jpg", ".jpeg", ".png", ".bmp"}
-    image_paths = [p for p in val_dir.iterdir() if p.suffix.lower() in exts]
-    if not image_paths:
-        raise FileNotFoundError(f"No validation images found in {val_dir}")
     
-    img = cv2.imread(str(image_paths[0]))
-    if img is None:
-        raise ValueError(f"Could not load image: {image_paths[0]}")
-    log.info(f"Loaded representative image {image_paths[0].name} (original shape: {img.shape})")
-    return img
+    if bench_dir.exists():
+        image_paths = [p for p in bench_dir.iterdir() if p.suffix.lower() in exts]
+        for p in image_paths:
+            img = cv2.imread(str(p))
+            if img is not None:
+                images.append(img)
+                log.info(f"Loaded curated benchmark image {p.name} (shape: {img.shape})")
+                
+    if not images:
+        log.info("No curated benchmark images found, falling back to first validation image.")
+        import yaml
+        with open(data_yaml_path, "r") as f:
+            cfg = yaml.safe_load(f)
+        val_rel = cfg.get("val", "val/images")
+        val_dir = project_root / "datasets" / "unified_pcb_v3_preproc" / val_rel
+        if not val_dir.exists():
+            val_dir = project_root / "datasets" / "unified_pcb_v3" / val_rel
+        image_paths = [p for p in val_dir.iterdir() if p.suffix.lower() in exts]
+        if image_paths:
+            img = cv2.imread(str(image_paths[0]))
+            if img is not None:
+                images.append(img)
+                log.info(f"Loaded validation fallback image {image_paths[0].name} (shape: {img.shape})")
+                
+    if not images:
+        raise FileNotFoundError("No benchmark or validation images could be loaded!")
+    return images
 
 def benchmark_preproc(img: np.ndarray) -> float:
     """Time CLAHE + Gamma + Laplacian blur check."""
@@ -118,13 +130,16 @@ def main():
     assets_dir = docs_dir / "assets"
     assets_dir.mkdir(exist_ok=True)
 
-    # Load image
-    img = load_first_val_image(args.data)
+    # Load images
+    images = load_benchmark_images(args.data)
 
-    # 1. Benchmark preprocessing
+    # 1. Benchmark preprocessing across all images
     log.info("Benchmarking preprocessing...")
-    preproc_ms = benchmark_preproc(img)
-    log.info(f"Preprocessing Latency: {preproc_ms:.2f} ms")
+    preproc_latencies = []
+    for img in images:
+        preproc_latencies.append(benchmark_preproc(img))
+    preproc_ms = sum(preproc_latencies) / len(preproc_latencies)
+    log.info(f"Average Preprocessing Latency: {preproc_ms:.2f} ms")
 
     # Define model configurations
     models_to_test = [
@@ -176,7 +191,7 @@ def main():
                 log.warning(f"Model path does not exist: {model_path}, skipping configuration.")
                 continue
             
-            log.info(f"Running benchmark for {mcfg['name']} ({mcfg['precision']}) on {device}")
+            log.info(f"Running benchmark for {mcfg['name']} ({mcfg['precision']}) on {device} (averaged over {len(images)} boards)")
             
             # Load OpenVINO Engine
             try:
@@ -189,51 +204,56 @@ def main():
             params = InferenceParams(confidence_threshold=0.50)
 
             # --- Benchmark 2: Standard 640x640 single tile inference ---
-            frame_640 = cv2.resize(img, (640, 640))
-            # Warmup
-            for _ in range(NUM_WARMUP):
-                engine.run(frame_640, params)
-            
-            t0 = time.perf_counter()
-            for _ in range(NUM_TRIALS_INFER):
-                engine.run(frame_640, params)
-            infer_640_ms = (time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_INFER
+            infer_640_runs = []
+            for img in images:
+                frame_640 = cv2.resize(img, (640, 640))
+                for _ in range(5):
+                    engine.run(frame_640, params)
+                t0 = time.perf_counter()
+                for _ in range(NUM_TRIALS_INFER):
+                    engine.run(frame_640, params)
+                infer_640_runs.append((time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_INFER)
+            infer_640_ms = sum(infer_640_runs) / len(infer_640_runs)
 
             # --- Benchmark 3: Tiled Inference 1280x720 (6 tiles) ---
-            frame_720 = cv2.resize(img, (1280, 720))
-            for _ in range(3):
-                tiled_engine.run_tiled(frame_720, params)
-            
-            t0 = time.perf_counter()
-            for _ in range(NUM_TRIALS_TILED):
-                tiled_engine.run_tiled(frame_720, params)
-            infer_720_ms = (time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_TILED
+            infer_720_runs = []
+            for img in images:
+                frame_720 = cv2.resize(img, (1280, 720))
+                for _ in range(2):
+                    tiled_engine.run_tiled(frame_720, params)
+                t0 = time.perf_counter()
+                for _ in range(NUM_TRIALS_TILED):
+                    tiled_engine.run_tiled(frame_720, params)
+                infer_720_runs.append((time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_TILED)
+            infer_720_ms = sum(infer_720_runs) / len(infer_720_runs)
 
             # --- Benchmark 4: Tiled Inference 1920x1080 (15 tiles) ---
-            frame_1080 = cv2.resize(img, (1920, 1080))
-            for _ in range(3):
-                tiled_engine.run_tiled(frame_1080, params)
-            
-            t0 = time.perf_counter()
-            for _ in range(NUM_TRIALS_TILED):
-                tiled_engine.run_tiled(frame_1080, params)
-            infer_1080_ms = (time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_TILED
+            infer_1080_runs = []
+            for img in images:
+                frame_1080 = cv2.resize(img, (1920, 1080))
+                for _ in range(2):
+                    tiled_engine.run_tiled(frame_1080, params)
+                t0 = time.perf_counter()
+                for _ in range(NUM_TRIALS_TILED):
+                    tiled_engine.run_tiled(frame_1080, params)
+                infer_1080_runs.append((time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_TILED)
+            infer_1080_ms = sum(infer_1080_runs) / len(infer_1080_runs)
 
             # --- Benchmark 5: End-to-End Latency at 1080p (preproc + guard + tiled inference + NMS) ---
-            t0 = time.perf_counter()
-            for _ in range(NUM_TRIALS_TILED):
-                # 1. PCB Guard Check (run but not skipped to ensure full pipeline is measured)
-                is_likely_pcb(frame_1080)
-                # 2. Preprocess Frame
-                lab = cv2.cvtColor(frame_1080, cv2.COLOR_BGR2LAB)
-                l, a, b = cv2.split(lab)
-                l_eq = clahe.apply(l)
-                frame_clahe = cv2.cvtColor(cv2.merge([l_eq, a, b]), cv2.COLOR_LAB2BGR)
-                frame_gamma = cv2.LUT(frame_clahe, gamma_lut)
-                # 3. Tiled Inference
-                tiled_engine.run_tiled(frame_gamma, params)
-            
-            e2e_1080_ms = (time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_TILED
+            e2e_1080_runs = []
+            for img in images:
+                frame_1080 = cv2.resize(img, (1920, 1080))
+                t0 = time.perf_counter()
+                for _ in range(NUM_TRIALS_TILED):
+                    is_likely_pcb(frame_1080)
+                    lab = cv2.cvtColor(frame_1080, cv2.COLOR_BGR2LAB)
+                    l, a, b = cv2.split(lab)
+                    l_eq = clahe.apply(l)
+                    frame_clahe = cv2.cvtColor(cv2.merge([l_eq, a, b]), cv2.COLOR_LAB2BGR)
+                    frame_gamma = cv2.LUT(frame_clahe, gamma_lut)
+                    tiled_engine.run_tiled(frame_gamma, params)
+                e2e_1080_runs.append((time.perf_counter() - t0) * 1000.0 / NUM_TRIALS_TILED)
+            e2e_1080_ms = sum(e2e_1080_runs) / len(e2e_1080_runs)
 
             log.info(f"  Standard 640x640: {infer_640_ms:.2f} ms")
             log.info(f"  Tiled 720p (6 tiles): {infer_720_ms:.2f} ms")
@@ -256,7 +276,7 @@ def main():
     report_path = docs_dir / "benchmark_report.md"
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("# CIRCA Phase 6 — Hardware Benchmark Report\n\n")
-        f.write("> Auto-generated by `scripts/benchmark.py`  \n")
+        f.write("> Auto-generated by `scripts/benchmark.py` (averaged over curated full-board dataset)  \n")
         f.write("> Acceptance criteria: preprocessing latency ≤ 5.0 ms | single 640x640 tile ≤ 100.0 ms | end-to-end 1080p analysis time ≤ 10.0 s\n\n---\n\n")
         f.write("## Variant Selection Matrix (Tiled Static Inspection)\n\n")
         f.write("| Variant | Precision | Device | Preproc (ms) | Standard 640 (ms) | Tiled 720p (ms) | Tiled 1080p (ms) | E2E 1080p (s) | Preproc✓ | Static 1080p✓ | **PASS?** |\n")
@@ -340,8 +360,6 @@ def main():
         # Copy to the required thesis assets directory if exists
         thesis_assets_dir = project_root / "docs" / "assets"
         thesis_assets_dir.mkdir(exist_ok=True)
-        # Check if we should also save a copy under name fig4_5_live_fps_trace.png for replacement
-        # in Ch4 to avoid changing file path mentions in the LaTeX/markdown source code.
         shutil_path = thesis_assets_dir / "fig4_5_live_fps_trace.png"
         shutil.copy(str(plot_path), str(shutil_path))
         log.info(f"Copied latency benchmark chart to placeholder {shutil_path}")

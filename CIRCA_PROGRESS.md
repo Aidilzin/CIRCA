@@ -197,7 +197,7 @@ MANDATORY BEFORE STARTING ANY TASK:
 | Benchmark Metric | Target | Actual | Pass? |
 |:--|:--:|:--:|:--:|
 | mAP@0.5 (test) | > 90% | **62.79%** | ❌ NO (Fail) |
-| Preprocessing latency | ≤ 5 ms | **4.72 ms (CPU / GPU)** | ✅ YES |
-| Tiled inference latency | ≤ 10 s | **0.344 s (CPU, 1080p) / 0.350 s (GPU, 1080p)** | ✅ YES |
+| Preprocessing latency | ≤ 5 ms | **4.75 ms (CPU / GPU)** | ✅ YES |
+| Tiled inference latency | ≤ 10 s | **0.349 s (CPU, 1080p) / 0.338 s (GPU, 1080p)** | ✅ YES |
 
 
