@@ -41,7 +41,7 @@ InferenceWorker (Inference Thread)
               │
               ▼
          MainWindow (GUI Thread)
-              ├─ VideoWidget (bounding box overlay)
+              ├─ ImageInspectWidget (bounding box overlay)
               ├─ WarningBanner (low-confidence alert)
               └─ StatusFooter (camera/model/detection status)
 ```
@@ -52,7 +52,7 @@ InferenceWorker (Inference Thread)
 
 - Python 3.10+
 - Windows 10/11 (for DirectShow UVC camera support)
-- Intel CPU with iGPU (OpenVINO INT8 optimised for Intel CPU/iGPU)
+- Intel CPU (OpenVINO INT8 optimised, supports dedicated or integrated GPU)
 - 16 GB RAM recommended for `--cache` during training
 
 **Training additionally requires:**

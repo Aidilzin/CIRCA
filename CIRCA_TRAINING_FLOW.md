@@ -49,8 +49,8 @@ flowchart TD
     A5_FP[("Fallback to FP16 IR")]:::artifact
 
     %% Phase 6 hardware benchmarking
-    P6["<b>Phase 6</b><br/>Hardware Benchmarking<br/>Intel i5 8th-gen CPU + iGPU"]:::phase
-    G_AC{"Pass all 4 acceptance criteria?<br/>&gt;90% mAP, &le;5 ms preproc,<br/>&ge;15 FPS, &le;10 s static"}:::decision
+    P6["<b>Phase 6</b><br/>Hardware Benchmarking<br/>Intel CPU + GPU"]:::phase
+    G_AC{"Pass all 3 acceptance criteria?<br/>&gt;90% mAP, &le;5 ms preproc,<br/>&le;10 s static"}:::decision
     A6[("CIRCA_BENCHMARK_REPORT.md<br/>Variant Selection Matrix")]:::artifact
 
     %% Phase 7 final test + thresholds
