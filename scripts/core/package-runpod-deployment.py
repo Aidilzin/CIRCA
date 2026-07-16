@@ -25,10 +25,10 @@ def main():
     zip_path = root_path / "CIRCA_runpod.zip"
     
     dataset_source = root_path / "datasets" / "unified_pcb_v3"
-    train_engine_source = root_path / "train_engine.py"
+    train_engine_source = root_path / "training" / "train_engine.py"
     reqs_source = root_path / "requirements_runpod.txt"
-    setup_py_source = root_path / "scripts" / "runpod_setup.py"
-    setup_sh_source = root_path / "scripts" / "runpod_setup.sh"
+    setup_py_source = root_path / "scripts" / "core" / "setup-runpod-environment.py"
+    setup_sh_source = root_path / "scripts" / "core" / "setup-runpod-environment.sh"
     
     # 2. Validations
     print("[*] Validating required files...")
@@ -70,8 +70,8 @@ def main():
             files_added += 2
             
             # Add scripts folder
-            zipf.write(setup_py_source, arcname="scripts/runpod_setup.py")
-            zipf.write(setup_sh_source, arcname="scripts/runpod_setup.sh")
+            zipf.write(setup_py_source, arcname="scripts/core/setup-runpod-environment.py")
+            zipf.write(setup_sh_source, arcname="scripts/core/setup-runpod-environment.sh")
             files_added += 2
             
             # Add dataset recursively

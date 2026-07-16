@@ -1,39 +1,42 @@
-"""
-tests/conftest.py
------------------
-Shared pytest fixtures for the entire CIRCA test suite.
-
-QApplication strategy:
-  All PyQt6 tests require a QApplication (or QCoreApplication) instance.
-  Since ImageInspectWidget tests require QApplication (a QWidget subclass), and
-  worker tests used QCoreApplication, we create a single QApplication at
-  session scope.
-
-  QApplication IS-A QCoreApplication — using it for all tests is safe and
-  avoids the Windows STATUS_STACK_BUFFER_OVERRUN crash (exit -1073740791)
-  that occurs when a QCoreApplication is created before a QApplication in
-  the same Python process (Qt does not allow downgrading or re-creating
-  the application instance).
-
-  All per-file `qapp` fixtures now delegate to this session-level fixture.
-"""
-
 import sys
+from unittest.mock import MagicMock
 import pytest
 from PyQt6.QtWidgets import QApplication
 
+# Mock OpenVINO modules before any test imports them
+class MockCore:
+    def __init__(self):
+        pass
+    def read_model(self, path):
+        return MagicMock()
+    def compile_model(self, model, device_name):
+        mock_compiled = MagicMock()
+        mock_compiled.input.return_value = MagicMock()
+        
+        # We need the output layer shape to be set correctly
+        # Let's return shape [1, 11, 8400] for standard CIRCA NC: 7 model
+        mock_output = MagicMock()
+        mock_output.shape = [1, 11, 8400]
+        mock_compiled.output.return_value = mock_output
+        
+        # Pre-create infer request
+        mock_request = MagicMock()
+        mock_request.get_output_tensor.return_value.data = MagicMock()
+        mock_compiled.create_infer_request.return_value = mock_request
+        
+        return mock_compiled
 
-@pytest.fixture(scope="session", autouse=True)
-def qapp_session():
-    """
-    Create a single QApplication for the entire test session.
+# Inject mock OpenVINO into sys.modules
+mock_ov_runtime = MagicMock()
+mock_ov_runtime.Core = MockCore
 
-    This replaces the per-file QCoreApplication fixtures: QApplication
-    is a strict superset, so all signal/slot, threading, and widget tests
-    work correctly with it.
-    """
+sys.modules["openvino"] = mock_ov_runtime
+sys.modules["openvino.runtime"] = mock_ov_runtime
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Fixture to initialize the QApplication once per session."""
     app = QApplication.instance()
     if app is None:
-        app = QApplication(sys.argv[:1])
+        app = QApplication([])
     yield app
-    # Do NOT call app.quit() or exec() here — pytest manages teardown.

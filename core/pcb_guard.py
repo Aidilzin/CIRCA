@@ -71,18 +71,7 @@ def is_likely_pcb(frame: np.ndarray) -> tuple[bool, str]:
     total = thumb.shape[0] * thumb.shape[1]
     hsv = cv2.cvtColor(thumb, cv2.COLOR_BGR2HSV)
 
-    # ── Gate 1: Skin-tone rejection ────────────────────────────────────────
-    # Human skin (broad range covering light to dark complexions in HSV)
-    skin_mask = cv2.inRange(hsv,
-                            np.array([0, 20, 70], dtype=np.uint8),
-                            np.array([25, 170, 235], dtype=np.uint8))
-    skin_ratio = np.count_nonzero(skin_mask) / total
-    if skin_ratio > SKIN_REJECT_RATIO:
-        logger.debug("PCBGuard: rejected — skin-tone %.1f%% > %.0f%% threshold",
-                     skin_ratio * 100, SKIN_REJECT_RATIO * 100)
-        return False, f"No PCB detected — image appears to be a face or hand ({skin_ratio*100:.0f}% skin tones)"
-
-    # ── Gate 2: Edge density ───────────────────────────────────────────────
+    # ── Gate 1: Edge density (Computed first to evaluate image complexity) ──
     grey = cv2.cvtColor(thumb, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(grey, 40, 120)
     edge_density = np.count_nonzero(edges) / total
@@ -90,6 +79,19 @@ def is_likely_pcb(frame: np.ndarray) -> tuple[bool, str]:
         logger.debug("PCBGuard: rejected — edge density %.2f%% < %.1f%% threshold",
                      edge_density * 100, EDGE_DENSITY_MIN * 100)
         return False, f"No PCB detected — insufficient edge density ({edge_density*100:.1f}%); plain surface or object"
+
+    # ── Gate 2: Skin-tone rejection (Bypassed if edge density is high, representing complex traces) ──
+    skin_mask = cv2.inRange(hsv,
+                            np.array([0, 20, 70], dtype=np.uint8),
+                            np.array([25, 170, 235], dtype=np.uint8))
+    skin_ratio = np.count_nonzero(skin_mask) / total
+    
+    # Human hands/faces have smooth skin tones with very low edge density (typically < 3%).
+    # Complex substrates (like yellow/beige prototype boards) have high edge density (> 5%).
+    if skin_ratio > SKIN_REJECT_RATIO and edge_density < 0.05:
+        logger.debug("PCBGuard: rejected — skin-tone %.1f%% > %.0f%% threshold and low edge density",
+                     skin_ratio * 100, SKIN_REJECT_RATIO * 100)
+        return False, f"No PCB detected — image appears to be a face or hand ({skin_ratio*100:.0f}% skin tones)"
 
     # ── Gate 3: Solder-mask color presence ────────────────────────────────
     # Green (most common PCB color): H 35-85, S > 45
@@ -107,8 +109,11 @@ def is_likely_pcb(frame: np.ndarray) -> tuple[bool, str]:
     red2 = cv2.inRange(hsv,
                        np.array([168, 50, 30], dtype=np.uint8),
                        np.array([180, 255, 255], dtype=np.uint8))
+    # Yellow/Beige/Brown PCB: H 12-35, S 15-255, V 25-255
+    yellow_beige = cv2.inRange(hsv,
+                               np.array([12, 15, 25], dtype=np.uint8),
+                               np.array([35, 255, 255], dtype=np.uint8))
     # Black/dark PCB: very low saturation and low value, but must have some edge density
-    # (already confirmed by gate 2, so accept dark images with good edges)
     dark_mask = cv2.inRange(hsv,
                             np.array([0, 0, 0], dtype=np.uint8),
                             np.array([180, 60, 80], dtype=np.uint8))
@@ -116,6 +121,7 @@ def is_likely_pcb(frame: np.ndarray) -> tuple[bool, str]:
     combined = cv2.bitwise_or(green, blue)
     combined = cv2.bitwise_or(combined, red1)
     combined = cv2.bitwise_or(combined, red2)
+    combined = cv2.bitwise_or(combined, yellow_beige)
     combined = cv2.bitwise_or(combined, dark_mask)
 
     pcb_ratio = np.count_nonzero(combined) / total

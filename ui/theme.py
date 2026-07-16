@@ -26,12 +26,13 @@ class AnimationMode(Enum):
 # Design Tokens - Shared
 # ===========================================================================
 
-COLOR_ACCENT_CYAN = "#F59E0B"
-COLOR_ACCENT_CYAN_HOVER = "#FBBF24"
-COLOR_ACCENT_CYAN_PRESSED = "#D97706"
-COLOR_STATUS_OK = "#4CAF50"
-COLOR_STATUS_WARN = "#FFC107"
-COLOR_STATUS_ERROR = "#F44336"
+COLOR_ACCENT_CYAN = "#00C7FF"
+COLOR_ACCENT_CYAN_HOVER = "#33D2FF"
+COLOR_ACCENT_CYAN_PRESSED = "#009ECB"
+COLOR_ACCENT_BLUE = "#0068B5"
+COLOR_STATUS_OK = "#00FF9D"
+COLOR_STATUS_WARN = "#FFD700"
+COLOR_STATUS_ERROR = "#FF5050"
 
 # Colour map for unified_pcb_v3 — nc=7 (must match CLASS_LABELS in core/inference_engine.py).
 # IDs are the unified taxonomy indices; update here and inference_engine.py in sync.
@@ -92,6 +93,7 @@ ICONS_SVG = {
     "focus": _SVG_TEMPLATE.format(color="{color}", path='<circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>'),
     "sidebar": _SVG_TEMPLATE.format(color="{color}", path='<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>'),
     "sliders": _SVG_TEMPLATE.format(color="{color}", path='<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/>'),
+    "refresh": _SVG_TEMPLATE.format(color="{color}", path='<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M16 3h5v5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 21H3v-5"/>'),
     "export": _SVG_TEMPLATE.format(color="{color}", path='<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
     "log": _SVG_TEMPLATE.format(color="{color}", path='<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
     "info": _SVG_TEMPLATE.format(color="{color}", path='<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
@@ -102,6 +104,8 @@ ICONS_SVG = {
     "image": _SVG_TEMPLATE.format(color="{color}", path='<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>'),
     "alert": _SVG_TEMPLATE.format(color="{color}", path='<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
     "folder_open": _SVG_TEMPLATE.format(color="{color}", path='<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>'),
+    "arrow_left": _SVG_TEMPLATE.format(color="{color}", path='<path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>'),
+    "arrow_right": _SVG_TEMPLATE.format(color="{color}", path='<path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/>'),
 }
 
 # ===========================================================================
@@ -109,14 +113,14 @@ ICONS_SVG = {
 # ===========================================================================
 
 DARK_PALETTE = {
-    "BG_BASE": "#09090B",
-    "BG_SURFACE": "#18181B",
-    "BG_ELEVATED": "#27272A",
-    "BORDER": "#3F3F46",
-    "TEXT_PRIMARY": "#FAFAFA",
-    "TEXT_SECONDARY": "#A1A1AA",
-    "TEXT_DISABLED": "#52525B",
-    "GLASS_BG": "rgba(24, 24, 27, 0.85)",
+    "BG_BASE": "#0B0F19",
+    "BG_SURFACE": "#131B2E",
+    "BG_ELEVATED": "#1C2740",
+    "BORDER": "rgba(0, 199, 255, 0.15)",
+    "TEXT_PRIMARY": "#E2E8F0",
+    "TEXT_SECONDARY": "#94A3B8",
+    "TEXT_DISABLED": "#475569",
+    "GLASS_BG": "rgba(11, 15, 25, 0.85)",
 }
 
 LIGHT_PALETTE = {
@@ -213,7 +217,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
 
     #SidePanel {{
         background-color: {p['BG_SURFACE']};
-        border-left: 1px solid {p['BORDER']};
+        border-right: 1px solid {p['BORDER']};
     }}
 
     #SidePanel QWidget {{
@@ -265,7 +269,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     #SidePanel QComboBox {{
         background-color: {p['BG_ELEVATED']};
         border: 1px solid {p['BORDER']};
-        border-radius: 6px;
+        border-radius: 4px;
         padding: 6px 12px;
         color: {p['TEXT_PRIMARY']};
     }}
@@ -278,7 +282,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     #SidePanel QPushButton {{
         background-color: {p['BG_ELEVATED']};
         border: 1px solid {p['BORDER']};
-        border-radius: 6px;
+        border-radius: 4px;
         padding: 8px 16px;
         font-weight: 600;
         color: {p['TEXT_PRIMARY']};
@@ -291,6 +295,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         background-color: {COLOR_ACCENT_CYAN};
         color: {p['BG_BASE']};
         border: none;
+        border-radius: 4px;
     }}
     #SidePanel QPushButton#PrimaryButton:hover {{
         background-color: {COLOR_ACCENT_CYAN_HOVER};
@@ -299,7 +304,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     #ActivityButton {{
         background-color: transparent;
         border: none;
-        border-radius: 8px;
+        border-radius: 4px;
         margin: 4px 4px;
         padding: 8px;
         min-width: 40px;
@@ -310,8 +315,11 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     }}
     #ActivityButton[active="true"] {{
         background-color: {p['BG_ELEVATED']};
-        border-left: 2px solid {COLOR_ACCENT_CYAN};
-        border-radius: 4px;
+        border-left: 3px solid {COLOR_ACCENT_CYAN};
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
     }}
 
     QTabWidget::pane {{
@@ -350,14 +358,14 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         background: {p['TEXT_PRIMARY']};
     }}
     QSlider::sub-page:horizontal {{
-        background: {COLOR_ACCENT_CYAN};
+        background: {COLOR_ACCENT_BLUE};
         border-radius: 3px;
     }}
 
     QComboBox {{
         background-color: {p['BG_ELEVATED']};
         border: 1px solid {p['BORDER']};
-        border-radius: 6px;
+        border-radius: 4px;
         padding: 8px 12px;
         color: {p['TEXT_PRIMARY']};
     }}
@@ -392,7 +400,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     QPushButton {{
         background-color: {p['BG_ELEVATED']};
         border: 1px solid {p['BORDER']};
-        border-radius: 6px;
+        border-radius: 4px;
         padding: 8px 16px;
         font-weight: 600;
         color: {p['TEXT_PRIMARY']};
@@ -409,12 +417,17 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         background-color: {COLOR_ACCENT_CYAN};
         color: {p['BG_BASE']};
         border: none;
+        border-radius: 4px;
     }}
     QPushButton#PrimaryButton:hover {{
         background-color: {COLOR_ACCENT_CYAN_HOVER};
     }}
     QPushButton#PrimaryButton:pressed {{
         background-color: {COLOR_ACCENT_CYAN_PRESSED};
+    }}
+
+    QPushButton:focus, QComboBox:focus, QCheckBox:focus, QSlider:focus {{
+        border: 1px solid {COLOR_ACCENT_CYAN};
     }}
 
     #StatusFooter {{
@@ -441,7 +454,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         width: 14px;
         height: 14px;
         border: 1.5px solid {p['BORDER']};
-        border-radius: 4px;
+        border-radius: 2px;
         background-color: {p['BG_ELEVATED']};
     }}
     QCheckBox::indicator:hover {{
@@ -490,44 +503,80 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     #AnalyticsCard {{
         background-color: {p['BG_SURFACE']};
         border: 1px solid {p['BORDER']};
-        border-radius: 10px;
+        border-radius: 6px;
     }}
 
-    /* Top Bar & Navigation */
-    #TopNavBar {{
-        background-color: {p['BG_SURFACE']};
-        border-bottom: 1px solid {p['BORDER']};
+    /* Left Navigation Sidebar */
+    #NavSidebar {{
+        background-color: #070B0E;
+        border-right: 1px solid rgba(0, 199, 255, 0.15);
     }}
     
-    #TopNavBar QPushButton {{
-        background: transparent;
-        border: 1px solid {p['BORDER']};
-        padding: 5px;
-        min-width: 30px;
-        max-width: 30px;
-        min-height: 30px;
-        max-height: 30px;
-        border-radius: 6px;
+    #NavSidebar QLabel#NavLogo {{
         color: {p['TEXT_PRIMARY']};
+        margin: 4px 0px;
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-align: center;
     }}
-    #TopNavBar QPushButton:hover {{
-        background: {p['BG_ELEVATED']};
-        border-color: {COLOR_ACCENT_CYAN};
+    
+    #NavSidebar QLabel#NavStatus {{
+        color: {COLOR_STATUS_OK};
+        margin: 0px 0px 10px 0px;
+        font-weight: 600;
+        font-size: 8px;
+        text-align: center;
+    }}
+    
+    QFrame#NavButton {{
+        background: transparent;
+        border: none;
+        border-left: 3px solid transparent;
+        border-radius: 4px;
+        margin: 0px 2px;
+    }}
+    
+    QFrame#NavButton:hover {{
+        background-color: rgba(255, 255, 255, 0.03);
+    }}
+    
+    QFrame#NavButton[active="true"] {{
+        border-left: 3px solid #00D2FF;
+        background-color: rgba(0, 210, 255, 0.08);
+    }}
+    
+    QLabel#NavButtonText {{
+        color: {p['TEXT_SECONDARY']};
+        font-size: 9px;
+        font-weight: 500;
+    }}
+    
+    QFrame#NavButton[active="true"] QLabel#NavButtonText {{
+        color: {p['TEXT_PRIMARY']};
+        font-weight: bold;
+    }}
+    
+    #NavSidebar QFrame#ToolbarDivider {{
+        background-color: transparent;
+        border-top: 1px solid rgba(0, 199, 255, 0.1);
+        margin: 4px 6px;
+        max-height: 1px;
     }}
 
     /* Sidebar Group Card */
     #SidebarGroupCard {{
         background-color: {p['BG_SURFACE']};
         border: 1px solid {p['BORDER']};
-        border-radius: 8px;
+        border-radius: 6px;
     }}
     
     #ArmedStatus {{
-        background-color: rgba(76, 175, 80, 20);
-        border: 1px solid #4CAF50;
-        border-radius: 10px;
+        background-color: rgba(0, 255, 157, 0.1);
+        border: 1px solid #00FF9D;
+        border-radius: 6px;
         padding: 2px 10px;
-        color: #4CAF50;
+        color: #00FF9D;
     }}
     
     /* QSplitter Handle */
@@ -565,21 +614,23 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         background-color: {COLOR_STATUS_OK};
         color: #09090B;
         border: none;
+        border-radius: 4px;
         font-weight: bold;
         padding: 10px 16px;
     }}
     #CommitReworkButton:hover {{
-        background-color: #66BB6A;
+        background-color: #33FFAE;
     }}
     
     #ExportTicketButton, #NextBoardButton {{
         padding: 10px 12px;
+        border-radius: 4px;
     }}
 
     /* Segmented Control Options */
     #SegmentedControl {{
         background-color: {p['BG_ELEVATED']};
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 2px;
         border: 1px solid {p['BORDER']};
     }}
@@ -593,7 +644,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         border: none;
         background: transparent;
         padding: 6px 12px;
-        border-radius: 6px;
+        border-radius: 4px;
     }}
     
     .SegmentedOption:hover {{
@@ -607,15 +658,80 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
 
     #SegmentedIndicator {{
         background-color: {COLOR_ACCENT_CYAN};
-        border-radius: 6px;
+        border-radius: 4px;
     }}
 
     /* Compute Backend Indicator HUD style */
     #BackendIndicator {{
         background-color: {p['BG_ELEVATED']};
         border: 1px solid {p['BORDER']};
-        border-radius: 8px;
+        border-radius: 4px;
         padding: 4px 8px;
         color: {p['TEXT_SECONDARY']};
+    }}
+
+    /* User Onboarding Tour Tooltips */
+    #OnboardingPopover {{
+        background-color: #0B0F19;
+        border: 1px solid rgba(0, 210, 255, 0.4);
+        border-radius: 6px;
+    }}
+
+    #OnboardingTitle {{
+        color: {p['TEXT_PRIMARY']};
+        font-size: 11px;
+        font-weight: 700;
+    }}
+
+    #OnboardingDesc {{
+        color: {p['TEXT_SECONDARY']};
+        font-size: 9px;
+    }}
+
+    #OnboardingProgress {{
+        color: {COLOR_ACCENT_CYAN};
+        font-size: 8px;
+        font-weight: 600;
+    }}
+
+    #OnboardingSkipBtn {{
+        color: {p['TEXT_SECONDARY']};
+        background: transparent;
+        border: none;
+        font-size: 9px;
+        font-weight: 600;
+        padding: 4px 6px;
+    }}
+    #OnboardingSkipBtn:hover {{
+        color: {p['TEXT_PRIMARY']};
+        text-decoration: underline;
+    }}
+
+    #OnboardingBackBtn {{
+        background-color: transparent;
+        border: 1px solid {p['BORDER']};
+        border-radius: 3px;
+        color: {p['TEXT_PRIMARY']};
+        padding: 4px 8px;
+        font-size: 9px;
+        font-weight: 600;
+    }}
+    #OnboardingBackBtn:hover {{
+        background-color: rgba(255, 255, 255, 0.05);
+        border-color: {p['TEXT_PRIMARY']};
+    }}
+
+    #OnboardingNextBtn {{
+        background-color: {COLOR_ACCENT_CYAN};
+        border: 1px solid {COLOR_ACCENT_CYAN};
+        border-radius: 3px;
+        color: #09090B;
+        padding: 4px 10px;
+        font-size: 9px;
+        font-weight: 700;
+    }}
+    #OnboardingNextBtn:hover {{
+        background-color: #00E1FF;
+        border-color: #00E1FF;
     }}
     """

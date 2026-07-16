@@ -29,7 +29,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
-from PyQt6.QtCore import Qt, QRect, QRectF, QTimer, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import Qt, QRect, QRectF, QTimer, pyqtSignal, pyqtSlot, QPointF
 from PyQt6.QtGui import (
     QBrush, QColor, QDragEnterEvent, QDropEvent, QFont, QFontMetrics,
     QImage, QPainter, QPen,
@@ -37,7 +37,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtSvg import QSvgRenderer
 
-from core.models import DetectionResult
+from core.models import BoundingBox, DetectionResult
 from ui.theme import (
     BBOX_INNER_WIDTH, BBOX_OUTER_ALPHA, BBOX_OUTER_WIDTH,
     CHIP_PADDING_H, CHIP_PADDING_V,
@@ -60,8 +60,8 @@ class ImageInspectWidget(QWidget):
 
     # Emitted when a new image (BGR ndarray) is ready for inference
     image_loaded: pyqtSignal = pyqtSignal(object)
-    # Emitted whenever the FPS placeholder (now "analysis time") updates
-    fps_updated: pyqtSignal = pyqtSignal(float)
+    # Emitted whenever the inference latency (analysis time) updates
+    inference_time_updated: pyqtSignal = pyqtSignal(float)
 
     # ──────────────────────────────────────────────────────────────────────
     class _State:
@@ -69,6 +69,7 @@ class ImageInspectWidget(QWidget):
         ANALYZING = "analyzing"
         RESULT = "result"
         REJECTED = "rejected"   # PCB guard rejected the image
+        PREVIEW = "preview"     # Camera live preview viewfinder
 
     # ──────────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,15 @@ class ImageInspectWidget(QWidget):
         self._highlight_index: int = -1
         self._tile_count: int = 0
         self._inference_ms: float = 0.0
+        self._analyzing_subtext: str = ""
+
+        # Zoom & Drag/Pan State
+        self._zoomed_index: int = -1
+        self._zoom_center: tuple[float, float] = (0.0, 0.0)
+        self._zoom_size: tuple[int, int] = (0, 0)
+        self._drag_start_pos: Optional[QPointF] = None
+        self._drag_start_center: tuple[float, float] = (0.0, 0.0)
+        self._panned: bool = False
 
         # Drag-and-drop pulsing animation
         self._pulse_timer = QTimer(self)
@@ -103,21 +113,29 @@ class ImageInspectWidget(QWidget):
 
     def load_image_from_path(self, path: str) -> None:
         """Load a PCB image from a file path and emit image_loaded."""
-        bgr = cv2.imread(path)
-        if bgr is None:
-            logger.error("ImageInspectWidget: could not read '%s'", path)
-            return
-        self._load_bgr(bgr)
+        try:
+            bgr = cv2.imread(path)
+            if bgr is None:
+                raise FileNotFoundError(f"OpenCV could not read or decode image file: {path}")
+            self._load_bgr(bgr)
+        except (FileNotFoundError, OSError, cv2.error) as exc:
+            logger.error("ImageInspectWidget: failed to load image from path '%s': %s", path, exc, exc_info=True)
+            self.set_rejected(f"Failed to load image: {str(exc)}")
 
     def load_image_from_array(self, bgr_frame: np.ndarray) -> None:
         """Load a PCB image from a BGR numpy array (e.g., camera capture)."""
-        if bgr_frame is None or bgr_frame.size == 0:
-            return
-        self._load_bgr(bgr_frame.copy())
+        try:
+            if bgr_frame is None or bgr_frame.size == 0:
+                raise ValueError("Received empty or invalid image array.")
+            self._load_bgr(bgr_frame.copy())
+        except (ValueError, cv2.error) as exc:
+            logger.error("ImageInspectWidget: failed to load image from array: %s", exc, exc_info=True)
+            self.set_rejected(f"Failed to load capture: {str(exc)}")
 
-    def set_analyzing(self) -> None:
+    def set_analyzing(self, subtext: str = "Tiled inference running — please wait") -> None:
         """Switch to analyzing state while inference runs."""
         self._state = self._State.ANALYZING
+        self._analyzing_subtext = subtext
         self._detections = None
         self.update()
 
@@ -137,7 +155,7 @@ class ImageInspectWidget(QWidget):
         self._state = self._State.RESULT
         self._inference_ms = getattr(result, "inference_time_ms", 0.0)
         self._tile_count = getattr(result, "tile_count", 1)
-        self.fps_updated.emit(self._inference_ms)
+        self.inference_time_updated.emit(self._inference_ms)
         self.update()
 
     @pyqtSlot(str)
@@ -146,8 +164,48 @@ class ImageInspectWidget(QWidget):
         self.update()
 
     @pyqtSlot(int)
+    def set_zoom_index(self, idx: int) -> None:
+        """Switch view to crop & zoom in on a specific defect bounding box."""
+        self._zoomed_index = idx
+        if idx == -1:
+            self._zoom_center = (0.0, 0.0)
+            self._zoom_size = (0, 0)
+        else:
+            if self._qimage and self._detections and idx < len(self._detections.boxes):
+                box = self._detections.boxes[idx]
+                pad_w = int(box.width * 0.5)
+                pad_h = int(box.height * 0.5)
+                pad_w = max(pad_w, 40)
+                pad_h = max(pad_h, 40)
+                
+                crop_w = box.width + 2 * pad_w
+                crop_h = box.height + 2 * pad_h
+                
+                cx = box.x + box.width / 2.0
+                cy = box.y + box.height / 2.0
+                
+                iw, ih = self._qimage.width(), self._qimage.height()
+                crop_w = min(crop_w, iw)
+                crop_h = min(crop_h, ih)
+                
+                cx = max(crop_w / 2.0, min(cx, iw - crop_w / 2.0))
+                cy = max(crop_h / 2.0, min(cy, ih - crop_h / 2.0))
+                
+                self._zoom_center = (cx, cy)
+                self._zoom_size = (crop_w, crop_h)
+        self.update()
+
+    @pyqtSlot(int)
     def set_highlight_index(self, idx: int) -> None:
         self._highlight_index = idx
+        self.update()
+
+    def start_preview(self) -> None:
+        """Switch to live preview viewfinder state."""
+        self._state = self._State.PREVIEW
+        self._detections = None
+        self._qimage = None
+        self._zoomed_index = -1
         self.update()
 
     def clear_feed(self, status_text: str = "") -> None:
@@ -159,13 +217,107 @@ class ImageInspectWidget(QWidget):
         self._status_text = status_text
         self._guard_reason = ""
         self._highlight_index = -1
+        self._zoomed_index = -1
         self.update()
 
-    # Compatibility shim — MainWindow may call set_frame for camera preview.
-    # In image-inspect mode we ignore streaming frames; only explicit loads matter.
     @pyqtSlot(QImage)
     def set_frame(self, image: QImage) -> None:
-        pass  # no-op: camera stream not displayed here
+        """Called by camera worker to deliver streaming viewfinder frames."""
+        if self._state == self._State.PREVIEW:
+            self._qimage = image
+            self.update()
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Interactive Viewport Mouse Handlers
+    # ──────────────────────────────────────────────────────────────────────
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if self._state == self._State.RESULT:
+            self._drag_start_pos = event.position()
+            self._drag_start_center = self._zoom_center
+            self._panned = False
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        if self._state == self._State.RESULT and self._zoomed_index != -1 and self._drag_start_pos is not None:
+            delta = event.position() - self._drag_start_pos
+            crop_w, crop_h = self._zoom_size
+            letterbox = self._compute_letterbox(crop_w, crop_h)
+            if letterbox.width() > 0 and letterbox.height() > 0:
+                scale_x = letterbox.width() / crop_w
+                scale_y = letterbox.height() / crop_h
+                
+                img_dx = delta.x() / scale_x
+                img_dy = delta.y() / scale_y
+                
+                new_cx = self._drag_start_center[0] - img_dx
+                new_cy = self._drag_start_center[1] - img_dy
+                
+                if self._qimage:
+                    iw, ih = self._qimage.width(), self._qimage.height()
+                    new_cx = max(crop_w / 2.0, min(new_cx, iw - crop_w / 2.0))
+                    new_cy = max(crop_h / 2.0, min(new_cy, ih - crop_h / 2.0))
+                    
+                self._zoom_center = (new_cx, new_cy)
+                
+                if delta.manhattanLength() > 4.0:
+                    self._panned = True
+                self.update()
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if self._state == self._State.RESULT:
+            if self._panned:
+                self._panned = False
+                self._drag_start_pos = None
+                return
+            
+            self._drag_start_pos = None
+            if self._zoomed_index != -1:
+                # Zoom out on click
+                self.set_zoom_index(-1)
+            else:
+                # Check if click is inside a bounding box or its text label chip
+                pos = event.position()
+                ex, ey = pos.x(), pos.y()
+                if self._qimage and not self._qimage.isNull() and self._detections:
+                    letterbox = self._compute_letterbox(self._qimage.width(), self._qimage.height())
+                    if letterbox.contains(int(ex), int(ey)):
+                        fw, fh = self._qimage.width(), self._qimage.height()
+                        sx = letterbox.width() / fw
+                        sy = letterbox.height() / fh
+                        
+                        matched_idx = -1
+                        for idx, box in enumerate(self._detections.boxes):
+                            # Defect bounding box in widget pixels
+                            wx = letterbox.x() + int(round(box.x * sx))
+                            wy = letterbox.y() + int(round(box.y * sy))
+                            ww = max(2, int(round(box.width * sx)))
+                            wh = max(2, int(round(box.height * sy)))
+                            
+                            # Check inside bounding box
+                            if wx <= ex <= wx + ww and wy <= ey <= wy + wh:
+                                matched_idx = idx
+                                break
+                                
+                            # Check inside label chip
+                            label = box.class_name.replace("_", " ").upper()
+                            text = f"{label}  {box.confidence * 100:.0f}%"
+                            font = QFont(FONT_MONO, FONT_SIZE_MONO_CHIP, QFont.Weight.Medium)
+                            metrics = QFontMetrics(font)
+                            cw_chip = metrics.horizontalAdvance(text) + CHIP_PADDING_H * 2
+                            ch_chip = metrics.height() + CHIP_PADDING_V * 2
+                            
+                            cx_chip = wx
+                            cy_chip = wy - ch_chip if wy - ch_chip >= 0 else wy
+                            
+                            if cx_chip <= ex <= cx_chip + cw_chip and cy_chip <= ey <= cy_chip + ch_chip:
+                                matched_idx = idx
+                                break
+                                
+                        if matched_idx != -1:
+                            self.set_zoom_index(matched_idx)
+        super().mouseReleaseEvent(event)
 
     # ──────────────────────────────────────────────────────────────────────
     # Drag-and-drop
@@ -208,17 +360,68 @@ class ImageInspectWidget(QWidget):
                 self._draw_analyzing(painter, palette)
             elif self._state == self._State.REJECTED:
                 self._draw_rejected(painter, palette)
-            elif self._state == self._State.RESULT:
+            elif self._state == self._State.PREVIEW:
                 if self._qimage and not self._qimage.isNull():
                     letterbox = self._compute_letterbox(
                         self._qimage.width(), self._qimage.height()
                     )
                     painter.drawImage(letterbox, self._qimage)
-                    self._draw_result_hud(painter, letterbox, palette)
-                    if self._detections and self._detections.boxes:
-                        self._draw_detections(painter, letterbox)
+                    self._draw_preview_hud(painter, letterbox, palette)
                 else:
                     self._draw_drop_zone(painter, palette)
+            elif self._state == self._State.RESULT:
+                if self._qimage and not self._qimage.isNull():
+                    if self._zoomed_index != -1:
+                        # Draw zoomed in crop view
+                        crop_w, crop_h = self._zoom_size
+                        cx, cy = self._zoom_center
+                        x1 = int(cx - crop_w / 2.0)
+                        y1 = int(cy - crop_h / 2.0)
+                        
+                        cropped_qimage = self._qimage.copy(x1, y1, crop_w, crop_h)
+                        letterbox = self._compute_letterbox(crop_w, crop_h)
+                        painter.drawImage(letterbox, cropped_qimage)
+                        self._draw_zoomed_hud(painter, letterbox, palette)
+                        
+                        # Draw detections offset/scaled to crop region
+                        if self._detections and self._detections.boxes:
+                            sx = letterbox.width() / crop_w
+                            sy = letterbox.height() / crop_h
+                            for box_idx, box in enumerate(self._detections.boxes):
+                                offset_box = BoundingBox(
+                                    x=box.x - x1,
+                                    y=box.y - y1,
+                                    width=box.width,
+                                    height=box.height,
+                                    class_name=box.class_name,
+                                    confidence=box.confidence
+                                )
+                                self._draw_single_box(
+                                    painter, offset_box, letterbox, sx, sy,
+                                    box_idx == self._highlight_index or box_idx == self._zoomed_index
+                                )
+                    else:
+                        letterbox = self._compute_letterbox(
+                            self._qimage.width(), self._qimage.height()
+                        )
+                        painter.drawImage(letterbox, self._qimage)
+                        self._draw_result_hud(painter, letterbox, palette)
+                        if self._detections and self._detections.boxes:
+                            self._draw_detections(painter, letterbox)
+                else:
+                    self._draw_drop_zone(painter, palette)
+        except (AttributeError, TypeError, ValueError, ZeroDivisionError) as exc:
+            logger.error("Rendering error in ImageInspectWidget paintEvent: %s", exc, exc_info=True)
+            try:
+                palette = ThemeManager().get_palette()
+                painter.fillRect(self.rect(), QColor(palette["BG_BASE"]))
+                from ui.theme import COLOR_STATUS_ERROR
+                pen = QPen(QColor(COLOR_STATUS_ERROR), 2)
+                painter.setPen(pen)
+                painter.drawRect(self.rect().adjusted(10, 10, -10, -10))
+                painter.drawText(self.rect(), int(Qt.AlignmentFlag.AlignCenter), "Viewport Render Error")
+            except Exception:
+                pass
         finally:
             painter.end()
 
@@ -250,7 +453,7 @@ class ImageInspectWidget(QWidget):
         pen.setDashPattern([8, 6])
         painter.setPen(pen)
         painter.setBrush(QColor(palette["BG_SURFACE"]))
-        painter.drawRoundedRect(bx, by, box_w, box_h, 16, 16)
+        painter.drawRoundedRect(bx, by, box_w, box_h, 6, 6)
 
         # Upload icon
         svg_xml = ICONS_SVG.get("upload", "").format(color=palette["TEXT_SECONDARY"])
@@ -266,20 +469,20 @@ class ImageInspectWidget(QWidget):
         painter.setFont(QFont(FONT_UI, FONT_SIZE_LABEL + 2, QFont.Weight.Bold))
         painter.setPen(QColor(palette["TEXT_PRIMARY"]))
         title_rect = QRect(bx + 16, by + 100, box_w - 32, 32)
-        painter.drawText(title_rect, Qt.AlignmentFlag.AlignCenter, "Drop a PCB Image Here")
+        painter.drawText(title_rect, int(Qt.AlignmentFlag.AlignCenter), "Drop a PCB Image Here")
 
         # Sub text
         painter.setFont(QFont(FONT_UI, FONT_SIZE_BODY))
         painter.setPen(QColor(palette["TEXT_SECONDARY"]))
         sub_rect = QRect(bx + 16, by + 138, box_w - 32, 24)
-        painter.drawText(sub_rect, Qt.AlignmentFlag.AlignCenter,
+        painter.drawText(sub_rect, int(Qt.AlignmentFlag.AlignCenter),
                          "or click  📁 Load Image  in the toolbar")
 
         # Supported formats hint
         painter.setFont(QFont(FONT_UI, 8))
         painter.setPen(QColor(palette["TEXT_SECONDARY"]))
         hint_rect = QRect(bx + 16, by + box_h - 36, box_w - 32, 20)
-        painter.drawText(hint_rect, Qt.AlignmentFlag.AlignCenter,
+        painter.drawText(hint_rect, int(Qt.AlignmentFlag.AlignCenter),
                          "Accepts: JPG · PNG · BMP · TIFF")
 
     def _draw_analyzing(self, painter: QPainter, palette: dict) -> None:
@@ -304,12 +507,12 @@ class ImageInspectWidget(QWidget):
 
         painter.setFont(QFont(FONT_UI, FONT_SIZE_LABEL + 1, QFont.Weight.Bold))
         painter.setPen(QColor(palette["TEXT_PRIMARY"]))
-        painter.drawText(QRect(0, cy + 14, cw, 32), Qt.AlignmentFlag.AlignCenter,
+        painter.drawText(QRect(0, cy + 14, cw, 32), int(Qt.AlignmentFlag.AlignCenter),
                          "Analysing PCB…")
         painter.setFont(QFont(FONT_UI, FONT_SIZE_BODY))
         painter.setPen(QColor(palette["TEXT_SECONDARY"]))
-        painter.drawText(QRect(0, cy + 46, cw, 24), Qt.AlignmentFlag.AlignCenter,
-                         "Tiled inference running — please wait")
+        painter.drawText(QRect(0, cy + 46, cw, 24), int(Qt.AlignmentFlag.AlignCenter),
+                         self._analyzing_subtext)
 
     def _draw_rejected(self, painter: QPainter, palette: dict) -> None:
         cw, ch = self.width(), self.height()
@@ -321,7 +524,7 @@ class ImageInspectWidget(QWidget):
         card_bg.setAlpha(240)
         painter.setBrush(QBrush(card_bg))
         painter.setPen(QPen(QColor(255, 80, 80, 160), 1.5))
-        painter.drawRoundedRect(px, py, pw, ph, 16, 16)
+        painter.drawRoundedRect(px, py, pw, ph, 6, 6)
 
         svg_xml = ICONS_SVG.get("alert", "").format(color="#FF5050")
         if svg_xml:
@@ -332,13 +535,65 @@ class ImageInspectWidget(QWidget):
         painter.setFont(QFont(FONT_UI, FONT_SIZE_LABEL + 1, QFont.Weight.Bold))
         painter.setPen(QColor("#FF5050"))
         painter.drawText(QRect(px + 16, py + 64, pw - 32, 28),
-                         Qt.AlignmentFlag.AlignCenter, "Not a PCB Image")
+                         int(Qt.AlignmentFlag.AlignCenter), "Not a PCB Image")
 
+        # Sub text
         painter.setFont(QFont(FONT_UI, FONT_SIZE_BODY))
         painter.setPen(QColor(palette["TEXT_SECONDARY"]))
         painter.drawText(QRect(px + 16, py + 100, pw - 32, 56),
-                         Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
+                         int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap),
                          self._guard_reason or "Please load a PCB photograph.")
+
+    def _draw_preview_hud(self, painter: QPainter, rect: QRect, palette: dict) -> None:
+        """Top-left: LIVE VIEW badge. Top-right: resolution."""
+        painter.setPen(QPen(QColor(255, 80, 80, 35), 1))
+        painter.drawLine(rect.left(), rect.top() + 30, rect.right(), rect.top() + 30)
+
+        badge_bg = QColor(24, 24, 27, 170)
+        painter.setFont(QFont(FONT_UI, 8, QFont.Weight.Bold))
+
+        # Top-left: LIVE indicator
+        painter.setBrush(QBrush(QColor(255, 80, 80, 180)))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(rect.left() + 8, rect.top() + 6, 120, 20, 4, 4)
+        painter.setPen(QColor("#FFFFFF"))
+        painter.drawText(rect.left() + 16, rect.top() + 20, "● LIVE VIEW")
+
+        # Top-right: resolution
+        if self._qimage:
+            res = f"Viewfinder: {self._qimage.width()}x{self._qimage.height()}"
+            metrics = QFontMetrics(painter.font())
+            tw = metrics.horizontalAdvance(res)
+            painter.setBrush(QBrush(badge_bg))
+            painter.setPen(QPen(QColor(63, 63, 70, 100), 1))
+            painter.drawRoundedRect(rect.right() - tw - 24, rect.top() + 6, tw + 16, 20, 4, 4)
+            painter.setPen(QColor(255, 80, 80, 220))
+            painter.drawText(rect.right() - tw - 16, rect.top() + 20, res)
+
+    def _draw_zoomed_hud(self, painter: QPainter, rect: QRect, palette: dict) -> None:
+        """Top-left: ZOOMED IN badge. Top-right: zoom instruction."""
+        painter.setPen(QPen(QColor(0, 210, 255, 35), 1))
+        painter.drawLine(rect.left(), rect.top() + 30, rect.right(), rect.top() + 30)
+
+        badge_bg = QColor(24, 24, 27, 170)
+        painter.setFont(QFont(FONT_UI, 8, QFont.Weight.Bold))
+
+        # Top-left: ZOOMED badge
+        painter.setBrush(QBrush(badge_bg))
+        painter.setPen(QPen(QColor(63, 63, 70, 100), 1))
+        painter.drawRoundedRect(rect.left() + 8, rect.top() + 6, 110, 20, 4, 4)
+        painter.setPen(QColor(0, 210, 255, 220))
+        painter.drawText(rect.left() + 16, rect.top() + 20, "🔍 ZOOMED VIEW")
+
+        # Top-right: instructions
+        msg = "Hold & Drag to Pan  ·  Click to Zoom Out"
+        metrics = QFontMetrics(painter.font())
+        tw = metrics.horizontalAdvance(msg)
+        painter.setBrush(QBrush(badge_bg))
+        painter.setPen(QPen(QColor(63, 63, 70, 100), 1))
+        painter.drawRoundedRect(rect.right() - tw - 24, rect.top() + 6, tw + 16, 20, 4, 4)
+        painter.setPen(QColor(0, 210, 255, 220))
+        painter.drawText(rect.right() - tw - 16, rect.top() + 20, msg)
 
     def _draw_result_hud(self, painter: QPainter, rect: QRect, palette: dict) -> None:
         """Top-left: ANALYSIS COMPLETE badge. Top-right: resolution + timing."""
@@ -450,16 +705,20 @@ class ImageInspectWidget(QWidget):
 
     def _load_bgr(self, bgr: np.ndarray) -> None:
         """Store BGR array, convert to QImage for display, emit image_loaded."""
-        self._bgr_frame = bgr
-        h, w = bgr.shape[:2]
-        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        self._qimage = QImage(
-            rgb.tobytes(), w, h,
-            rgb.strides[0],
-            QImage.Format.Format_RGB888,
-        ).copy()  # .copy() so the buffer is owned by QImage
-        self._state = self._State.ANALYZING
-        self._detections = None
-        self.update()
-        # Emit so MainWindow can route to inference worker
-        self.image_loaded.emit(bgr)
+        try:
+            self._bgr_frame = bgr
+            h, w = bgr.shape[:2]
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+            self._qimage = QImage(
+                rgb.tobytes(), w, h,
+                rgb.strides[0],
+                QImage.Format.Format_RGB888,
+            ).copy()  # .copy() so the buffer is owned by QImage
+            self._state = self._State.ANALYZING
+            self._detections = None
+            self.update()
+            # Emit so MainWindow can route to inference worker
+            self.image_loaded.emit(bgr)
+        except (cv2.error, ValueError, AttributeError) as exc:
+            logger.error("Failed to convert BGR frame to QImage: %s", exc, exc_info=True)
+            self.set_rejected("Failed to process image buffer.")

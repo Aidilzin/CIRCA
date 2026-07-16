@@ -226,7 +226,7 @@ class InferenceEngine:
         try:
             self._infer_request.infer({self._input_layer: input_tensor})
             raw_output: np.ndarray = self._infer_request.get_output_tensor(0).data
-        except Exception as exc:
+        except RuntimeError as exc:
             raise RuntimeError(f"OpenVINO infer_new_request failed: {exc}") from exc
 
         # Stage 3: Post-process raw tensor → DetectionResult
@@ -322,7 +322,9 @@ class InferenceEngine:
         Returns:
             Filtered, NMS-suppressed List[BoundingBox] in original pixel space.
         """
-        if getattr(self, "_is_end_to_end", False):
+        # Fix #11: Direct attribute access — _is_end_to_end is unconditionally set in __init__
+        # before _postprocess() can ever be called. The getattr fallback was misleading.
+        if self._is_end_to_end:
             # Squeeze batch dim: [1, max_det, 6] → [max_det, 6]
             output = np.squeeze(raw_output, axis=0)
             result_boxes: List[BoundingBox] = []

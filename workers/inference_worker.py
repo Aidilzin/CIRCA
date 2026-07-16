@@ -65,12 +65,15 @@ import threading
 import time
 from typing import Optional
 
+import numpy as np
+
 from PyQt6.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal, pyqtSlot
 
 from core.debug import trace_execution
 from core.inference_engine import InferenceEngine
 from core.tiled_inference import TiledInferenceEngine
-from core.models import DetectionResult, InferenceParams
+from core.models import DetectionResult, InferenceParams, PreprocessParams
+from core.preprocessor import apply_clahe, apply_gamma, apply_denoise, auto_tune_parameters
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +171,7 @@ class InferenceWorker(QObject):
             self._tiled_engine = TiledInferenceEngine(self._engine)
             logger.info("InferenceWorker: model loaded successfully.")
             self.model_loaded.emit()
-        except Exception as exc:
+        except (FileNotFoundError, OSError, RuntimeError, ImportError) as exc:
             msg = f"Model load failed — {type(exc).__name__}: {exc}"
             logger.error(msg, exc_info=True)
             self.inference_error.emit(msg)
@@ -181,7 +184,6 @@ class InferenceWorker(QObject):
         using a dummy input frame, and emit the average latency.
         """
         try:
-            import numpy as np
             logger.info("InferenceWorker: starting benchmark on '%s'…", model_path)
             # Create a separate temporary engine to avoid mutating currently running inference
             engine = InferenceEngine(model_path)
@@ -199,7 +201,7 @@ class InferenceWorker(QObject):
 
             logger.info("InferenceWorker: benchmark done. Avg latency = %.2f ms", avg_latency)
             self.benchmark_completed.emit(model_path, avg_latency)
-        except Exception as exc:
+        except (FileNotFoundError, OSError, RuntimeError, ImportError) as exc:
             msg = f"Benchmark failed — {type(exc).__name__}: {exc}"
             logger.error(msg, exc_info=True)
             self.inference_error.emit(msg)
@@ -220,29 +222,16 @@ class InferenceWorker(QObject):
             self._params = params
 
     @pyqtSlot(object)
-    def process_frame(self, frame: object) -> None:
+    @pyqtSlot(object, object)
+    def process_frame(self, frame: object, preprocess_params: object = None) -> None:
         """
-        Run a single synchronous inference pass on a preprocessed BGR frame.
+        Run a single synchronous inference pass on a BGR frame (with optional background preprocessing).
 
-        This is the core processing slot — connected to CameraWorker's
-        frame_ready_for_inference signal via a Qt queued connection.
-
-        Backpressure gate:
-          If _inference_lock is already held (previous frame is still being
-          processed), this frame is silently dropped. This guarantees the
-          Inference Thread always works on the most recent available frame
-          rather than draining a stale queue (NFR4).
-
-        Frame drop conditions (silent, no error emitted):
-          1. _inference_lock is held (inference busy) — backpressure drop.
-          2. _engine is None (model not loaded yet) — startup drop.
-
-        Error conditions (inference_error emitted):
-          3. _engine.run() raises any exception (corrupt frame, OpenVINO failure).
+        This is the core processing slot.
 
         Args:
-            frame: Preprocessed BGR np.ndarray from CameraWorker.
-                   Typing as object matches pyqtSignal(object) declaration.
+            frame: Raw BGR np.ndarray.
+            preprocess_params: Optional PreprocessParams to perform preprocessing in the background thread.
         """
         # BACKPRESSURE: Non-blocking lock acquire. Returns immediately.
         if not self._inference_lock.acquire(blocking=False):
@@ -251,17 +240,48 @@ class InferenceWorker(QObject):
 
         try:
             if self._engine is None or self._tiled_engine is None:
-                # Model not loaded yet. Drop silently — this is normal during
-                # the startup window between thread.start() and load_model().
+                # Model not loaded yet. Drop silently.
                 logger.debug("InferenceWorker: frame dropped — model not loaded.")
                 return
 
             params = self._snapshot_params()
 
+            # 1. Background Preprocessing if requested
+            preprocessed_frame = None
+            auto_clahe_val = None
+            auto_gamma_val = None
+            
+            if preprocess_params is not None and isinstance(preprocess_params, PreprocessParams):
+                # Fix #5: Do NOT copy frame — preprocessing functions return new arrays,
+                # they never mutate the input. The copy() call wasted ~2.7MB per frame.
+                frame_to_run = frame
+                if preprocess_params.auto_optimize:
+                    clahe_val, gamma_val = auto_tune_parameters(frame_to_run)
+                    auto_clahe_val = clahe_val
+                    auto_gamma_val = gamma_val
+                    
+                    # Update local params copy
+                    preprocess_params.clahe_clip_limit = clahe_val
+                    preprocess_params.gamma = gamma_val
+
+                if preprocess_params.denoise:
+                    frame_to_run = apply_denoise(frame_to_run)
+
+                frame_to_run = apply_clahe(frame_to_run, preprocess_params)
+                frame_to_run = apply_gamma(frame_to_run, preprocess_params)
+                preprocessed_frame = frame_to_run
+            else:
+                frame_to_run = frame
+
             start_inference = time.perf_counter()
-            result: DetectionResult = self._tiled_engine.run_tiled(frame, params)
+            result: DetectionResult = self._tiled_engine.run_tiled(frame_to_run, params)
             inference_duration_ms = (time.perf_counter() - start_inference) * 1000.0
             result.inference_time_ms = inference_duration_ms
+            
+            # Attach background results to the result payload
+            result.preprocessed_frame = preprocessed_frame
+            result.auto_clahe = auto_clahe_val
+            result.auto_gamma = auto_gamma_val
             # Count tiles used (for HUD display)
             h, w = frame.shape[:2]
             from core.tiled_inference import TILE_SIZE, TILE_STRIDE
@@ -277,16 +297,25 @@ class InferenceWorker(QObject):
             )
             try:
                 self.new_detections.emit(result)
-            except RuntimeError:
-                pass
+            except RuntimeError as emit_exc:
+                # Fix #6: Log swallowed emission failures — a silent pass here means
+                # the UI never receives results without any diagnostic trace.
+                logger.warning(
+                    "new_detections signal emission failed (receiver destroyed): %s", emit_exc
+                )
 
         except Exception as exc:
             msg = f"Inference failed — {type(exc).__name__}: {exc}"
             logger.error(msg, exc_info=True)
             try:
                 self.inference_error.emit(msg)
-            except RuntimeError:
-                pass
+            except RuntimeError as emit_exc:
+                # Fix #6: If error reporting itself fails, the user sees nothing.
+                # Always log so the failure is at least captured in execution_trace.log.
+                logger.warning(
+                    "inference_error signal emission failed: %s | Original error: %s",
+                    emit_exc, msg,
+                )
         finally:
             # Always release — even on exception — so the worker recovers
             # automatically on the next frame rather than deadlocking.

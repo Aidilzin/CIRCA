@@ -207,6 +207,7 @@ class SidePanel(QWidget):
     panel_toggled = pyqtSignal(bool, str)  # expanded, active_key
     model_selected = pyqtSignal(str)
     recommend_model_requested = pyqtSignal()
+    reset_onboarding_requested = pyqtSignal()
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -266,13 +267,13 @@ class SidePanel(QWidget):
         self.denoise_check.setChecked(True)
         self.clahe_slider = PreprocessingSlider("contrast", "Contrast", 1.0, 8.0, 2.0)
         self.gamma_slider = PreprocessingSlider("sun", "Brightness", 0.5, 2.5, 1.0)
-        self.sharpness_slider = PreprocessingSlider("focus", "Sharpness Gate", 5.0, 200.0, 12.5, 1)
+        self.clahe_slider.setEnabled(False)
+        self.gamma_slider.setEnabled(False)
         
         f_lay.addWidget(self.auto_opt_check)
         f_lay.addWidget(self.denoise_check)
         f_lay.addWidget(self.clahe_slider)
         f_lay.addWidget(self.gamma_slider)
-        f_lay.addWidget(self.sharpness_slider)
         ol.addWidget(filter_card)
         
         # 3. Model Engine Card
@@ -317,6 +318,11 @@ class SidePanel(QWidget):
         self.anim_combo = QComboBox()
         self.anim_combo.addItems(["Fluid Physics", "Snappy"])
         p_lay.addWidget(self.anim_combo)
+        p_lay.addWidget(self._section_header("SYSTEM & HELP"))
+        self.reset_onboarding_btn = QPushButton("Reset Tour")
+        self.reset_onboarding_btn.setObjectName("ResetOnboardingButton")
+        self.reset_onboarding_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        p_lay.addWidget(self.reset_onboarding_btn)
         pl.addWidget(pref_card)
 
         pl.addStretch(1)
@@ -333,7 +339,6 @@ class SidePanel(QWidget):
         self.segmented_control.index_changed.connect(self.stack.setCurrentIndex)
         self.clahe_slider.value_changed.connect(self._on_slider_manual_changed)
         self.gamma_slider.value_changed.connect(self._on_slider_manual_changed)
-        self.sharpness_slider.value_changed.connect(self._emit_preprocessing_params)
         self.confidence_slider.value_changed.connect(self._emit_inference_params)
         self.camera_combo.currentIndexChanged.connect(self._on_camera_changed)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
@@ -342,6 +347,13 @@ class SidePanel(QWidget):
         self.auto_opt_check.toggled.connect(self._on_auto_opt_toggled)
         self.denoise_check.toggled.connect(self._emit_preprocessing_params)
         self.recommend_model_btn.clicked.connect(self._on_recommend_model_clicked)
+        self.reset_onboarding_btn.clicked.connect(self.resetOnboardingTour)
+
+    def resetOnboardingTour(self):
+        from PyQt6.QtCore import QSettings
+        settings = QSettings("CIRCA", "VisionStudio")
+        settings.setValue("hasRunOnboarding", False)
+        self.reset_onboarding_requested.emit()
 
     def set_tab(self, key: str):
         idx = 0 if key == "optimization" else 1
@@ -354,6 +366,14 @@ class SidePanel(QWidget):
             if not self._expanded:
                 self.toggle()
         self.panel_toggled.emit(self._expanded, key)
+
+    def show_panel(self):
+        if not self._expanded:
+            self.toggle()
+
+    def hide_panel(self):
+        if self._expanded:
+            self.toggle()
 
     def toggle(self):
         config = ThemeManager().get_anim_config()
@@ -418,7 +438,7 @@ class SidePanel(QWidget):
         self.preprocessing_params_changed.emit(PreprocessParams(
             clahe_clip_limit=self.clahe_slider.value(),
             gamma=self.gamma_slider.value(),
-            blur_threshold=self.sharpness_slider.value(),
+            blur_threshold=0.0,
             auto_optimize=self.auto_opt_check.isChecked(),
             denoise=self.denoise_check.isChecked(),
         ))
@@ -431,6 +451,8 @@ class SidePanel(QWidget):
         self._emit_preprocessing_params()
 
     def _on_auto_opt_toggled(self, checked: bool):
+        self.clahe_slider.setEnabled(not checked)
+        self.gamma_slider.setEnabled(not checked)
         self._emit_preprocessing_params()
 
     def _on_recommend_model_clicked(self):

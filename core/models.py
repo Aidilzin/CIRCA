@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -19,6 +20,10 @@ class DetectionResult:
 
     boxes: list["BoundingBox"] = field(default_factory=list)
     inference_time_ms: float = -1.0
+    tile_count: int = 1
+    preprocessed_frame: Optional[object] = field(default=None, repr=False)
+    auto_clahe: Optional[float] = None
+    auto_gamma: Optional[float] = None
 
     @property
     def average_confidence(self) -> float:

@@ -1,42 +1,32 @@
-# Environments & Secrets
+# ==============================================================================
+# CIRCA Project .gitignore (Production-Ready)
+# ==============================================================================
+
+# 1. Local Environments & Secrets
 .env
 .env.*
+.env.local
+config.json
+secrets.json
 
-# Python environments
+# 2. Python Virtual Environments
 .venv/
 venv/
 env/
 ENV/
+
+# 3. Python Runtime & Compilation Caches
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
-# Tool Caches
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage
 htmlcov/
 
-# Logs
-*.log
-crash_report.log
-execution_trace.log
-log/
-
-# Temporary Outputs
-*_output.txt
-test_results.txt
-test_output_utf8.txt
-
-# IDEs and Editors
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS generated files
+# 4. Operating System Files
 .DS_Store
 .DS_Store?
 ._*
@@ -45,10 +35,19 @@ test_output_utf8.txt
 ehthumbs.db
 Thumbs.db
 
-# AI / ML outputs and Tracking
+# 5. IDEs and Editor Configuration
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# 6. Datasets, Model Weights, & AI Artifacts
+# Avoid pushing massive files and binary weights to GitHub (bloating)
+datasets/
 runs/
 OLD-runs/
-datasets/
 wandb/
 weights/
 *.pt
@@ -61,36 +60,43 @@ weights/
 *.xml
 *.bin
 
-# Data archives
+# 7. Archives and Zip Packages
 *.zip
 *.tar.gz
 *.rar
-*.pdf
+*.7z
 
-# Jupyter
+# 8. Temporary Output Files & Run Logs
+*.log
+crash_report.log
+execution_trace.log
+training.log
+log/
+*_output.txt
+test_results.txt
+test_output_utf8.txt
+
+# 9. Jupyter Notebook Checkpoints
 .ipynb_checkpoints/
 
-# AI Agent folders & custom skills
+# 10. AI Agent Workspaces & Conversation Transcripts
 .antigravitycli/
 .claude/
 .gemini/
 **/skills/
-
-# Backup and Archive directories
-.OLD/
-
-# AI conversation transcripts (too large and not source code)
 restored_conversations_history.md
 
-# Local/Private Scripts
-scripts/upload_to_runpod.py
+# 11. Legacy and Backups
+.OLD/
 
-# Thesis helper/one-off scripts (not production code)
-scripts/gen_fig3_1.py
-scripts/convert_ch4_to_docx.py
-scripts/package_runpod.ps1
-scripts/runpod_setup.sh
-scripts/upload_run_to_wandb.py
+# 12. Deployment Staging & Local Script Exclusions
+# These scripts are local-only helpers or deployment packages
+requirements_runpod.txt
+scripts/core/upload-to-runpod.py
+scripts/archive/generate-thesis-plots.py
+scripts/archive/convert-markdown-thesis-to-docx.py
+scripts/core/setup-runpod-environment.sh
+scripts/core/upload-offline-wandb-metrics.py
 
 # Intermediate/dev docs not needed in repo
 docs/circa_progress_report_presentation.html
@@ -104,22 +110,11 @@ docs/CIRCA_EXPERIMENT_PLAN.md
 docs/CIRCA_HYPERPARAMETER_TUNING.md
 docs/CIRCA_TRAIN_ENGINE_GUIDE.md
 docs/CIRCA_DATASET_PREPROCESSING.md
-
-# Thesis formatting guides and course materials (not source)
 docs/CSP650_*.pdf
 docs/Thesis_Formatting*.pdf
 docs/Chapter_4_Results_and_Findings.pdf
-
-# Superseded thesis chapter draft
 docs/CIRCA_THESIS_CH1_4.md
-
-# Reference import files (personal citation manager)
 docs/references_pdf/
-
-# DOCX/PDF thesis builds (binary, regenerated from MD source)
-docs/CIRCA_THESIS_CHAPTER_4.docx
-docs/CIRCA_THESIS_CHAPTER_4.pdf
-docs/CIRCA_THESIS_FULL.docx
-
-# RunPod / deployment staging archives
-requirements_runpod.txt
+# DOCX/PDF thesis builds (binary, dynamically compiled from Markdown source)
+docs/*.docx
+docs/*.pdf

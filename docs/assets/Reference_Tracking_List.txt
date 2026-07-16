@@ -1,0 +1,115 @@
+[01] [PAPER] DOI: None
+   Title: Adibhatla, V. A., et al. (2020). Defect detection in printed circuit boards using you-only-look-once convolutional neural networks. Electronics, 9(9), 1547.
+   Link: No link available
+
+[02] [PAPER] DOI: 10.23977/autml.2024.050112
+   Title: Li, S., and Zhou, H. (2024). Analysis of key techniques of PCB defect detection based on machine vision. Automation and Machine Learning, 5(1), pp. 91–98. DOI: 10.23977/autml.2024.050112.
+   Link: https://doi.org/10.23977/autml.2024.050112
+
+[03] [PAPER] DOI: None
+   Title: Ahn, H., et al. (2023). Performance characterization of using quantization for DNN inference on edge devices. arXiv:2303.05016.
+   Link: No link available
+
+[04] [PAPER] DOI: None
+   Title: Alhamzawi, G. A., Alfoudi, A. S., and Alsaeedi, A. H. (2025). Fusion deep learning with adaptive gamma correction (DLAGC). JISEM, 10(36s).
+   Link: No link available
+
+[05] [PAPER] DOI: None
+   Title: Anh Nguyen, T., et al. (2024). PCB defect detection using hybrid CNN-Transformer with Wise-IoU. Applied Sciences.
+   Link: No link available
+
+[06] [PAPER] DOI: None
+   Title: Bhattacharya, D., and Cloutier, S. G. (2022). End-to-end deep learning framework for printed circuit board manufacturing defect classification. Scientific Reports, 12, 12969.
+   Link: No link available
+
+[07] [PAPER] DOI: None
+   Title: Bhanumathy, M., et al. (2021). PCB defect detection using CNN. IOP Conference Series.
+   Link: No link available
+
+[08] [PAPER] DOI: None
+   Title: Goti, A. B. (2025). Automated optical inspection (AOI) based on IPC standards. International Journal of Engineering and Computer Science (IJECS), 14(3), pp.26928–26947. https://doi.org/10.18535/ijecs/v14i03.5052
+   Link: https://doi.org/10.18535/ijecs/v14i03.5052
+
+[09] [PAPER] DOI: None
+   Title: Fontana, M., Calabrese, M., et al. (2024). SolDef-AI: An open source PCB dataset for Mask R-CNN defect detection in through-hole pin soldering. Journal of Manufacturing and Materials Processing, 8(4), 145. https://doi.org/10.3390/jmmp8040145
+   Link: https://doi.org/10.3390/jmmp8040145
+
+[10] [PAPER] DOI: None
+   Title: Ghelani, D. (2024). AI-driven quality control in PCB manufacturing. International Journal of Engineering.
+   Link: No link available
+
+[11] [PAPER] DOI: None
+   Title: Hendriko, V., and Hermanto, D. (2025). Performance comparison of YOLOv10, YOLOv11, and YOLOv12. Brilliance: Research of AI, 5(1), 440–450.
+   Link: No link available
+
+[12] [PAPER] DOI: None
+   Title: Hu, S., and Wang, H. (2020). PCB defect detection with GARPN+FPN+ResNet50. IEEE Access.
+   Link: No link available
+
+[13] [PAPER] DOI: None
+   Title: Huang, J., et al. (2023). NCE-Net for PCB defect classification. Electronics.
+   Link: No link available
+
+[14] [DATASET/STANDARD] DOI: None
+   Title: IPC International. (2020). IPC-A-600K: Acceptability of Printed Boards. Bannockburn, IL: IPC.
+   Link: No link available
+
+[15] [DATASET/STANDARD] DOI: None
+   Title: IPC International. (2020). IPC-A-610H: Acceptability of Electronic Assemblies. Bannockburn, IL: IPC.
+   Link: No link available
+
+[16] [PAPER] DOI: None
+   Title: Kaewdook, D., et al. (2024). Design of deep learning techniques for PCBs defect detecting system based on YOLOv10. ETASR, 14(6).
+   Link: No link available
+
+[17] [PAPER] DOI: None
+   Title: Klco, P., et al. (2023). YOLOv8 for PCB defect detection. Applied Sciences.
+   Link: No link available
+
+[18] [PAPER] DOI: None
+   Title: Kupfer, A., et al. (2023). Check the box! Automation bias in AI-based decision support. Frontiers in Psychology, 14, 1118723.
+   Link: No link available
+
+[19] [PAPER] DOI: None
+   Title: Law, C. Y., et al. (2024). Ensemble learning for PCB defect detection. IEEE Access.
+   Link: No link available
+
+[20] [PAPER] DOI: None
+   Title: Liao, X., et al. (2021). Lightweight YOLOv4-MobileNetV3 for PCB defect detection. Sensors, 21(23), 7873.
+   Link: No link available
+
+[21] [PAPER] DOI: None
+   Title: Lv, S., et al. (2024). A dataset for deep learning based detection of printed circuit board surface defect. Scientific Data, 11, 811.
+   Link: No link available
+
+[22] [PAPER] DOI: 10.1109/ICCCNT61001.2024.10726140
+   Title: Sharma, A., et al. (2024). PCB Defect Detection Using Deep Learning Methods. Proceedings of the 2024 15th International Conference on Computing Communication and Networking Technologies (ICCCNT). DOI: 10.1109/ICCCNT61001.2024.10726140
+   Link: https://doi.org/10.1109/ICCCNT61001.2024.10726140
+
+[23] [PAPER] DOI: None
+   Title: Tian, Y., Ye, Q., and Doermann, D. (2025). YOLOv12: attention-centric real-time object detectors. NeurIPS 2025. arXiv:2502.12524.
+   Link: No link available
+
+[24] [PAPER] DOI: None
+   Title: Wang, Z., et al. (2023). ATT-YOLO: self-attention enhanced YOLOv5 for PCB defect detection. Journal of Physics: Conference Series.
+   Link: No link available
+
+[25] [PAPER] DOI: None
+   Title: Wanto, A., et al. (2023). Optimization accuracy of CNN model by utilizing CLAHE parameters in image classification. Proceedings of IConNECT 2023, IEEE.
+   Link: No link available
+
+[26] [PAPER] DOI: None
+   Title: PCB Defect Detection. (2025a). PCB Solder Joint Dataset [Dataset]. Roboflow Universe. https://universe.roboflow.com/work-6qkmv/pcb-solder-joint (CC BY 4.0).
+   Link: https://universe.roboflow.com/work-6qkmv/pcb-solder-joint
+
+[27] [PAPER] DOI: None
+   Title: Yang, X., and Yu, H. (2024). PCB defect detection based on improved YOLOv8. IJANMC.
+   Link: No link available
+
+[28] [PAPER] DOI: None
+   Title: Yi, F., and Mohamed, A. S. A. (2024). YOLOv8-DEE: a high-precision model for PCB defect detection. PeerJ Computer Science, 10, e2548.
+   Link: No link available
+
+[29] [PAPER] DOI: None
+   Title: PKU Open Lab. (2020). PKU-Market-PCB-ver1: PCB Defect Dataset [Dataset]. Peking University Open Lab on Human-Robot Interaction. Available via Roboflow Universe: https://universe.roboflow.com/jr-mqqnk/pcb-defects-detection-anddl (CC BY 4.0).
+   Link: https://universe.roboflow.com/jr-mqqnk/pcb-defects-detection-anddl

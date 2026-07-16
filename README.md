@@ -24,26 +24,21 @@ CIRCA is a real-time PCB defect detection system that runs a quantised YOLOv12 I
 ## Architecture
 
 ```
-Camera (UVC)
-    │ cv2.VideoCapture (DirectShow)
-    ▼
-CameraWorker (Camera Thread)
-    ├─ CLAHE (LAB L-channel)
-    ├─ Gamma correction (γ=1.2)
-    └─ Laplacian variance blur gate
-         │ sharp frames only
+PCB Image (File / Drop) ──► PCB Guard (Heuristics Validation)
+                                │
+                                ▼
+TiledInferenceEngine (Inference Thread)
+    ├─ Dynamic overlapping 640×640 tiles
+    ├─ InferenceEngine (OpenVINO YOLOv12 FP16 on CPU/GPU)
+    └─ Cross-tile NMS deduplication
+         │
          ▼
-InferenceWorker (Inference Thread)
-    └─ InferenceEngine (OpenVINO INT8)
-         ├─ Letterbox resize → 640×640
-         ├─ YOLOv12 INT8 inference (CPU)
-         └─ NMS → BoundingBox list
-              │
-              ▼
-         MainWindow (GUI Thread)
-              ├─ ImageInspectWidget (bounding box overlay)
-              ├─ WarningBanner (low-confidence alert)
-              └─ StatusFooter (camera/model/detection status)
+MainWindow (GUI Thread)
+    ├─ ImageInspectWidget (bounding box overlay + HUD metrics)
+    ├─ WarningBanner (low-confidence advisory)
+    └─ AnalyticsDashboard (defect log & rework checklist)
+
+Camera (Optional) ──► Single Frame Capture ──► Workspace Viewport
 ```
 
 ---
@@ -87,7 +82,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-The GUI will start, enumerate available cameras, and begin live defect detection automatically.
+The GUI will start, initialize the workspace, and prompt you to load or drop a PCB image for static tiled inspection.
 
 ### GUI Controls (Side Panel)
 
@@ -109,7 +104,7 @@ Training is managed by `train_engine.py`. All experiments follow the 7-phase pro
 ### Phase 1 — Vanilla Baseline
 
 ```bash
-python train_engine.py \
+python training/train_engine.py \
     --mode train --variant s --id 001 --desc Baseline_Vanilla \
     --epochs 100 --batch 48 --cache \
     --data datasets/unified_pcb_v3/data.yaml
@@ -118,7 +113,7 @@ python train_engine.py \
 ### Phase 2 — CIRCA Baseline (CLAHE + Gamma)
 
 ```bash
-python train_engine.py \
+python training/train_engine.py \
     --mode train --variant s --id 002 --desc Baseline_CIRCA \
     --epochs 100 --batch 48 --cache \
     --data datasets/unified_pcb_v3_preproc/data.yaml
@@ -127,7 +122,7 @@ python train_engine.py \
 ### Phase 3 — Hyperparameter Optimisation
 
 ```bash
-python train_engine.py \
+python training/train_engine.py \
     --mode tune --variant s --id 003 --desc HPO_7class \
     --epochs 50 --iterations 50 --fraction 0.5 --batch 48 --cache \
     --data datasets/unified_pcb_v3_preproc/data.yaml
@@ -136,16 +131,12 @@ python train_engine.py \
 ### Full CLI Reference
 
 ```
-python train_engine.py --help
+python training/train_engine.py --help
 ```
 
-### SAHI Sliced Inference (high-resolution boards)
+### Tiled Sliding-Window Inference
 
-```bash
-python sahi_infer.py \
-    --model runs/detect/<EXPERIMENT>/weights/best.pt \
-    --source path/to/image.jpg
-```
+For high-resolution board inspections where defects are small, the workspace integrates an adaptive tiled sliding-window inference engine. The frame is dynamically segmented into overlapping 640×640 tiles, processed, and merged using cross-tile NMS to suppress duplicates at tile boundaries. This allows high-accuracy detection of minute board traces and pin-level defects.
 
 ---
 
@@ -155,10 +146,10 @@ The unified dataset (`unified_pcb_v3`) merges 6 public PCB defect sources with c
 
 ```bash
 # Preview dataset counts (no files written)
-python scripts/build_unified_pcb_v3.py --dry-run
+python scripts/archive/build-unified-dataset.py --dry-run
 
 # Build full dataset
-python scripts/build_unified_pcb_v3.py
+python scripts/archive/build-unified-dataset.py
 ```
 
 See [`docs/CIRCA_CLASS_MAPPING.md`](docs/CIRCA_CLASS_MAPPING.md) for the full class taxonomy and source dataset provenance.
@@ -175,7 +166,7 @@ pytest tests/
 pytest tests/ --cov=core --cov=workers --cov=ui
 
 # Run a specific test file
-pytest tests/test_inference_engine.py -v
+pytest tests/test_ui_wiring.py -v
 ```
 
 ---
@@ -185,20 +176,26 @@ pytest tests/test_inference_engine.py -v
 ```
 CIRCA/
 ├── main.py                    # GUI entry point
-├── train_engine.py            # Training & HPO engine
-├── sahi_infer.py              # SAHI sliced inference
 ├── requirements.txt           # Local (GUI + training) dependencies
-├── requirements_runpod.txt    # RunPod (headless training) dependencies
+├── requirements_runpod.txt    # RunPod (headless training) dependencies (untracked/ignored)
+│
+├── training/                  # Model training & tuning pipelines
+│   └── train_engine.py        # High-performance training & HPO engine
+│
+├── config/                    # Configuration and Defect thresholds
+│   └── circa_thresholds.yaml  # Calibrated defect thresholds YAML
 │
 ├── core/
-│   ├── inference_engine.py    # OpenVINO INT8 inference + letterbox
+│   ├── inference_engine.py    # OpenVINO inference + letterbox
+│   ├── tiled_inference.py     # Tiled sliding-window inference
+│   ├── pcb_guard.py           # Heuristic-based subject scene guard
 │   ├── preprocessor.py        # CLAHE (LAB) + Gamma preprocessing
 │   ├── utils.py               # Camera enumeration + BGR→QImage
 │   ├── models.py              # BoundingBox, DetectionResult, Params
 │   └── debug.py               # trace_execution decorator
 │
 ├── workers/
-│   ├── camera_worker.py       # UVC capture + preprocessing thread
+│   ├── camera_worker.py       # UVC capture + preprocessing thread (on-demand)
 │   └── inference_worker.py    # Event-driven inference thread
 │
 ├── ui/
@@ -211,7 +208,10 @@ CIRCA/
 │   ├── analytics_dashboard.py # Live performance analytics and charts
 │   └── help_dialog.py         # Onboarding tutorial and user instructions
 │
-├── scripts/                   # Dataset build & RunPod utilities
+├── scripts/                   # Production and reference helper utilities
+│   ├── core/                  # Active pipeline utility scripts (e.g., evaluate-hardware-benchmark.py)
+│   └── archive/               # One-time reference and thesis scripts (e.g., build-unified-dataset.py)
+│
 ├── docs/                      # Experiment plans, checklists, thesis diagrams
 └── tests/                     # pytest suite (unit + integration + UI)
 ```
@@ -231,7 +231,7 @@ CIRCA/
 | **Phase 7 — Test (N FP16)** | unified_pcb_v3 test split | **0.6279** | **0.3834** | **0.8570** | **0.6059** |
 
 Full experiment log: [`docs/CIRCA_EXPERIMENT_CHECKLIST.md`](docs/CIRCA_EXPERIMENT_CHECKLIST.md)  
-Training flow diagrams: [`CIRCA_TRAINING_FLOW.md`](CIRCA_TRAINING_FLOW.md)
+Training flow diagrams: [`docs/CIRCA_TRAINING_FLOW.md`](docs/assets/stale_backup/../CIRCA_TRAINING_FLOW.md)
 
 ---
 

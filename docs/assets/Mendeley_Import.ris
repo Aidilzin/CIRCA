@@ -1,0 +1,282 @@
+TY  - JOUR
+TI  - Defect detection in printed circuit boards using you-only-look-once convolutional neural networks
+JO  - Electronics, 9(9), 1547.
+AU  - Adibhatla
+AU  - V. A.
+PY  - 2020
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[01] Defect detection in printed circuit boards using You-Only-Lo.pdf
+ER  -
+
+TY  - JOUR
+DO  - 10.23977/autml.2024.050112
+UR  - https://doi.org/10.23977/autml.2024.050112
+TI  - Analysis of key techniques of PCB defect detection based on machine vision
+JO  - Automation and Machine Learning, 5(1), pp. 91–98
+AU  - Li
+AU  - S.
+AU  - Zhou
+AU  - H.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[02] Analysis of key techniques of PCB defect detection based on.pdf
+ER  -
+
+TY  - JOUR
+TI  - Performance characterization of using quantization for DNN inference on edge devices
+JO  - arXiv:2303.05016.
+AU  - Ahn
+AU  - H.
+PY  - 2023
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[03] Performance characterization of using quantization for DNN i.pdf
+ER  -
+
+TY  - JOUR
+TI  - Fusion deep learning with adaptive gamma correction (DLAGC)
+JO  - JISEM, 10(36s).
+AU  - Alhamzawi
+AU  - G. A.
+AU  - Alfoudi
+AU  - A. S.
+AU  - Alsaeedi
+AU  - A. H.
+PY  - 2025
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[04] Fusion deep learning with adaptive gamma correction (DLAGC).pdf
+ER  -
+
+TY  - JOUR
+TI  - PCB defect detection using hybrid CNN-Transformer with Wise-IoU
+JO  - Applied Sciences.
+AU  - Anh Nguyen
+AU  - T.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[05] PCB defect detection using hybrid CNN-Transformer with Wise-.pdf
+ER  -
+
+TY  - JOUR
+TI  - End-to-end deep learning framework for printed circuit board manufacturing defect classification
+JO  - Scientific Reports, 12, 12969.
+AU  - Bhattacharya
+AU  - D.
+AU  - Cloutier
+AU  - S. G.
+PY  - 2022
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[06] End-to-end deep learning framework for printed circuit board.pdf
+ER  -
+
+TY  - CPAPER
+TI  - PCB defect detection using CNN
+T2  - IOP Conference Series.
+AU  - Bhanumathy
+AU  - M.
+PY  - 2021
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[07] PCB defect detection using CNN.pdf
+ER  -
+
+TY  - JOUR
+UR  - https://doi.org/10.18535/ijecs/v14i03.5052
+TI  - Automated optical inspection (AOI) based on IPC standards
+JO  - International Journal of Engineering and Computer Science (IJECS), 14(3), pp.26928–26947
+AU  - Goti
+AU  - A. B.
+PY  - 2025
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[08] Automated optical inspection (AOI) based on IPC standards.pdf
+ER  -
+
+TY  - JOUR
+UR  - https://doi.org/10.3390/jmmp8040145
+TI  - SolDef-AI: An open source PCB dataset for Mask R-CNN defect detection in through-hole pin soldering
+JO  - Journal of Manufacturing and Materials Processing, 8(4), 145
+AU  - Fontana
+AU  - M.
+AU  - Calabrese
+AU  - M.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[09] SolDef-AI An open source PCB dataset for Mask R-CNN defect d.pdf
+ER  -
+
+TY  - JOUR
+TI  - AI-driven quality control in PCB manufacturing
+JO  - International Journal of Engineering.
+AU  - Ghelani
+AU  - D.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[10] AI-driven quality control in PCB manufacturing.pdf
+ER  -
+
+TY  - JOUR
+TI  - Performance comparison of YOLOv10, YOLOv11, and YOLOv12
+JO  - Brilliance: Research of AI, 5(1), 440–450.
+AU  - Hendriko
+AU  - V.
+AU  - Hermanto
+AU  - D.
+PY  - 2025
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[11] Performance comparison of YOLOv10, YOLOv11, and YOLOv12 mode.pdf
+ER  -
+
+TY  - JOUR
+TI  - PCB defect detection with GARPN+FPN+ResNet50
+JO  - IEEE Access.
+AU  - Hu
+AU  - S.
+AU  - Wang
+AU  - H.
+PY  - 2020
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[12] Detection of PCB Surface Defects With Improved Faster-RCNN.pdf
+ER  -
+
+TY  - JOUR
+TI  - NCE-Net for PCB defect classification
+JO  - Electronics.
+AU  - Huang
+AU  - J.
+PY  - 2023
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[13] Neighborhood Correlation Enhancement Network for PCB Defect.pdf
+ER  -
+
+TY  - GEN
+TI  - IPC-A-600K: Acceptability of Printed Boards
+AU  - IPC International.
+PY  - 2020
+ER  -
+
+TY  - GEN
+TI  - IPC-A-610H: Acceptability of Electronic Assemblies
+AU  - IPC International.
+PY  - 2020
+ER  -
+
+TY  - JOUR
+TI  - Design of deep learning techniques for PCBs defect detecting system based on YOLOv10
+JO  - ETASR, 14(6).
+AU  - Kaewdook
+AU  - D.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[16] Design of deep learning techniques for PCBs defect detecting.pdf
+ER  -
+
+TY  - JOUR
+TI  - YOLOv8 for PCB defect detection
+JO  - Applied Sciences.
+AU  - Klco
+AU  - P.
+PY  - 2023
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[17] Quality inspection of specific electronic boards by deep.pdf
+ER  -
+
+TY  - JOUR
+TI  - Check the box! Automation bias in AI-based decision support
+JO  - Frontiers in Psychology, 14, 1118723.
+AU  - Kupfer
+AU  - A.
+PY  - 2023
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[18] Check the box! Automation bias in AI-based decision support.pdf
+ER  -
+
+TY  - JOUR
+TI  - Ensemble learning for PCB defect detection
+JO  - IEEE Access.
+AU  - Law
+AU  - C. Y.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[19] Dynamic Multi-Scale Feature Fusion and Ensemble Learning for.pdf
+ER  -
+
+TY  - JOUR
+TI  - Lightweight YOLOv4-MobileNetV3 for PCB defect detection
+JO  - Sensors, 21(23), 7873.
+AU  - Liao
+AU  - X.
+PY  - 2021
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[20] YOLOv4-MN3 for PCB Surface Defect Detection.pdf
+ER  -
+
+TY  - JOUR
+TI  - A dataset for deep learning based detection of printed circuit board surface defect
+JO  - Scientific Data, 11, 811.
+AU  - Lv
+AU  - S.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[21] A dataset for deep learning based detection of printed circu.pdf
+ER  -
+
+TY  - CPAPER
+DO  - 10.1109/ICCCNT61001.2024.10726140
+UR  - https://doi.org/10.1109/ICCCNT61001.2024.10726140
+TI  - PCB Defect Detection Using Deep Learning Methods
+T2  - Proceedings of the 2024 15th International Conference on Computing Communication and Networking Technologies (ICCCNT)
+AU  - Sharma
+AU  - A.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[22] PCB Defect Detection Using Deep Learning Methods.pdf
+ER  -
+
+TY  - JOUR
+TI  - YOLOv12: attention-centric real-time object detectors
+JO  - NeurIPS 2025. arXiv:2502.12524.
+AU  - Tian
+AU  - Y.
+AU  - Ye
+AU  - Q.
+AU  - Doermann
+AU  - D.
+PY  - 2025
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[23] YOLOv12 attention-centric real-time object detectors.pdf
+ER  -
+
+TY  - CPAPER
+TI  - ATT-YOLO: self-attention enhanced YOLOv5 for PCB defect detection
+T2  - Journal of Physics: Conference Series.
+AU  - Wang
+AU  - Z.
+PY  - 2023
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[24] ATT-YOLO self-attention enhanced YOLOv5 for PCB defect detec.pdf
+ER  -
+
+TY  - CPAPER
+TI  - Optimization accuracy of CNN model by utilizing CLAHE parameters in image classification
+T2  - Proceedings of IConNECT 2023, IEEE.
+AU  - Wanto
+AU  - A.
+PY  - 2023
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[25] Optimization accuracy of CNN model by utilizing CLAHE parame.pdf
+ER  -
+
+TY  - JOUR
+UR  - https://universe.roboflow.com/work-6qkmv/pcb-solder-joint
+TI  - PCB Solder Joint Dataset [Dataset]
+JO  - Roboflow Universe
+AU  - PCB Defect Detection.
+PY  - 2025
+N1  - PCB Defect Detection. (2025a). PCB Solder Joint Dataset [Dataset]. Roboflow Universe. https://universe.roboflow.com/work-6qkmv/pcb-solder-joint (CC BY 4.0).
+ER  -
+
+TY  - JOUR
+TI  - PCB defect detection based on improved YOLOv8
+JO  - IJANMC.
+AU  - Yang
+AU  - X.
+AU  - Yu
+AU  - H.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[27] PCEB-YOLOV8 An Improved PCB Defect Detection Method Based on.pdf
+ER  -
+
+TY  - JOUR
+TI  - YOLOv8-DEE: a high-precision model for PCB defect detection
+JO  - PeerJ Computer Science, 10, e2548.
+AU  - Yi
+AU  - F.
+AU  - Mohamed
+AU  - A. S. A.
+PY  - 2024
+L1  - file:///D:/FYP/CIRCA/docs/references_pdf/[28] YOLOv8-DEE a high-precision model for PCB defect detection.pdf
+ER  -
+
+TY  - JOUR
+UR  - https://universe.roboflow.com/jr-mqqnk/pcb-defects-detection-anddl
+TI  - PKU-Market-PCB-ver1: PCB Defect Dataset [Dataset]
+JO  - Peking University Open Lab on Human-Robot Interaction. Available via Roboflow Universe: https://universe.roboflow.com/jr-mqqnk/pcb-defects-detection-anddl (CC BY 4.0).
+AU  - PKU Open Lab.
+PY  - 2020
+N1  - PKU Open Lab. (2020). PKU-Market-PCB-ver1: PCB Defect Dataset [Dataset]. Peking University Open Lab on Human-Robot Interaction. Available via Roboflow Universe: https://universe.roboflow.com/jr-mqqnk/pcb-defects-detection-anddl (CC BY 4.0).
+ER  -

@@ -1,18 +1,15 @@
 # CIRCA Thesis Completion — Progress Tracker
 
-> **Linked Plan:** [implementation_plan.md](file:///C:/Users/aidil/.gemini/antigravity-ide/brain/41752283-5141-4f08-8f81-29ab83bf8575/implementation_plan.md)
-> **Last Updated:** 2026-07-08 by **Antigravity** — Rerun Phase 6 benchmarks for static image inspection with tiled inference on CPU and NVIDIA RTX 3060 GPU. Updated Table 4.11-4.14 in thesis and regenerated Figure 4.5. All 483 tests passing.
+> **Last Updated:** 2026-07-16 by **Antigravity** — Abstracted `scripts/core/check-dataset-class-balance.py` to `utils/check_dataset_class_balance.py` as a reusable utility. It returns structured telemetry dictionaries, supports custom class names, and includes a standalone CLI guard. Staged both new utilities under the `/utils` package.
+> **Last Updated:** 2026-07-16 by **Antigravity** — Created a comprehensive production-grade `.gitignore` file mapping Python environments, OS caches, OpenVINO compilation outputs, model weights, and RunPod deployment staging archives. Identified 11 tracked files that match the new ignores and generated a plan to untrack them.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Completed full backend architecture refactoring (12 flaws). P0: Fixed GUI-blocking inference (QTimer→signal), fixed dead faulthandler file handle. P1: Replaced np.std/mean with cv2.meanStdDev (hot path), removed redundant frame.copy(), disconnected dangling CameraWorker signals on switch, logged swallowed signal emissions. P2: OrderedDict LRU caches for preprocessor, np.interp smooth auto-tune, cleaned inner imports, fixed getattr. All 18 tests passing.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Removed the redundant, automatic startup trigger for the old `HelpDialog` onboarding guide modal in `_on_cameras_found_startup()`. It now only opens when explicitly requested by clicking the Help sidebar button. All 18 tests passing.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Implemented HCI spatial layout adjustments. Enlarged top bar buttons to 36x36px and scaled icons to 18px (Fitts's Law), established progressive disclosure on image optimization sliders when Auto-Optimise is enabled (Hick's Law), and grouped the checklist and action buttons closely by moving session logs to the bottom (Gestalt Proximity). All tests passing.
+> **Last Updated:** 2026-07-09 by **Antigravity** — Addressed substantive thesis concerns before viva. Applied the fixes directly to the runs of docs/2023276732_AIDIL_FYP THESIS.docx (viva copy with latest wordings) to calibrate 90% mAP accuracy target, explain missing_hole sub-resolution boundary smearing constraints, clarify OpenVINO GPU single-sample latency regressions, and note single-run compute budget limits in Limitations. Restored docs/CIRCA_THESIS_CH1-5.md to avoid overwriting latest wordings, and deleted legacy docs/FYP THESIS.docx.
 > **Submission Deadline:** ✅ **7 July 2026 — SUBMITTED**
 
-
 ---
 
-> [!CAUTION]
-> **DEADLINE CRITICAL — 6 days to submission.**
-> Phase 4 training alone takes ~25h. The remaining timeline is extremely tight.
-> Every day counts. Agents must work efficiently and use `caveman-talk` skill.
-
----
 
 ## ⚡ Agent Instructions (READ BEFORE EVERY SESSION)
 
@@ -58,14 +55,14 @@ MANDATORY BEFORE STARTING ANY TASK:
 
 ## BLOCK A — Pre-Work Scripts ✅ COMPLETE
 
-- [x] **A1** `scripts/evaluate_quantization.py` — Phase 5 quantisation eval script
-- [x] **A2** `scripts/benchmark.py` — Phase 6 hardware benchmarking script
-- [x] **A3** `scripts/calibrate_thresholds.py` — Phase 7 threshold calibration script
-- [x] **A4** `scripts/test_evaluate.py` — Phase 7 one-shot test evaluation script
+- [x] **A1** `scripts/core/evaluate-model-quantization.py` (formerly `evaluate_quantization.py`) — Phase 5 quantisation eval script
+- [x] **A2** `scripts/core/evaluate-hardware-benchmark.py` (formerly `benchmark.py`) — Phase 6 hardware benchmarking script
+- [x] **A3** `scripts/core/calibrate-confidence-thresholds.py` (formerly `calibrate_thresholds.py`) — Phase 7 threshold calibration script
+- [x] **A4** `scripts/core/evaluate-final-model-metrics.py` (formerly `test_evaluate.py`) — Phase 7 one-shot test evaluation script
 - [x] All 4 scripts syntax-validated (`py_compile` — ALL OK)
-- [x] `scripts/package_runpod.ps1` updated: models/ dir, yolo12m.pt, HPO yaml
+- [x] `scripts/package_runpod.ps1` deleted (redundant Powershell script removed)
 - [x] `requirements.txt` + `requirements_runpod.txt` updated with `matplotlib>=3.7.0`
-- [x] `train_engine.py` Rule 2 compliance fix: RunPod workers uncapped via `RUNPOD_POD_ID`
+- [x] `training/train_engine.py` (formerly `train_engine.py`) Rule 2 compliance fix: RunPod workers uncapped via `RUNPOD_POD_ID`
 - [x] `project-context.md` updated ## BLOCK B — Phase 4: Final Training (RunPod) ✅ COMPLETE
 
 **Status:** ✅ Complete — All 3 models (YOLOv12-N/S/M) fully trained for 200 epochs.
@@ -84,7 +81,7 @@ MANDATORY BEFORE STARTING ANY TASK:
 
 **Status:** ✅ Complete — evaluate_quantization.py executed successfully.
 
-- [x] Run `scripts/evaluate_quantization.py` for Nano variant
+- [x] Run `scripts/core/evaluate-model-quantization.py` for Nano variant
 - [x] Run for Small variant
 - [x] Run for Medium variant
 - [x] `docs/quantization_report.md` generated ✓
@@ -95,11 +92,11 @@ MANDATORY BEFORE STARTING ANY TASK:
 
 ## BLOCK D — Phase 6: Hardware Benchmarking ✅ COMPLETE
 
-**Status:** ✅ Complete — benchmark.py executed for all 6 configurations (N/S/M on CPU/GPU).
+**Status:** ✅ Complete — evaluate-hardware-benchmark.py (formerly benchmark.py) executed for all 6 configurations (N/S/M on CPU/GPU).
 
 - [x] Set up VM with matching CPU-only config (represent target specification)
 - [x] Copy selected OpenVINO IR directories to VM
-- [x] Run `scripts/benchmark.py` for each variant on CPU device
+- [x] Run `scripts/core/evaluate-hardware-benchmark.py` for each variant on CPU device
 - [x] Run with `--device GPU` (AMD Radeon integrated GPU)
 - [x] `docs/benchmark_report.md` generated ✓
 - [x] `docs/assets/fig4_5_live_fps_trace.png` saved ✓
@@ -110,12 +107,12 @@ MANDATORY BEFORE STARTING ANY TASK:
 
 ## BLOCK E — Phase 7: Test Evaluation + Threshold Calibration ✅ COMPLETE
 
-**Status:** ✅ Complete — test_evaluate.py and calibrate_thresholds.py executed.
+**Status:** ✅ Complete — evaluate-final-model-metrics.py (formerly test_evaluate.py) and calibrate-confidence-thresholds.py (formerly calibrate_thresholds.py) executed.
 
-- [x] Run `scripts/test_evaluate.py` ONCE on production variant (Nano FP16)
-- [x] Run `scripts/calibrate_thresholds.py` on VAL split only
+- [x] Run `scripts/core/evaluate-final-model-metrics.py` ONCE on production variant (Nano FP16)
+- [x] Run `scripts/core/calibrate-confidence-thresholds.py` on VAL split only
 - [x] `docs/test_evaluation.md` generated ✓
-- [x] `circa_thresholds.yaml` generated ✓
+- [x] `config/circa_thresholds.yaml` (formerly `circa_thresholds.yaml` in root) generated ✓
 - [x] Figures saved: confusion matrix, PR curve, F1 curve, failure gallery, threshold sweep
 - [x] W&B sync complete
 - [x] Update this file + project-context.md
@@ -172,7 +169,7 @@ MANDATORY BEFORE STARTING ANY TASK:
 
 ---
 
-## BLOCK H — Post-Thesis Deliverables ✅ COMPLETE (GIT TAG PENDING)
+## BLOCK H — Post-Thesis Deliverables ✅ COMPLETE
 
 **Depends on:** Block G complete
 
@@ -199,5 +196,31 @@ MANDATORY BEFORE STARTING ANY TASK:
 | mAP@0.5 (test) | > 90% | **62.79%** | ❌ NO (Fail) |
 | Preprocessing latency | ≤ 5 ms | **4.75 ms (CPU / GPU)** | ✅ YES |
 | Tiled inference latency | ≤ 10 s | **0.349 s (CPU, 1080p) / 0.338 s (GPU, 1080p)** | ✅ YES |
+
+---
+
+## BLOCK I — Robust Exception Handling Architecture & Fallback UI Integration ✅ COMPLETE
+
+- [x] **I1** Define robust try/except error boundaries on thread entrypoints and local widgets.
+- [x] **I2** Implement fallback UI states for non-fatal components (ImageInspectWidget painting, AnalyticsDashboard checklist, and advisory panel).
+- [x] **I3** Implement clean-up and resource management in thread worker execution cycles.
+- [x] **I4** Implement comprehensive unit test suites for camera validation, painting, state machines, and false positive feedback logging.
+- [x] All 15 tests passed successfully with no errors or regressions.
+
+---
+
+## BLOCK J — Intel Arc inspired GPU HUD Styling & Theme Reskin ✅ COMPLETE
+
+- [x] **J1** Refactor design tokens in `ui/theme.py` for dark-mode centric slate backgrounds (`#0B0F19`, `#131B2E`, `#1C2740`).
+- [x] **J2** Apply Neon Cyan (`#00C7FF`), Electric Blue (`#0068B5`), and Emerald (`#00FF9D`) accent guidelines.
+- [x] **J3** Modify containers, inputs, buttons, and cards for sharp visual structure (`border-radius: 4px` to `6px`).
+- [x] **J4** Add left-aligned active indicator tabs and focus outlines for controls in QSS.
+- [x] **J5** Resolve workflow friction by making the configuration SidePanel expanded by default on launch.
+- [x] **J6** Implement HCI spatial layout adjustments (button target resizing, progressive disclosure toggles, checklist grouping alignment).
+- [x] **J7** Correct top bar usability with inline text labels and structured utility divider lines.
+- [x] **J8** Refactor navigation to a persistent, static vertical left-sidebar navigation panel with stacked icon + text button layout, and collapse settings SidePanel on startup.
+- [x] **J9** Implement interactive User Onboarding Tour with overlay mask, element isolation punchouts, QSettings persistence, Preferences reset button, and unit tests.
+- [x] All test suites verified and passing with new design systems.
+
 
 

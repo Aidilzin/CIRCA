@@ -29,8 +29,8 @@ These rules are loaded by Antigravity for all tasks in the CIRCA workspace.
 *   **Cost Control:** Upload the packaged dataset (`CIRCA_runpod.zip`) and configurations directly to the RunPod container's persistent volume disk `/workspace/` rather than using S3 buckets or network storage mounts to prevent storage cost creep.
 *   **Staging & Packaging:** Use `python scripts/package_runpod.py` to compile dependencies and structure files correctly with forward slashes for Linux compatibility before uploading.
 
-## 5. Automated Skill Integration
-*   **Automatic Skill Lookup:** You have access to specialized skills in the `skills/` directories. You MUST check these directories to align on workflows for planning, requirements, code quality, TDD, Git commits, PyTorch model coding, and thesis writing.
+## 5. Automated Skill Integration (CRITICAL)
+*   **Proactive Skill Verification:** At the very start of EVERY pairing session or new task, you MUST check the `.gemini/skills/` directory using directory listing. You must read the `SKILL.md` file for any skill relevant to the task (e.g. `code-review-and-quality` for refactoring/cleanups, `test-driven-development` for test additions, `git-workflow-and-versioning` for commits) to align on the exact instructions before executing work.
 *   **Token Optimization Rules:**
     *   **Document Processing:** Before parsing any large non-markdown files (`.docx`, `.pptx`, `.xlsx`, `.pdf`, `.html`), you MUST run the `use-markitdown` skill to convert them to clean Markdown to minimize input token usage.
     *   **Response Style:** If the user requests brief responses, or to minimize output tokens during long-running loops, automatically activate the `caveman-talk` skill to communicate in high-density, telegraphic format.

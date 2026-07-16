@@ -21,6 +21,7 @@ Non-functional requirements:
 
 import cv2
 import numpy as np
+from collections import OrderedDict
 
 from core.models import PreprocessParams
 
@@ -28,9 +29,12 @@ from core.models import PreprocessParams
 # ---------------------------------------------------------------------------
 # Pre-built gamma LUT cache and CLAHE object cache.
 # Avoids re-allocating heavy objects on every frame (NFR1).
+# Fix #2: OrderedDict + LRU cap prevents unbounded growth when users drag
+# the manual sliders, which emit continuous float values as dict keys.
 # ---------------------------------------------------------------------------
-_gamma_lut_cache: dict[float, np.ndarray] = {}
-_clahe_cache: dict[float, cv2.CLAHE] = {}
+_CACHE_MAX_SIZE: int = 32  # Adequate for all practical gamma/CLAHE combinations
+_gamma_lut_cache: OrderedDict[float, np.ndarray] = OrderedDict()
+_clahe_cache: OrderedDict[float, cv2.CLAHE] = OrderedDict()
 
 
 def clear_gamma_lut_cache() -> None:
@@ -99,6 +103,12 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
             clipLimit=clip_limit,
             tileGridSize=(8, 8),
         )
+        # LRU eviction: remove oldest entry if over capacity (Fix #2)
+        if len(_clahe_cache) > _CACHE_MAX_SIZE:
+            _clahe_cache.popitem(last=False)
+    else:
+        # Move to end (mark as recently used)
+        _clahe_cache.move_to_end(clip_limit)
     clahe = _clahe_cache[clip_limit]
 
     # Use LAB to match the offline training preprocessing (train_engine.py).
@@ -158,6 +168,12 @@ def apply_gamma(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     # Cache miss: build and store the LUT for this gamma value.
     if gamma not in _gamma_lut_cache:
         _gamma_lut_cache[gamma] = _build_gamma_lut(gamma)
+        # LRU eviction: remove oldest entry if over capacity (Fix #2)
+        if len(_gamma_lut_cache) > _CACHE_MAX_SIZE:
+            _gamma_lut_cache.popitem(last=False)
+    else:
+        # Move to end (mark as recently used)
+        _gamma_lut_cache.move_to_end(gamma)
 
     lut = _gamma_lut_cache[gamma]
     return cv2.LUT(frame, lut)
@@ -238,43 +254,35 @@ def apply_denoise(frame: np.ndarray) -> np.ndarray:
 def auto_tune_parameters(frame: np.ndarray) -> tuple[float, float]:
     """
     Analyze frame luminance histogram to calculate optimal CLAHE and Gamma values.
-    
+
+    Fix #10: Uses np.interp (piecewise linear interpolation) instead of a step-function
+    ladder to produce smooth, continuous parameter transitions. When mean brightness
+    hovers near a boundary (e.g., 84→86), the old code jumped gamma 1.6 → 1.3
+    discontinuously, causing visible flickering on live camera feeds. np.interp
+    blends continuously between anchor points, eliminating the oscillation.
+
     Returns:
         tuple[clahe_clip_limit, gamma]
     """
     if frame is None or frame.size == 0:
         return 2.0, 1.0
-        
+
     grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     mean_val, std_val = cv2.meanStdDev(grey)
     mean_brightness = float(mean_val[0, 0])
     std_brightness = float(std_val[0, 0])
 
-    # 1. Calculate dynamic Gamma based on mean brightness (target range: 110-130)
-    if mean_brightness < 40:
-        gamma = 2.2      # Extremely dark shadows
-    elif mean_brightness < 85:
-        gamma = 1.6      # Dark bench light
-    elif mean_brightness < 115:
-        gamma = 1.3      # Slightly dark
-    elif mean_brightness < 135:
-        gamma = 1.0      # Target range, no correction
-    elif mean_brightness < 170:
-        gamma = 0.8      # Bright highlights
-    else:
-        gamma = 0.6      # Glare / overexposed
+    # Gamma: piecewise linear interpolation across brightness anchor points.
+    # x-anchors are mean brightness values; y-anchors are the gamma targets.
+    # np.interp clamps at the endpoints, so values outside [0, 255] are safe.
+    _GAMMA_X = [  0,  40,  85, 115, 135, 170, 255]
+    _GAMMA_Y = [2.2, 2.2, 1.6, 1.3, 1.0, 0.8, 0.6]
+    gamma = float(np.interp(mean_brightness, _GAMMA_X, _GAMMA_Y))
 
-    # 2. Calculate dynamic CLAHE based on standard deviation (contrast indicator)
-    # Capped at 2.2 max to prevent sensor noise/graininess amplification.
-    if std_brightness < 20:
-        clahe_clip = 2.2  # Low contrast
-    elif std_brightness < 35:
-        clahe_clip = 1.8  # Moderately low contrast
-    elif std_brightness < 50:
-        clahe_clip = 1.5  # Normal contrast
-    elif std_brightness < 65:
-        clahe_clip = 1.2  # High contrast
-    else:
-        clahe_clip = 1.0  # Very high contrast
+    # CLAHE clip: piecewise linear interpolation across contrast anchor points.
+    # std_brightness is the standard deviation of the greyscale channel (contrast proxy).
+    _CLAHE_X = [ 0,  20,  35,  50,  65, 255]
+    _CLAHE_Y = [2.2, 2.2, 1.8, 1.5, 1.2, 1.0]
+    clahe_clip = float(np.interp(std_brightness, _CLAHE_X, _CLAHE_Y))
 
     return clahe_clip, gamma

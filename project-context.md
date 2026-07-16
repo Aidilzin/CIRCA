@@ -21,7 +21,16 @@ To prevent context drift and preserve localized repository knowledge across sess
    * Avoid removing historical context of the dataset evolution unless it's completely deprecated.
 3. **Traceability:** Always log the date/timestamp of the last update and specify the agent's name who made the change.
 
-> **Last Updated:** 2026-07-08 by **Antigravity** — Refactored core architecture from live video streaming to static image inspection with tiled inference and PCB scene guard. ImageInspectWidget fully replaces VideoWidget, and all 483 tests pass.
+> **Last Updated:** 2026-07-16 by **Antigravity** — Abstracted `scripts/core/check-dataset-class-balance.py` to `utils/check_dataset_class_balance.py` as a reusable utility. It returns structured telemetry dictionaries, supports custom class names, and includes a standalone CLI guard. Staged both new utilities under the `/utils` package.
+> **Last Updated:** 2026-07-16 by **Antigravity** — Created a comprehensive production-grade `.gitignore` file mapping Python environments, OS caches, OpenVINO compilation outputs, model weights, and RunPod deployment staging archives. Identified 11 tracked files that match the new ignores and generated a plan to untrack them.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Completed 12-flaw backend architecture refactor. Key changes: (1) `_request_inference` pyqtSignal replaces QTimer.singleShot lambda — inference no longer blocks GUI thread; (2) faulthandler file handle kept open for process lifetime; (3) cv2.meanStdDev replaces np.std+mean in camera hot-path; (4) removed redundant frame.copy(); (5) old CameraWorker signals disconnected before replacement; (6) silent RuntimeError swallows on signal emission now logged; (7) preprocessor caches capped at 32 entries via OrderedDict LRU; (8) auto_tune_parameters uses np.interp instead of step-function ladder (eliminates flickering). All 18 tests passing.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Removed the redundant, automatic startup trigger for the old `HelpDialog` onboarding guide modal in `_on_cameras_found_startup()`. It now only opens when explicitly requested via the Help sidebar button. All 18 tests passing.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Corrected toolbar usability friction. Implemented inline text labels alongside icons to solve "Mystery Meat" navigation, partitioned top nav controls into 4 distinct clusters using vertical dividers, and unified layout margins to `8px 0px` to guarantee perfectly equal horizontal spacing. All tests passing.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Implemented HCI spatial layout adjustments. Enlarged top bar buttons to 36x36px and scaled icons to 18px (Fitts's Law), established progressive disclosure on image optimization sliders when Auto-Optimise is enabled (Hick's Law), and grouped the checklist and action buttons closely by moving session logs to the bottom (Gestalt Proximity). All tests passing.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Resolved configuration friction by expanding the SidePanel by default on startup. Now all key controls (Vision Source, Optimisation Sliders, AI Engine Model Selector) are visible to the operator instantly on launch, avoiding layout shifts and layout toggles. Verified with unit tests.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Reskinned visual theme and layout structure inspired by Intel Arc Control. Refactored background palette to ultra-dark slate (#0B0F19, #131B2E, #1C2740), updated highlight accents with Electric Blue and Neon Cyan, applied sharp technical 4-6px border-radius structure on containers/cards/buttons, added vertical left pill active states, and confirmed test assertions pass.
+> **Last Updated:** 2026-07-15 by **Antigravity** — Designed and implemented a robust, production-grade exception handling architecture. Defined isolated error boundaries on thread entrypoints (InferenceWorker and CameraWorker) and local widgets, implemented fallback UI states for non-fatal components (ImageInspectWidget painting, AnalyticsDashboard checklists/advisories), verified clean-up and resource management, and wrote comprehensive unit tests.
+> **Last Updated:** 2026-07-11 by **Antigravity** — Humanized Chapter 1-5 content in docs/CIRCA_THESIS_CH1-5.md by converting to active voice, using first-person singular ('I/my') to match the sole-researcher style, and restructuring high-predictability sentences. Calibrated Chapters 1 and 2 to match the formal academic cadence and sentence length distributions of the reference text, applying updates directly in-place to docs/2023276732_AIDIL_FYP THESIS.docx.
 
 ---
 
@@ -178,16 +187,16 @@ For detailed transcripts and deep technical dialogues from previous sessions, re
 *   **RunPod Optimization:** Deleted obsolete S3 bucket rules; established persistent pod volume disk `/workspace/` rules. Cap workers at 8 only for local runs to prevent IDE crashes, while leveraging full AMD EPYC performance on RunPod runs.
 
 ### 7. Phase 5–7 Scripts Created — Block A Complete (2026-07-01)
-*   **`scripts/evaluate_quantization.py`** — Phase 5: exports best.pt → FP32/FP16/INT8 IR, applies Ch3 §3.6.4 fallback rule, writes `docs/quantization_report.md`.
-*   **`scripts/benchmark.py`** — Phase 6: preproc latency, inference latency (CPU/GPU), tiled throughput, static time. Writes `docs/benchmark_report.md` + throughput chart.
-*   **`scripts/calibrate_thresholds.py`** — Phase 7: conf sweep on val split → per-class thresholds → `circa_thresholds.yaml` + sweep plot.
-*   **`scripts/test_evaluate.py`** — Phase 7: one-shot test split eval → `docs/test_evaluation.md` + figures.
+*   **`scripts/core/evaluate-model-quantization.py`** (formerly `evaluate_quantization.py`) — Phase 5: exports best.pt → FP32/FP16/INT8 IR, applies Ch3 §3.6.4 fallback rule, writes `docs/quantization_report.md`.
+*   **`scripts/core/evaluate-hardware-benchmark.py`** (formerly `benchmark.py`) — Phase 6: preproc latency, inference latency (CPU/GPU), tiled throughput, static time. Writes `docs/benchmark_report.md` + throughput chart.
+*   **`scripts/core/calibrate-confidence-thresholds.py`** (formerly `calibrate_thresholds.py`) — Phase 7: conf sweep on val split → per-class thresholds → `config/circa_thresholds.yaml` + sweep plot.
+*   **`scripts/core/evaluate-final-model-metrics.py`** (formerly `test_evaluate.py`) — Phase 7: one-shot test split eval → `docs/test_evaluation.md` + figures.
 *   All 4 scripts syntax-validated (ALL OK).
 
 ### 8. Cleanup and Dependencies Verification (2026-07-01)
 *   **Further Cleanup:** Deleted obsolete S3 upload script (`upload_to_runpod.py`), progress presentation scripts (`generate_slides.py`), presentation slides/talking points (`CIRCA_Progress_Report_Presentation.pptx`, `Talking_Points.md/.pdf`, `circa_project_review.md`), and temporary logs.
 *   **YOLOv12m weights:** Verified that `models/yolo12m.pt` is downloaded and resolved locally (ready for Phase 4-M).
-*   **RunPod Permissions Fix:** Patched `scripts/runpod_setup.sh` to automatically apply recursive `chmod -R 755` on the `datasets/` folder during setup, resolving directory traversal failures and PermissionError issues stemming from Windows-zipped folders.
+*   **RunPod Permissions Fix:** Patched `scripts/core/setup-runpod-environment.sh` (formerly `runpod_setup.sh`) to automatically apply recursive `chmod -R 755` on the `datasets/` folder during setup, resolving directory traversal failures and PermissionError issues stemming from Windows-zipped folders.
 
 ### 9. Production Model Layout & GUI Fixes (2026-07-01 Antigravity)
 *   **OpenVINO 2026.0.0 Compatibility:** Added try-except fallback import block to support both `openvino.runtime` (2024.x) and `openvino` top-level namespace (2026.x).

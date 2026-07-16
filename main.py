@@ -3,9 +3,10 @@ import logging
 import os
 import sys
 
-# C-Level crash reporting: enables traceback for segfaults
-with open('crash_report.log', 'w') as f:
-    faulthandler.enable(file=f)
+# C-Level crash reporting: file handle MUST remain open for process lifetime.
+# faulthandler writes to this file on a segfault — closing it early renders it non-functional.
+_crash_file = open('crash_report.log', 'w')  # noqa: SIM115 — intentionally kept open
+faulthandler.enable(file=_crash_file)
 
 from core.debug import trace_execution
 

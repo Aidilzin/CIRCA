@@ -79,8 +79,8 @@ def parse_args() -> argparse.Namespace:
         help="Path to data.yaml",
     )
     parser.add_argument(
-        "--output", type=str, default="circa_thresholds.yaml",
-        help="Output path for thresholds YAML (default: circa_thresholds.yaml)",
+        "--output", type=str, default="config/circa_thresholds.yaml",
+        help="Output path for thresholds YAML (default: config/circa_thresholds.yaml)",
     )
     parser.add_argument(
         "--output-dir", type=str, default="docs",

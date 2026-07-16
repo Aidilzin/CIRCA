@@ -170,7 +170,7 @@ def verify_dataset(dataset_root="datasets/unified_pcb_v3"):
 def print_launch_playbook():
     print_banner("Launch Commands Playbook")
     print("Use the following commands to launch experiments inside your RunPod terminal.\n")
-    print("NOTE: If you ran runpod_setup.sh, dataset prep (oversampling + preproc) is already done.\n")
+    print("NOTE: If you ran setup-runpod-environment.sh, dataset prep (oversampling + preproc) is already done.\n")
 
     print("--- Step 0: Weights & Biases Authentication (First Step) ---")
     print("  wandb login <YOUR_WANDB_API_KEY>")

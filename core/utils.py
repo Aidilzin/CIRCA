@@ -114,7 +114,7 @@ def bgr_frame_to_qimage(frame: np.ndarray) -> QImage:
             QImage.Format.Format_RGB888,
         )
         return qimage.copy()
-    except Exception as e:
+    except (cv2.error, ValueError, AttributeError) as e:
         logger.error("bgr_frame_to_qimage: color conversion failed — %s", e)
         # Re-raise to let worker decide how to handle (e.g. drop frame)
         raise ValueError(f"Color conversion failed: {e}") from e
@@ -192,8 +192,9 @@ def enumerate_cameras(
             continue
 
         logger.debug("enumerate_cameras: probing index %d ('%s')...", index, label)
-        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+        cap = None
         try:
+            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
             if cap.isOpened():
                 # Verify the camera actually produces a functional data stream.
                 ret, frame = cap.read()
@@ -235,10 +236,11 @@ def enumerate_cameras(
                 logger.debug("enumerate_cameras: SUCCESS - found valid camera at index %d: '%s'", index, label)
             else:
                 logger.debug("enumerate_cameras: index %d is not opened.", index)
-        except Exception as e:
+        except (cv2.error, ValueError, AttributeError, TypeError, OSError) as e:
             logger.error("enumerate_cameras: exception probing index %d: %s", index, e)
         finally:
-            cap.release()
+            if cap is not None:
+                cap.release()
 
     if not available:
         logger.warning("enumerate_cameras: no valid UVC cameras found.")

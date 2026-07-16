@@ -19,8 +19,8 @@ Architecture: QObject-in-QThread pattern (NOT QThread subclassing).
 Signals emitted:
   new_frame(QImage)                — Live display frame, always emitted.
                                      Blurry: raw frame. Sharp: preprocessed.
-  frame_ready_for_inference(object) — Preprocessed BGR np.ndarray for inference.
-                                     Emitted ONLY for sharp frames (variance >= threshold).
+  frame_ready_for_inference(object) — Preprocessed BGR np.ndarray. Emitted ONLY for sharp frames.
+                                      (Note: Not connected in production static inspection workflow).
   camera_error(str)                — Human-readable error message on disconnect/failure.
                                      Triggers red status dot in StatusFooter (UX).
 
@@ -104,7 +104,8 @@ class CameraWorker(QObject):
     new_frame: pyqtSignal = pyqtSignal(QImage)
 
     # Emitted ONLY for frames where Laplacian variance >= blur_threshold.
-    # InferenceWorker connects to this (via bounded queue or direct signal).
+    # Note: This signal is not connected to the InferenceWorker in the production
+    # static image inspection workflow (where inference is triggered on-demand).
     # Type: np.ndarray — declared as object because PyQt6 does not support
     # numpy array types as registered Qt metatypes.
     frame_ready_for_inference: pyqtSignal = pyqtSignal(object)
@@ -246,8 +247,11 @@ class CameraWorker(QObject):
             # CALIBRATION:
             # Ghost noise (switch off): std ~4.4, mean ~0.14
             # Real dark sensor: std ~2.4, mean ~0.03
-            frame_std = np.std(frame)
-            frame_mean = np.mean(frame)
+            # Fix #3: cv2.meanStdDev performs a single SIMD-optimized pass over the frame
+            # instead of the three-pass overhead of calling np.mean() + np.std() separately.
+            mean_arr, stddev_arr = cv2.meanStdDev(frame)
+            frame_mean = float(mean_arr.mean())
+            frame_std = float(stddev_arr.mean())
             
             # During camera capture active state, we are more lenient than during enumeration
             # because the user has already explicitly selected this camera.
@@ -330,7 +334,7 @@ class CameraWorker(QObject):
         if cap is not None:
             try:
                 cap.release()
-            except Exception as exc:  # pragma: no cover — DirectShow driver bug on disconnect
+            except (cv2.error, AttributeError, TypeError) as exc:  # pragma: no cover — DirectShow driver bug on disconnect
                 logger.debug("CameraWorker: cap.release() raised (driver bug, safe to ignore): %s", exc)
             logger.info("CameraWorker: VideoCapture released on shutdown.")
 

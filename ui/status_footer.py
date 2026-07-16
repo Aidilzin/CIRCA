@@ -78,7 +78,7 @@ class StatusFooter(QWidget):
         row.setContentsMargins(SPACING_MD, 0, SPACING_MD, 0)
         row.setSpacing(SPACING_MD)
 
-        self._camera_indicator = _StatusIndicator("No Device")
+        self._camera_indicator = _StatusIndicator("No Camera")
         self._model_indicator = _StatusIndicator("No Model")
         self._detection_indicator = _StatusIndicator("No data")
 
@@ -87,22 +87,12 @@ class StatusFooter(QWidget):
         row.addWidget(self._detection_indicator)
         row.addStretch(1)
 
-        self._fps_label = QLabel("— fps")
-        self._fps_label.setObjectName("FPSLabel")
-        self._fps_label.setProperty("secondary", "true")
-        fps_font = QFont(FONT_MONO, FONT_SIZE_MONO_LIVE)
-        self._fps_label.setFont(fps_font)
-        self._fps_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-        fm = QFontMetrics(fps_font)
-        self._fps_label.setMinimumWidth(fm.horizontalAdvance("30 fps") + 8)
-
     @pyqtSlot()
-    def set_camera_active(self): self._camera_indicator.set_state(COLOR_STATUS_OK, "Camera Active")
+    def set_camera_active(self): self._camera_indicator.set_state(COLOR_STATUS_OK, "Camera Connected")
     @pyqtSlot(str)
     def set_camera_error(self, msg="Camera Error"): self._camera_indicator.set_state(COLOR_STATUS_ERROR, msg)
     @pyqtSlot()
-    def set_camera_idle(self): self._camera_indicator.set_state(DOT_COLOR_IDLE, "No Device")
+    def set_camera_idle(self): self._camera_indicator.set_state(DOT_COLOR_IDLE, "No Camera")
     @pyqtSlot()
     def set_model_ready(self): self._model_indicator.set_state(COLOR_STATUS_OK, "Model Ready")
     @pyqtSlot()
@@ -119,7 +109,3 @@ class StatusFooter(QWidget):
         if count < 0: self._detection_indicator.set_state(DOT_COLOR_IDLE, "No data")
         elif count == 0: self._detection_indicator.set_state(COLOR_STATUS_OK, "No defects")
         else: self._detection_indicator.set_state(COLOR_ACCENT_CYAN, f"{count} {'defect' if count==1 else 'defects'}")
-
-    @pyqtSlot(float)
-    def set_fps(self, fps: float) -> None:
-        self._fps_label.setText("— fps" if fps < 0 else f"{fps:.0f} fps")

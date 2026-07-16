@@ -33,6 +33,37 @@ from ui.theme import (
 
 logger = logging.getLogger(__name__)
 
+REWORK_DB = {
+    "missing_hole": {
+        "std": "IPC-A-600 §3.4 Drill breakthrough failure",
+        "action": "Inspect drill alignment and validate drill bit clearance."
+    },
+    "mouse_bite": {
+        "std": "IPC-A-600 §3.3 Board edge notching",
+        "action": "File edge smooth; inspect traces for physical break."
+    },
+    "open_circuit": {
+        "std": "IPC-A-600 §3.2 Broken conductor trace",
+        "action": "Bridge trace gap using micro-wire jumper and solder."
+    },
+    "short": {
+        "std": "IPC-A-600 §3.2 Unintended conductor bridge",
+        "action": "Remove solder bridge using copper braid or solder sucker."
+    },
+    "excess_solder": {
+        "std": "IPC-A-610H §5 Solder volume above spec",
+        "action": "Remove excess solder alloy using copper desoldering braid."
+    },
+    "insufficient_solder": {
+        "std": "IPC-A-610H §5 Solder volume below spec",
+        "action": "Apply fresh solder alloy and flux to form a proper fillet."
+    },
+    "cold_solder_joint": {
+        "std": "IPC-A-610H §5 Dull/granular joint",
+        "action": "Reheat joint with fresh flux to reflow into a clean fillet."
+    }
+}
+
 class PulsingCard(QFrame):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -55,12 +86,14 @@ class PulsingCard(QFrame):
         painter.setBrush(QBrush(self._bg_color))
         painter.setPen(QPen(border_color, 1))
         
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 12, 12)
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 6, 6)
         painter.end()
 
 
 class ChecklistItem(QWidget):
     hovered = pyqtSignal(int, bool)
+    clicked = pyqtSignal(int)
+    fp_marked = pyqtSignal(int)
 
     def __init__(self, index: int, box, box_index: int, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -79,7 +112,7 @@ class ChecklistItem(QWidget):
         self.tag_label.setFont(QFont(FONT_MONO, 8, QFont.Weight.Bold))
         
         hex_color = DEFECT_CLASS_COLORS.get(box.class_name, DEFECT_CLASS_COLOR_FALLBACK)
-        # Abbreviate label (e.g. cold_solder_joint -> COLD, missing_hole -> MISSING)
+        # Abbreviate label
         short_code = box.class_name.split("_")[0].upper()
         
         self.tag_label.setText(f" {short_code} ")
@@ -98,6 +131,30 @@ class ChecklistItem(QWidget):
         self.desc_label.setFont(QFont(FONT_UI, 10, QFont.Weight.Medium))
         layout.addWidget(self.desc_label, stretch=1)
 
+        # FP Button (Mark False Positive)
+        self.fp_btn = QPushButton("Mark FP")
+        self.fp_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.fp_btn.setToolTip("Mark as False Positive (exclude from report and save for model training)")
+        self.fp_btn.setFont(QFont(FONT_UI, 8, QFont.Weight.Medium))
+        self.fp_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #27272A;"
+            "  color: #EF4444;"
+            "  border: 1px solid #3F3F46;"
+            "  border-radius: 4px;"
+            "  padding: 2px 6px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #7F1D1D;"
+            "  color: #FCA5A5;"
+            "}"
+        )
+        self.fp_btn.clicked.connect(self._on_fp_clicked)
+        layout.addWidget(self.fp_btn)
+
+    def _on_fp_clicked(self) -> None:
+        self.fp_marked.emit(self._box_index)
+
     def enterEvent(self, event) -> None:  # noqa: N802
         self.hovered.emit(self._box_index, True)
         super().enterEvent(event)
@@ -106,9 +163,17 @@ class ChecklistItem(QWidget):
         self.hovered.emit(self._box_index, False)
         super().leaveEvent(event)
 
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self._box_index)
+        super().mousePressEvent(event)
+
 
 class AnalyticsDashboard(QWidget):
     defect_hovered = pyqtSignal(int)
+    defect_clicked = pyqtSignal(int)
+    fp_marked = pyqtSignal(int)
+    next_board_requested = pyqtSignal()
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -124,6 +189,8 @@ class AnalyticsDashboard(QWidget):
         self._active_avg_conf = 1.0
         self._active_sharpness = 0.0
         self._active_boxes = []
+        self._image_name = "—"
+        self._model_name = "—"
 
         # Advisory pulsing animation setup
         self._pulse_anim = QVariantAnimation(self)
@@ -226,33 +293,7 @@ class AnalyticsDashboard(QWidget):
         self.scroll.setWidget(self.checklist_container)
         layout.addWidget(self.scroll)
 
-        # 5. Session Overview Card
-        layout.addWidget(self._section_header("SESSION DIAGNOSTIC LOG"))
-        
-        self.session_card = QFrame()
-        self.session_card.setObjectName("AnalyticsCard")
-        session_layout = QGridLayout(self.session_card)
-        session_layout.setContentsMargins(12, 12, 12, 12)
-        session_layout.setSpacing(10)
-        
-        session_layout.addWidget(self._stat_label("BOARDS DIAGNOSED"), 0, 0)
-        self.session_diag_val = QLabel("0")
-        self.session_diag_val.setFont(QFont(FONT_MONO, 11, QFont.Weight.Bold))
-        session_layout.addWidget(self.session_diag_val, 0, 1, Qt.AlignmentFlag.AlignRight)
-        
-        session_layout.addWidget(self._stat_label("DEFECTIVE ENCOUNTERED"), 1, 0)
-        self.session_fault_val = QLabel("0")
-        self.session_fault_val.setFont(QFont(FONT_MONO, 11, QFont.Weight.Bold))
-        session_layout.addWidget(self.session_fault_val, 1, 1, Qt.AlignmentFlag.AlignRight)
-        
-        session_layout.addWidget(self._stat_label("INSPECTION STREAM SPEED"), 2, 0)
-        self.fps_val = QLabel("— fps")
-        self.fps_val.setFont(QFont(FONT_MONO, 11, QFont.Weight.Bold))
-        session_layout.addWidget(self.fps_val, 2, 1, Qt.AlignmentFlag.AlignRight)
-        
-        layout.addWidget(self.session_card)
-
-        # 6. Action Buttons
+        # 5. Action Buttons (immediately below checklist)
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
         
@@ -275,6 +316,32 @@ class AnalyticsDashboard(QWidget):
         btn_row.addWidget(self.reset_btn, stretch=1)
         
         layout.addLayout(btn_row)
+
+        # 6. Session Overview Card (moved to bottom)
+        layout.addWidget(self._section_header("SESSION DIAGNOSTIC LOG"))
+        
+        self.session_card = QFrame()
+        self.session_card.setObjectName("AnalyticsCard")
+        session_layout = QGridLayout(self.session_card)
+        session_layout.setContentsMargins(12, 12, 12, 12)
+        session_layout.setSpacing(10)
+        
+        session_layout.addWidget(self._stat_label("BOARDS DIAGNOSED"), 0, 0)
+        self.session_diag_val = QLabel("0")
+        self.session_diag_val.setFont(QFont(FONT_MONO, 11, QFont.Weight.Bold))
+        session_layout.addWidget(self.session_diag_val, 0, 1, Qt.AlignmentFlag.AlignRight)
+        
+        session_layout.addWidget(self._stat_label("DEFECTIVE ENCOUNTERED"), 1, 0)
+        self.session_fault_val = QLabel("0")
+        self.session_fault_val.setFont(QFont(FONT_MONO, 11, QFont.Weight.Bold))
+        session_layout.addWidget(self.session_fault_val, 1, 1, Qt.AlignmentFlag.AlignRight)
+        
+        session_layout.addWidget(self._stat_label("INSPECTION LATENCY"), 2, 0)
+        self.latency_val = QLabel("— ms")
+        self.latency_val.setFont(QFont(FONT_MONO, 11, QFont.Weight.Bold))
+        session_layout.addWidget(self.latency_val, 2, 1, Qt.AlignmentFlag.AlignRight)
+        
+        layout.addWidget(self.session_card)
         layout.addStretch(1)
 
     def _stat_label(self, text):
@@ -295,33 +362,59 @@ class AnalyticsDashboard(QWidget):
 
     @pyqtSlot(object)
     def handle_detections(self, result: DetectionResult):
-        # Update live defect counts
-        self._active_defects = len(result.boxes)
-        self._active_avg_conf = result.average_confidence
-        self._active_boxes = result.boxes
-        
-        # Display active metrics
-        self.faults_val.setText(str(self._active_defects))
-        if self._active_defects > 0:
-            self.faults_val.setStyleSheet(f"color: {COLOR_STATUS_ERROR};")
-            self.conf_val.setText(f"{self._active_avg_conf * 100:.0f}%")
-        else:
-            self.faults_val.setStyleSheet(f"color: {COLOR_STATUS_OK};")
-            self.conf_val.setText("— %")
+        try:
+            # Update live defect counts
+            self._active_defects = len(result.boxes)
+            self._active_avg_conf = result.average_confidence
+            self._active_boxes = result.boxes
+            
+            # Display active metrics
+            self.faults_val.setText(str(self._active_defects))
+            if self._active_defects > 0:
+                self.faults_val.setStyleSheet(f"color: {COLOR_STATUS_ERROR};")
+                self.conf_val.setText(f"{self._active_avg_conf * 100:.0f}%")
+            else:
+                self.faults_val.setStyleSheet(f"color: {COLOR_STATUS_OK};")
+                self.conf_val.setText("— %")
+        except (AttributeError, TypeError, ValueError) as exc:
+            logger.error("Failed to update active metrics: %s", exc, exc_info=True)
+            self.faults_val.setText("Error")
+            self.conf_val.setText("Error")
 
         # Sharpness metric
-        sharpness = getattr(result, "sharpness_variance", -1.0)
-        if sharpness >= 0:
-            self._active_sharpness = sharpness
-            self.sharpness_val.setText(f"{sharpness:.1f}")
-        else:
-            self.sharpness_val.setText("—")
+        try:
+            sharpness = getattr(result, "sharpness_variance", -1.0)
+            if sharpness >= 0:
+                self._active_sharpness = sharpness
+                self.sharpness_val.setText(f"{sharpness:.1f}")
+            else:
+                self.sharpness_val.setText("—")
+        except (AttributeError, TypeError, ValueError) as exc:
+            logger.error("Failed to update sharpness metric: %s", exc, exc_info=True)
+            self.sharpness_val.setText("Error")
 
         # Repopulate Rework Checklist
-        self._repopulate_checklist()
+        try:
+            self._repopulate_checklist()
+        except Exception as exc:
+            logger.error("Failed to repopulate rework checklist: %s", exc, exc_info=True)
+            while self.checklist_layout.count():
+                child = self.checklist_layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
+            err_lbl = QLabel("Checklist unavailable (rendering error)")
+            err_lbl.setFont(QFont(FONT_UI, 10))
+            err_lbl.setStyleSheet("color: #EF4444; font-style: italic; padding: 10px;")
+            self.checklist_layout.addWidget(err_lbl)
 
         # Update Advisory Panel & Animations
-        self._update_advisory_ui()
+        try:
+            self._update_advisory_ui()
+        except Exception as exc:
+            logger.error("Failed to update advisory UI: %s", exc, exc_info=True)
+            self.status_val.setText("ADVISORY ERROR")
+            self.status_val.setStyleSheet("color: #EF4444;")
+            self.status_desc.setText("Rework advice is currently unavailable.")
 
     def _update_advisory_ui(self):
         palette = ThemeManager().get_palette()
@@ -374,11 +467,11 @@ class AnalyticsDashboard(QWidget):
             self.status_card.set_bg_color(QColor(palette["BG_SURFACE"]))
 
     @pyqtSlot(float)
-    def handle_fps(self, fps: float):
-        if fps >= 0:
-            self.fps_val.setText(f"{fps:.1f} fps")
+    def handle_inference_time(self, latency_ms: float):
+        if latency_ms >= 0:
+            self.latency_val.setText(f"{latency_ms:.0f} ms")
         else:
-            self.fps_val.setText("— fps")
+            self.latency_val.setText("— ms")
 
     def _repopulate_checklist(self):
         # Clear checklist layout
@@ -398,6 +491,8 @@ class AnalyticsDashboard(QWidget):
             item = ChecklistItem(i, box, box_index=i-1)
             item.checkbox.stateChanged.connect(self._on_checklist_state_changed)
             item.hovered.connect(self._on_item_hovered)
+            item.clicked.connect(self.defect_clicked.emit)
+            item.fp_marked.connect(self.fp_marked.emit)
             self.checklist_layout.addWidget(item)
 
     def _on_item_hovered(self, idx: int, is_hovered: bool) -> None:
@@ -447,6 +542,7 @@ class AnalyticsDashboard(QWidget):
         self._active_defects = 0
         self._active_avg_conf = 1.0
         self._active_boxes = []
+        self._image_name = "—"
         
         self.faults_val.setText("0")
         self.faults_val.setStyleSheet(f"color: {COLOR_STATUS_OK};")
@@ -460,7 +556,14 @@ class AnalyticsDashboard(QWidget):
         self.status_card.set_bg_color(QColor(palette["BG_SURFACE"]))
         
         self._repopulate_checklist()
+        self.next_board_requested.emit()
         logger.info("Cleared active board view diagnostics.")
+
+    def set_image_name(self, name: str) -> None:
+        self._image_name = name
+
+    def set_model_name(self, name: str) -> None:
+        self._model_name = name
 
     def _on_export_clicked(self):
         # Save inspection ticket
@@ -473,40 +576,74 @@ class AnalyticsDashboard(QWidget):
         if not path:
             return
             
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        device = os.environ.get("CIRCA_DEVICE", "AUTO")
+        latency = self.latency_val.text()
+
+        # Count defects by standard
+        bare_board_count = 0
+        solder_assembly_count = 0
+        for box in self._active_boxes:
+            if box.class_name in ["missing_hole", "mouse_bite", "open_circuit", "short"]:
+                bare_board_count += 1
+            else:
+                solder_assembly_count += 1
+
         try:
             if path.endswith(".csv"):
                 with open(path, "w", newline="") as f:
                     writer = csv.writer(f)
                     writer.writerow(["CIRCA PCB Diagnostics Ticket"])
                     writer.writerow([])
+                    writer.writerow(["Timestamp", timestamp])
+                    writer.writerow(["Inspected Board", self._image_name])
+                    writer.writerow(["Diagnostic Model", self._model_name])
+                    writer.writerow(["Execution Device", device])
+                    writer.writerow(["Inference Latency", latency])
                     writer.writerow(["Active Faults Count", self._active_defects])
                     writer.writerow(["Average Confidence", f"{self._active_avg_conf * 100:.1f}%"])
-                    writer.writerow(["Board Sharpness score", f"{self._active_sharpness:.1f}"])
+                    writer.writerow(["Board Status", "REWORK REQUIRED" if self._active_defects > 0 else "PASSED"])
                     writer.writerow([])
-                    writer.writerow(["Item", "Fault Type", "Confidence"])
+                    writer.writerow(["Item", "Fault Class", "IPC Standard Section", "Confidence", "Rework Directive"])
                     for i, box in enumerate(self._active_boxes, 1):
-                         writer.writerow([i, box.class_name.upper(), f"{box.confidence*100:.0f}%"])
+                         db = REWORK_DB.get(box.class_name, {"std": "Custom Standard", "action": "General inspection required."})
+                         writer.writerow([i, box.class_name.upper(), db["std"], f"{box.confidence*100:.0f}%", db["action"]])
             else:
                 with open(path, "w") as f:
-                    f.write("=========================================\n")
-                    f.write("       CIRCA PCB DIAGNOSTICS TICKET      \n")
-                    f.write("=========================================\n\n")
-                    f.write(f"Active Faults Count : {self._active_defects}\n")
-                    f.write(f"Average Confidence  : {self._active_avg_conf * 100:.1f}%\n")
-                    f.write(f"Board Sharpness     : {self._active_sharpness:.1f}\n\n")
-                    f.write("Detected Fault Rework Checklist:\n")
-                    f.write("-----------------------------------------\n")
+                    f.write("================================================================================\n")
+                    f.write("                               CIRCA PCB DIAGNOSTICS TICKET\n")
+                    f.write("================================================================================\n")
+                    f.write(f"Timestamp           : {timestamp}\n")
+                    f.write(f"Inspected Board     : {self._image_name}\n")
+                    f.write(f"Diagnostic Model    : {self._model_name}\n")
+                    f.write(f"Execution Device    : {device}\n")
+                    f.write(f"Inference Latency   : {latency}\n")
+                    if self._active_defects > 0:
+                        f.write(f"Board Status        : ❌ REWORK REQUIRED ({self._active_defects} defect(s) detected)\n")
+                    else:
+                        f.write("Board Status        : ✅ PASSED (No surface defects detected)\n")
+                    f.write("\n[ DEFECT BREAKDOWN ]\n")
+                    f.write(f"IPC-A-600 (Bare-Board) Defects      : {bare_board_count}\n")
+                    f.write(f"IPC-A-610H (Solder Assembly) Defects: {solder_assembly_count}\n")
+                    f.write("\n[ DETECTED REWORK CHECKLIST ]\n")
+                    f.write("--------------------------------------------------------------------------------\n")
                     if self._active_boxes:
                         for i, box in enumerate(self._active_boxes, 1):
-                            name = box.class_name.replace("_", " ").upper()
+                            name = box.class_name.upper()
                             pct = int(box.confidence * 100)
-                            f.write(f"[ ] {i}. {name} (Conf: {pct}%)\n")
+                            db = REWORK_DB.get(box.class_name, {"std": "General Quality Concern", "action": "Inspect visually and repair manually."})
+                            f.write(f"[ ] {i}. {name} (Confidence: {pct}%)\n")
+                            f.write(f"    - Reference Standard: {db['std']}\n")
+                            f.write(f"    - Action Required   : {db['action']}\n\n")
                     else:
-                        f.write("No surface defects detected.\n")
-                    f.write("\n=========================================\n")
+                        f.write("No surface defects detected. Fillets and conductor lines conform to standard specifications.\n")
+                    f.write("================================================================================\n")
+                    f.write("                     Universiti Teknologi MARA — CIRCA FYP                      \n")
+                    f.write("================================================================================\n")
             logger.info("Diagnostics ticket exported successfully to %s", path)
-        except Exception as exc:
-            logger.error("Failed to export diagnostics ticket: %s", exc)
+        except OSError as exc:
+            logger.error("Failed to export diagnostics ticket: %s", exc, exc_info=True)
 
     def _update_stats_ui(self):
         self.session_diag_val.setText(str(self._diagnosed_count))
