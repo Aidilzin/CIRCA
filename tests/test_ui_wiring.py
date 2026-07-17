@@ -107,3 +107,33 @@ def test_navigation_sidebar_and_settings_state(main_window):
     assert not main_window.top_capture_btn._active
 
 
+def test_auto_optimise_sliders_behavior(main_window):
+    # Retrieve widgets
+    side = main_window.side_panel
+    assert side.auto_opt_check.isChecked()
+
+    # 1. By default, auto-optimise is true, so sliders should be disabled
+    assert not side.clahe_slider.isEnabled()
+    assert not side.gamma_slider.isEnabled()
+    assert not side.clahe_slider._slider.isEnabled()
+    assert not side.gamma_slider._slider.isEnabled()
+
+    # 2. Toggle Auto-Optimise to False (Manual override state)
+    side.auto_opt_check.setChecked(False)
+    assert not side.auto_opt_check.isChecked()
+    assert side.clahe_slider.isEnabled()
+    assert side.gamma_slider.isEnabled()
+    assert side.clahe_slider._slider.isEnabled()
+    assert side.gamma_slider._slider.isEnabled()
+
+    # 3. Toggle Auto-Optimise back to True
+    side.auto_opt_check.setChecked(True)
+    assert side.auto_opt_check.isChecked()
+    assert not side.clahe_slider.isEnabled()
+    assert not side.gamma_slider.isEnabled()
+    assert not side.clahe_slider._slider.isEnabled()
+    assert not side.gamma_slider._slider.isEnabled()
+
+
+
+

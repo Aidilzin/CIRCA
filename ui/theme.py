@@ -96,6 +96,7 @@ ICONS_SVG = {
     "refresh": _SVG_TEMPLATE.format(color="{color}", path='<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M16 3h5v5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 21H3v-5"/>'),
     "export": _SVG_TEMPLATE.format(color="{color}", path='<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
     "log": _SVG_TEMPLATE.format(color="{color}", path='<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
+    "book": _SVG_TEMPLATE.format(color="{color}", path='<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/>'),
     "info": _SVG_TEMPLATE.format(color="{color}", path='<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
     "cpu": _SVG_TEMPLATE.format(color="{color}", path='<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 15h3"/><path d="M1 9h3"/><path d="M1 15h3"/>'),
     "terminal": _SVG_TEMPLATE.format(color="{color}", path='<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>'),
@@ -340,6 +341,14 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
 
     QLabel {{ background: transparent; color: {p['TEXT_PRIMARY']}; }}
     QLabel[secondary="true"] {{ color: {p['TEXT_SECONDARY']}; }}
+    QLabel:disabled {{ color: {p['TEXT_DISABLED']}; }}
+
+    #PreprocessingValueLabel {{
+        color: {COLOR_ACCENT_CYAN};
+    }}
+    #PreprocessingValueLabel:disabled {{
+        color: {p['TEXT_DISABLED']};
+    }}
 
     QSlider::groove:horizontal {{
         background: {p['BG_ELEVATED']};
@@ -357,9 +366,15 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
     QSlider::handle:horizontal:hover {{
         background: {p['TEXT_PRIMARY']};
     }}
+    QSlider::handle:horizontal:disabled {{
+        background: {p['TEXT_DISABLED']};
+    }}
     QSlider::sub-page:horizontal {{
         background: {COLOR_ACCENT_BLUE};
         border-radius: 3px;
+    }}
+    QSlider::sub-page:horizontal:disabled {{
+        background: {p['TEXT_DISABLED']};
     }}
 
     QComboBox {{
@@ -529,19 +544,20 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         text-align: center;
     }}
     
-    QFrame#NavButton {{
+    #NavButton {{
         background: transparent;
+        background-color: transparent;
         border: none;
         border-left: 3px solid transparent;
         border-radius: 4px;
         margin: 0px 2px;
     }}
     
-    QFrame#NavButton:hover {{
+    #NavButton:hover {{
         background-color: rgba(255, 255, 255, 0.03);
     }}
     
-    QFrame#NavButton[active="true"] {{
+    #NavButton[active="true"] {{
         border-left: 3px solid #00D2FF;
         background-color: rgba(0, 210, 255, 0.08);
     }}
@@ -552,7 +568,7 @@ def build_qss(mode: ThemeMode = ThemeMode.DARK) -> str:
         font-weight: 500;
     }}
     
-    QFrame#NavButton[active="true"] QLabel#NavButtonText {{
+    #NavButton[active="true"] QLabel#NavButtonText {{
         color: {p['TEXT_PRIMARY']};
         font-weight: bold;
     }}

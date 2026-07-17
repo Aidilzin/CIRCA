@@ -279,6 +279,12 @@ class MainWindow(QMainWindow):
         # Divider between Output Logs and Interface Config
         nav_layout.addWidget(create_divider())
 
+        # Action Button: Defect Glossary
+        self.top_glossary_btn = create_icon_button("book", "View Defect Classification Glossary", "Glossary")
+        self.top_glossary_btn.setObjectName("TopGlossaryButton")
+        self.top_glossary_btn.setProperty("active", "false")
+        nav_layout.addWidget(self.top_glossary_btn)
+
         # Action Button: Help Onboarding
         self.top_help_btn = create_icon_button("info", "Quick Onboarding Guide & Help", "Help")
         self.top_help_btn.setObjectName("TopHelpButton")
@@ -351,8 +357,8 @@ class MainWindow(QMainWindow):
         self.top_reanalyze_btn.clicked.connect(lambda: self._set_active_nav_button(self.top_reanalyze_btn))
         self.top_help_btn.clicked.connect(self._show_onboarding_guide)
         self.top_help_btn.clicked.connect(lambda: self._set_active_nav_button(self.top_help_btn))
-        self.top_settings_btn.clicked.connect(self.side_panel.toggle)
-        self.top_settings_btn.clicked.connect(lambda: self._set_active_nav_button(self.top_settings_btn))
+        self.top_settings_btn.clicked.connect(lambda: self.side_panel.set_tab("optimization"))
+        self.top_glossary_btn.clicked.connect(lambda: self.side_panel.set_tab("glossary"))
         self.top_export_btn.clicked.connect(self.analytics_dashboard._on_export_clicked)
         self.top_export_btn.clicked.connect(lambda: self._set_active_nav_button(self.top_export_btn))
 
@@ -481,6 +487,21 @@ class MainWindow(QMainWindow):
         Runs PCB guard, then dispatches to inference worker."""
         if not isinstance(bgr_frame, np.ndarray) or bgr_frame.size == 0:
             return
+
+        # Cap maximum resolution to prevent CPU resource starvation on huge images (e.g. DSLR)
+        MAX_DIM = 2000
+        h, w = bgr_frame.shape[:2]
+        if max(h, w) > MAX_DIM:
+            scale = MAX_DIM / max(h, w)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            resized_frame = cv2.resize(bgr_frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            logger.info("MainWindow: Resized huge loaded image from %dx%d to %dx%d (scale=%.2f) to prevent CPU resource lockup.", w, h, new_w, new_h, scale)
+            # Re-load the resized frame in inspect_widget so display matches coordinates
+            self.inspect_widget.blockSignals(True)
+            self.inspect_widget.load_image_from_array(resized_frame)
+            self.inspect_widget.blockSignals(False)
+            bgr_frame = resized_frame
 
         ok, reason = is_likely_pcb(bgr_frame)
         if not ok:
@@ -801,21 +822,30 @@ class MainWindow(QMainWindow):
         self.status_footer.set_model_ready()
         
         if avg_latency_ms < 12.0:
-            recommended_substring = "Medium (FP16)"
+            recommended_word = "Medium"
             tier_name = "High-End (GPU)"
         elif avg_latency_ms < 28.0:
-            recommended_substring = "Small (FP16)"
+            recommended_word = "Small"
             tier_name = "Mid-Range (GPU/CPU)"
         else:
-            recommended_substring = "Nano (FP16"
+            recommended_word = "Nano"
             tier_name = "Budget/CPU-Only"
 
         matched_idx = -1
+        # First preference: Try to find a Tuned or Production model matching the recommended size class
         for i in range(self.side_panel.model_combo.count()):
             text = self.side_panel.model_combo.itemText(i)
-            if recommended_substring in text:
+            if recommended_word in text and ("Tuned" in text or "Production" in text):
                 matched_idx = i
                 break
+
+        # Second preference: Find any model matching the recommended size class
+        if matched_idx == -1:
+            for i in range(self.side_panel.model_combo.count()):
+                text = self.side_panel.model_combo.itemText(i)
+                if recommended_word in text:
+                    matched_idx = i
+                    break
 
         if matched_idx >= 0:
             if self.side_panel.model_combo.currentIndex() == matched_idx:
@@ -829,18 +859,21 @@ class MainWindow(QMainWindow):
             self.status_footer.set_status_text(f"Auto-selected {model_name} ({avg_latency_ms:.1f}ms - {tier_name})")
             QTimer.singleShot(4000, lambda: self.status_footer.set_model_ready())
         else:
-            logger.warning("Could not find matching dropdown item for recommended model: %s", recommended_substring)
+            logger.warning("Could not find matching dropdown item for recommended model: %s", recommended_word)
 
     def _set_active_nav_button(self, active_btn: NavButton):
         for btn in [self.top_load_btn, self.top_capture_btn, self.top_reanalyze_btn, 
-                    self.top_export_btn, self.top_help_btn, self.top_settings_btn]:
+                    self.top_export_btn, self.top_help_btn, self.top_settings_btn, self.top_glossary_btn]:
             is_active = btn == active_btn
             btn.set_active(is_active)
 
     @pyqtSlot(bool, str)
     def _on_side_panel_toggled(self, expanded: bool, key: str):
         if expanded:
-            self._set_active_nav_button(self.top_settings_btn)
+            if key == "glossary":
+                self._set_active_nav_button(self.top_glossary_btn)
+            else:
+                self._set_active_nav_button(self.top_settings_btn)
         else:
             self._set_active_nav_button(None)
 

@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
     QWidget,
     QFrame,
+    QScrollArea,
 )
 from ui.theme import FONT_UI, FONT_MONO, COLOR_ACCENT_CYAN, ThemeManager
 
@@ -80,17 +81,16 @@ class HelpDialog(QDialog):
 
         # Stacked Pages
         self.stack = QStackedWidget()
-        
-        # Page 1: Overview
+               # Page 1: Overview
         p1 = QWidget()
         p1_lay = QVBoxLayout(p1)
         p1_lay.setContentsMargins(0, 0, 0, 0)
         p1_lay.setSpacing(12)
         desc1 = QLabel(
-            "Welcome to CIRCA, your intelligent decision-support assistant for printed circuit board (PCB) diagnostics and rework.\n\n"
+            "Welcome to CIRCA, your intelligent decision-support assistant for printed circuit board (PCB) diagnostics and repairs.\n\n"
             "The workspace uses a split-screen design:\n"
             "• Left Pane: High-resolution static image inspection workspace.\n"
-            "• Right Pane: Dynamic advisory card, statistics, and rework checklist.\n\n"
+            "• Right Pane: Dynamic advisory card, statistics, and repair checklist.\n\n"
             "This layout keeps critical inspection results and log diagnostics visible simultaneously."
         )
         desc1.setWordWrap(True)
@@ -99,7 +99,7 @@ class HelpDialog(QDialog):
         p1_lay.addWidget(desc1)
         p1_lay.addStretch(1)
         self.stack.addWidget(p1)
-
+ 
         # Page 2: HUD & Viewport
         p2 = QWidget()
         p2_lay = QVBoxLayout(p2)
@@ -118,18 +118,18 @@ class HelpDialog(QDialog):
         p2_lay.addWidget(desc2)
         p2_lay.addStretch(1)
         self.stack.addWidget(p2)
-
-        # Page 3: Rework Checklist
+ 
+        # Page 3: Repair Checklist
         p3 = QWidget()
         p3_lay = QVBoxLayout(p3)
         p3_lay.setContentsMargins(0, 0, 0, 0)
         p3_lay.setSpacing(12)
         desc3 = QLabel(
             "Managing & Repairing defects is simple:\n"
-            "• The Rework Checklist logs active board faults sequentially.\n"
+            "• The Repair Checklist logs active board faults sequentially.\n"
             "• Hovering over checklist items highlights the defect's exact location on the image with a thick glowing border.\n"
             "• Each fault includes an accessibility pill (e.g. [COLD] or [SHORT]) pairing text with color to support color-blind operators.\n"
-            "• Log repairs by checking them off or clicking 'Log Rework Done'."
+            "• Log repairs by checking them off or clicking 'Log Repairs Done'."
         )
         desc3.setWordWrap(True)
         desc3.setFont(QFont(FONT_UI, 11))
@@ -155,6 +155,47 @@ class HelpDialog(QDialog):
         p4_lay.addWidget(desc4)
         p4_lay.addStretch(1)
         self.stack.addWidget(p4)
+
+        # Page 5: Defect Glossary
+        p5 = QWidget()
+        p5_lay = QVBoxLayout(p5)
+        p5_lay.setContentsMargins(0, 0, 0, 0)
+        p5_lay.setSpacing(8)
+        
+        glossary_title = QLabel("Defect Glossary / Dictionary:")
+        glossary_title.setFont(QFont(FONT_UI, 11, QFont.Weight.Bold))
+        p5_lay.addWidget(glossary_title)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("background: transparent; border: none;")
+        
+        scroll_content = QWidget()
+        scroll_lay = QVBoxLayout(scroll_content)
+        scroll_lay.setContentsMargins(0, 0, 0, 0)
+        scroll_lay.setSpacing(10)
+        
+        defects = [
+            ("Missing Hole", "A required drill hole is absent. Typically a drilling toolpath or process fault."),
+            ("Mouse Bite", "An edge erosion on a copper trace. Decreases trace cross-section and changes impedance."),
+            ("Open Circuit", "A physical break/cut in a copper trace that completely cuts off electrical signal flow."),
+            ("Short Circuit", "An accidental solder/copper bridge between traces, causing current leakage or short."),
+            ("Excess Solder", "Too much solder deposited, risking solder bridges and masking structural faults."),
+            ("Insufficient Solder", "Too little solder deposited, causing mechanically weak joints prone to cracking."),
+            ("Cold Solder Joint", "Granular, dull joint due to inadequate melting or quick cooling; poor electrical connection.")
+        ]
+        
+        for title, desc in defects:
+            item_lbl = QLabel(f"• <b>{title}</b>: {desc}")
+            item_lbl.setWordWrap(True)
+            item_lbl.setFont(QFont(FONT_UI, 10))
+            item_lbl.setProperty("secondary", "true")
+            scroll_lay.addWidget(item_lbl)
+            
+        scroll_lay.addStretch(1)
+        scroll.setWidget(scroll_content)
+        p5_lay.addWidget(scroll)
+        self.stack.addWidget(p5)
 
         layout.addWidget(self.stack, stretch=1)
 

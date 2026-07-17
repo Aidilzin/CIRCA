@@ -98,21 +98,28 @@ class ChecklistItem(QWidget):
     def __init__(self, index: int, box, box_index: int, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._box_index = box_index
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 4, 0, 4)
-        layout.setSpacing(8)
+
+        # Main Layout (Vertical)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(4)
+
+        # Header Row Widget
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 4, 0, 4)
+        header_layout.setSpacing(8)
 
         # Checkbox
         self.checkbox = QCheckBox(f"{index}.")
         self.checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
-        layout.addWidget(self.checkbox)
+        header_layout.addWidget(self.checkbox)
 
         # Colored pill label for accessibility (color + text label)
         self.tag_label = QLabel()
         self.tag_label.setFont(QFont(FONT_MONO, 8, QFont.Weight.Bold))
         
         hex_color = DEFECT_CLASS_COLORS.get(box.class_name, DEFECT_CLASS_COLOR_FALLBACK)
-        # Abbreviate label
         short_code = box.class_name.split("_")[0].upper()
         
         self.tag_label.setText(f" {short_code} ")
@@ -122,14 +129,14 @@ class ChecklistItem(QWidget):
             f"border-radius: 4px; "
             f"padding: 2px 6px;"
         )
-        layout.addWidget(self.tag_label)
+        header_layout.addWidget(self.tag_label)
 
         # Full description text
         desc = box.class_name.replace("_", " ").upper()
         pct = int(box.confidence * 100)
         self.desc_label = QLabel(f"{desc} ({pct}%)")
         self.desc_label.setFont(QFont(FONT_UI, 10, QFont.Weight.Medium))
-        layout.addWidget(self.desc_label, stretch=1)
+        header_layout.addWidget(self.desc_label, stretch=1)
 
         # FP Button (Mark False Positive)
         self.fp_btn = QPushButton("Mark FP")
@@ -150,7 +157,40 @@ class ChecklistItem(QWidget):
             "}"
         )
         self.fp_btn.clicked.connect(self._on_fp_clicked)
-        layout.addWidget(self.fp_btn)
+        header_layout.addWidget(self.fp_btn)
+
+        main_layout.addWidget(header_widget)
+
+        # Expandable defect description label (Plain English Glossary info)
+        GLOSSARY_DESCS = {
+            "missing_hole": "A required drill hole is absent. Typically a drilling toolpath or process fault.",
+            "mouse_bite": "An edge erosion on a copper trace. Decreases trace cross-section and changes impedance.",
+            "open_circuit": "A physical break/cut in a copper trace that completely cuts off electrical signal flow.",
+            "short": "An accidental solder/copper bridge between traces, causing current leakage or short.",
+            "excess_solder": "Too much solder deposited, risking solder bridges and masking structural faults.",
+            "insufficient_solder": "Too little solder deposited, causing mechanically weak joints prone to cracking.",
+            "cold_solder_joint": "Granular, dull joint due to inadequate melting or quick cooling; poor electrical connection."
+        }
+        
+        desc_text = GLOSSARY_DESCS.get(box.class_name, "No explanation available.")
+        self.exp_label = QLabel(f"ℹ️ {desc_text}")
+        self.exp_label.setWordWrap(True)
+        self.exp_label.setFont(QFont(FONT_UI, 9))
+        self.exp_label.setStyleSheet(
+            "QLabel {"
+            "  color: #94A3B8;"
+            "  background-color: #1E293B;"
+            "  border-left: 2px solid #00D2FF;"
+            "  border-radius: 4px;"
+            "  padding: 6px 10px;"
+            "  margin-left: 24px;"
+            "}"
+        )
+        self.exp_label.setVisible(False)
+        main_layout.addWidget(self.exp_label)
+
+    def toggle_expansion(self) -> None:
+        self.exp_label.setVisible(not self.exp_label.isVisible())
 
     def _on_fp_clicked(self) -> None:
         self.fp_marked.emit(self._box_index)
@@ -165,6 +205,7 @@ class ChecklistItem(QWidget):
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
+            self.toggle_expansion()
             self.clicked.emit(self._box_index)
         super().mousePressEvent(event)
 
@@ -206,7 +247,7 @@ class AnalyticsDashboard(QWidget):
         layout.setSpacing(16)
 
         # 1. Header
-        header = QLabel("PCB DIAGNOSTICS & REWORK STATION")
+        header = QLabel("PCB DIAGNOSTICS & REPAIR STATION")
         header.setObjectName("AnalyticsHeader")
         header.setFont(QFont(FONT_UI, 10, QFont.Weight.Bold))
         layout.addWidget(header)
@@ -276,7 +317,7 @@ class AnalyticsDashboard(QWidget):
         layout.addWidget(metrics_grid_widget)
 
         # 4. Rework Checklist (Interactive Task Checklist)
-        layout.addWidget(self._section_header("REWORK CHECKLIST"))
+        layout.addWidget(self._section_header("DEFECT CHECKLIST"))
         
         self.scroll = QScrollArea()
         self.scroll.setObjectName("AnalyticsScroll")
@@ -297,7 +338,7 @@ class AnalyticsDashboard(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
         
-        self.commit_btn = QPushButton("Log Rework Done")
+        self.commit_btn = QPushButton("Log Repairs Done")
         self.commit_btn.setObjectName("CommitReworkButton")
         self.commit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.commit_btn.clicked.connect(self._on_commit_clicked)
@@ -414,7 +455,7 @@ class AnalyticsDashboard(QWidget):
             logger.error("Failed to update advisory UI: %s", exc, exc_info=True)
             self.status_val.setText("ADVISORY ERROR")
             self.status_val.setStyleSheet("color: #EF4444;")
-            self.status_desc.setText("Rework advice is currently unavailable.")
+            self.status_desc.setText("Repair advice is currently unavailable.")
 
     def _update_advisory_ui(self):
         palette = ThemeManager().get_palette()
@@ -435,7 +476,7 @@ class AnalyticsDashboard(QWidget):
                 )
             else:
                 base_color = QColor(244, 67, 54) # Red
-                self.status_val.setText("REWORK REQUIRED")
+                self.status_val.setText("REPAIR REQUIRED")
                 self.status_val.setStyleSheet("color: #F44336;")
                 
                 # List dominant defect
@@ -511,9 +552,9 @@ class AnalyticsDashboard(QWidget):
         # Set background to success green
         success_color = QColor(76, 175, 80, 80) # Soft success green
         self.status_card.set_bg_color(success_color)
-        self.status_val.setText("REWORK LOGGED")
+        self.status_val.setText("REPAIR LOGGED")
         self.status_val.setStyleSheet("color: #4CAF50;")
-        self.status_desc.setText("Rework recorded successfully in system diagnostic database.")
+        self.status_desc.setText("Repairs recorded successfully in system diagnostic database.")
 
         # Revert back after 1.0 seconds
         QTimer.singleShot(1000, self._restore_advisory_state)
@@ -527,7 +568,7 @@ class AnalyticsDashboard(QWidget):
         if self._active_defects > 0:
             self._faulty_count += 1
             self._rework_logged_count += 1
-            logger.info("Rework logged successfully for board with %d defects.", self._active_defects)
+            logger.info("Repairs logged successfully for board with %d defects.", self._active_defects)
             # Flash the success green confirmation
             self._flash_success()
         else:
@@ -603,9 +644,9 @@ class AnalyticsDashboard(QWidget):
                     writer.writerow(["Inference Latency", latency])
                     writer.writerow(["Active Faults Count", self._active_defects])
                     writer.writerow(["Average Confidence", f"{self._active_avg_conf * 100:.1f}%"])
-                    writer.writerow(["Board Status", "REWORK REQUIRED" if self._active_defects > 0 else "PASSED"])
+                    writer.writerow(["Board Status", "REPAIR REQUIRED" if self._active_defects > 0 else "PASSED"])
                     writer.writerow([])
-                    writer.writerow(["Item", "Fault Class", "IPC Standard Section", "Confidence", "Rework Directive"])
+                    writer.writerow(["Item", "Fault Class", "IPC Standard Section", "Confidence", "Repair Action"])
                     for i, box in enumerate(self._active_boxes, 1):
                          db = REWORK_DB.get(box.class_name, {"std": "Custom Standard", "action": "General inspection required."})
                          writer.writerow([i, box.class_name.upper(), db["std"], f"{box.confidence*100:.0f}%", db["action"]])
@@ -620,13 +661,13 @@ class AnalyticsDashboard(QWidget):
                     f.write(f"Execution Device    : {device}\n")
                     f.write(f"Inference Latency   : {latency}\n")
                     if self._active_defects > 0:
-                        f.write(f"Board Status        : ❌ REWORK REQUIRED ({self._active_defects} defect(s) detected)\n")
+                        f.write(f"Board Status        : ❌ REPAIR REQUIRED ({self._active_defects} defect(s) detected)\n")
                     else:
                         f.write("Board Status        : ✅ PASSED (No surface defects detected)\n")
                     f.write("\n[ DEFECT BREAKDOWN ]\n")
                     f.write(f"IPC-A-600 (Bare-Board) Defects      : {bare_board_count}\n")
                     f.write(f"IPC-A-610H (Solder Assembly) Defects: {solder_assembly_count}\n")
-                    f.write("\n[ DETECTED REWORK CHECKLIST ]\n")
+                    f.write("\n[ DETECTED REPAIR CHECKLIST ]\n")
                     f.write("--------------------------------------------------------------------------------\n")
                     if self._active_boxes:
                         for i, box in enumerate(self._active_boxes, 1):

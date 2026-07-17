@@ -13,11 +13,11 @@
 
 | Metric | Value |
 |:--|--:|
-| mAP@0.5 | **62.79%** |
-| mAP@0.5:0.95 | **38.34%** |
-| Precision | 85.70% |
-| Recall | 60.59% |
-| F1-Score | 70.99% |
+| mAP@0.5 | **65.47%** |
+| mAP@0.5:0.95 | **41.52%** |
+| Precision | 86.61% |
+| Recall | 64.12% |
+| F1-Score | 73.69% |
 | Acceptance Criterion (mAP@0.5 > 90%) | ❌ FAIL |
 
 ## Per-Class Precision, Recall, F1, AP@0.5 on Test Split
@@ -26,20 +26,20 @@
 
 | Class | IPC Reference | Precision (%) | Recall (%) | F1 (%) | AP@0.5 (%) |
 |:--|:--|--:|--:|--:|--:|
-| `missing_hole` | IPC-A-600 | 100.00 | 0.00 | 0.00 | 0.65 |
-| `mouse_bite` | IPC-A-600 | 79.01 | 53.88 | 64.07 | 25.51 |
-| `open_circuit` | IPC-A-600 | 83.57 | 63.97 | 72.47 | 35.97 |
-| `short` | IPC-A-600 | 89.46 | 79.77 | 84.34 | 51.44 |
-| `excess_solder` | IPC-A-610H | 65.36 | 49.37 | 56.25 | 32.98 |
-| `insufficient_solder` | IPC-A-610H | 91.54 | 91.44 | 91.49 | 50.29 |
-| `cold_solder_joint` | IPC-A-610H | 90.97 | 85.71 | 88.26 | 71.52 |
+| `missing_hole` | IPC-A-600 | 100.00 | 0.00 | 0.00 | 0.70 |
+| `mouse_bite` | IPC-A-600 | 82.87 | 61.41 | 70.54 | 29.30 |
+| `open_circuit` | IPC-A-600 | 81.58 | 67.42 | 73.82 | 39.08 |
+| `short` | IPC-A-600 | 90.81 | 87.84 | 89.30 | 56.70 |
+| `excess_solder` | IPC-A-610H | 63.45 | 52.74 | 57.60 | 38.20 |
+| `insufficient_solder` | IPC-A-610H | 90.73 | 91.96 | 91.34 | 52.63 |
+| `cold_solder_joint` | IPC-A-610H | 96.82 | 87.50 | 91.92 | 74.06 |
 
 **Table: IPC Group Averages**
 
 | IPC Group | Avg Precision (%) | Avg Recall (%) | Avg F1 (%) |
 |:--|--:|--:|--:|
-| IPC-A-600 (Bare-board) | 88.01 | 49.40 | 55.22 |
-| IPC-A-610H (Solder) | 82.62 | 75.51 | 78.67 |
+| IPC-A-600 (Bare-board) | 88.81 | 54.17 | 58.42 |
+| IPC-A-610H (Solder) | 83.67 | 77.40 | 80.29 |
 
 ---
 

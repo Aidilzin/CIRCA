@@ -99,7 +99,7 @@ def test_analytics_dashboard_advisory_fallback(qapp):
         dashboard.handle_detections(res)
         
         assert dashboard.status_val.text() == "ADVISORY ERROR"
-        assert "Rework advice is currently unavailable" in dashboard.status_desc.text()
+        assert "Repair advice is currently unavailable" in dashboard.status_desc.text()
 
 def test_inference_worker_load_model_exception(qapp):
     worker = InferenceWorker()

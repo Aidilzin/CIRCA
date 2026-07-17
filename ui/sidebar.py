@@ -29,7 +29,8 @@ from PyQt6.QtWidgets import (
     QWidget,
     QTabWidget,
     QCheckBox,
-    QFrame
+    QFrame,
+    QScrollArea
 )
 
 from core.models import InferenceParams, PreprocessParams
@@ -64,7 +65,7 @@ class IconWidget(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         palette = ThemeManager().get_palette()
-        color = palette["TEXT_SECONDARY"]
+        color = palette["TEXT_DISABLED"] if not self.isEnabled() else palette["TEXT_SECONDARY"]
         svg_xml = ICONS_SVG.get(self._icon_name, "").format(color=color)
         if svg_xml:
             self._renderer.load(svg_xml.encode('utf-8'))
@@ -94,8 +95,8 @@ class PreprocessingSlider(QWidget):
         header.addWidget(self._name_label, stretch=1)
 
         self._value_label = QLabel()
+        self._value_label.setObjectName("PreprocessingValueLabel")
         self._value_label.setFont(QFont(FONT_MONO, FONT_SIZE_MONO_LIVE))
-        self._value_label.setStyleSheet(f"color: {COLOR_ACCENT_CYAN};")
         header.addWidget(self._value_label)
         root.addLayout(header)
 
@@ -105,6 +106,14 @@ class PreprocessingSlider(QWidget):
         self._slider.setValue(int(default_val * self._scale))
         root.addWidget(self._slider)
         self._refresh_label()
+
+    def setEnabled(self, enabled: bool):
+        super().setEnabled(enabled)
+        self._slider.setEnabled(enabled)
+        self._value_label.setEnabled(enabled)
+        self._name_label.setEnabled(enabled)
+        self._icon.setEnabled(enabled)
+        self.update()
 
     def value(self):
         return self._slider.value() / self._scale
@@ -327,8 +336,70 @@ class SidePanel(QWidget):
 
         pl.addStretch(1)
 
+        # Glossary Page
+        glossary_page = QWidget()
+        gl = QVBoxLayout(glossary_page)
+        gl.setContentsMargins(0, 0, 0, 0)
+        gl.setSpacing(SPACING_MD)
+
+        glossary_card = QFrame()
+        glossary_card.setObjectName("SidebarGroupCard")
+        g_lay = QVBoxLayout(glossary_card)
+        g_lay.setContentsMargins(12, 10, 12, 12)
+        g_lay.setSpacing(10)
+        g_lay.addWidget(self._section_header("DEFECT GLOSSARY"))
+
+        # Scroll area for defect list
+        g_scroll = QScrollArea()
+        g_scroll.setWidgetResizable(True)
+        g_scroll.setStyleSheet("background: transparent; border: none;")
+        
+        g_scroll_content = QWidget()
+        g_scroll_lay = QVBoxLayout(g_scroll_content)
+        g_scroll_lay.setContentsMargins(0, 0, 0, 0)
+        g_scroll_lay.setSpacing(12)
+
+        palette = ThemeManager().get_palette()
+        defects_info = [
+            ("Missing Hole", "A required drill hole is absent. Typically a drilling toolpath or process fault."),
+            ("Mouse Bite", "An edge erosion on a copper trace. Decreases trace cross-section and changes impedance."),
+            ("Open Circuit", "A physical break/cut in a copper trace that completely cuts off electrical signal flow."),
+            ("Short Circuit", "An accidental solder/copper bridge between traces, causing current leakage or short."),
+            ("Excess Solder", "Too much solder deposited, risking solder bridges and masking structural faults."),
+            ("Insufficient Solder", "Too little solder deposited, causing mechanically weak joints prone to cracking."),
+            ("Cold Solder", "Granular, dull joint due to inadequate melting or quick cooling; poor electrical connection.")
+        ]
+
+        for title, desc in defects_info:
+            item_frame = QFrame()
+            item_frame.setStyleSheet(f"border-bottom: 1px solid {palette['BORDER']}44; padding-bottom: 6px;")
+            if title == defects_info[-1][0]:
+                item_frame.setStyleSheet("border: none; padding-bottom: 0px;")
+            item_lay = QVBoxLayout(item_frame)
+            item_lay.setContentsMargins(0, 0, 0, 0)
+            item_lay.setSpacing(2)
+            
+            title_lbl = QLabel(title)
+            title_lbl.setFont(QFont(FONT_UI, 10, QFont.Weight.Bold))
+            title_lbl.setStyleSheet(f"color: {COLOR_ACCENT_CYAN};")
+            
+            desc_lbl = QLabel(desc)
+            desc_lbl.setWordWrap(True)
+            desc_lbl.setFont(QFont(FONT_UI, 9))
+            desc_lbl.setProperty("secondary", "true")
+            
+            item_lay.addWidget(title_lbl)
+            item_lay.addWidget(desc_lbl)
+            g_scroll_lay.addWidget(item_frame)
+
+        g_scroll_lay.addStretch(1)
+        g_scroll.setWidget(g_scroll_content)
+        g_lay.addWidget(g_scroll)
+        gl.addWidget(glossary_card)
+
         self.stack.addTab(opt_page, "Inference Options")
         self.stack.addTab(prefs_page, "Preferences")
+        self.stack.addTab(glossary_page, "Glossary")
         self.root_layout.addWidget(self.stack)
 
     def _setup_animations(self):
@@ -356,12 +427,24 @@ class SidePanel(QWidget):
         self.reset_onboarding_requested.emit()
 
     def set_tab(self, key: str):
-        idx = 0 if key == "optimization" else 1
+        if key == "optimization":
+            idx = 0
+        elif key == "preferences" or key == "prefs":
+            idx = 1
+        elif key == "glossary":
+            idx = 2
+        else:
+            idx = 0
+
         if self._expanded and self.stack.currentIndex() == idx:
             self.toggle()
         else:
             self.stack.setCurrentIndex(idx)
-            self.segmented_control.set_index(idx, animate=False)
+            if idx <= 1:
+                self.segmented_control.set_index(idx, animate=False)
+                self.segmented_control.show()
+            else:
+                self.segmented_control.hide()
             self.title_label.setText(key.upper() if key != "prefs" else "SETTINGS")
             if not self._expanded:
                 self.toggle()
@@ -415,23 +498,54 @@ class SidePanel(QWidget):
     def _populate_models(self):
         import os
         candidates = [
-            ("YOLOv12-Nano (FP16 - Production)", "models/yolov12_int8.xml"),
-            ("YOLOv12-Nano (INT8)", "runs/detect/CIRCA_V12N_004_TRAIN_Phase4_Nano/weights/best_int8_openvino_model/best.xml"),
-            ("YOLOv12-Nano (FP16)", "runs/detect/CIRCA_V12N_004_TRAIN_Phase4_Nano/weights/best_openvino_model/best.xml"),
-            ("YOLOv12-Small (INT8)", "runs/detect/CIRCA_V12S_005_TRAIN_Phase4_Small/weights/best_int8_openvino_model/best.xml"),
-            ("YOLOv12-Small (FP16)", "runs/detect/CIRCA_V12S_005_TRAIN_Phase4_Small/weights/best_openvino_model/best.xml"),
-            ("YOLOv12-Medium (INT8)", "runs/detect/CIRCA_V12M_006_TRAIN_Phase4_Medium/weights/best_int8_openvino_model/best.xml"),
-            ("YOLOv12-Medium (FP16)", "runs/detect/CIRCA_V12M_006_TRAIN_Phase4_Medium/weights/best_openvino_model/best.xml"),
+            ("YOLOv12-Nano (FP16 - Production)", ["models/yolov12_int8.xml"]),
+            ("YOLOv12-Nano (Untuned FP16)", [
+                "runs/detect/CIRCA_V12N_004_TRAIN_Phase4_Nano/weights/best_int8_openvino_model/best.xml",
+                "runs/detect/CIRCA_V12N_004_TRAIN_Phase4_Nano/weights/best_openvino_model/best.xml"
+            ]),
+            ("YOLOv12-Nano (Tuned FP16)", [
+                "runs/detect/CIRCA_V12N_007_TRAIN_copypaste_exhibition/weights/best_int8_openvino_model/best.xml",
+                "runs/detect/CIRCA_V12N_007_TRAIN_copypaste_exhibition/weights/best_openvino_model/best.xml"
+            ]),
+            ("YOLOv12-Small (Untuned FP16)", [
+                "runs/detect/CIRCA_V12S_005_TRAIN_Phase4_Small/weights/best_int8_openvino_model/best.xml",
+                "runs/detect/CIRCA_V12S_005_TRAIN_Phase4_Small/weights/best_openvino_model/best.xml"
+            ]),
+            ("YOLOv12-Small (Tuned FP16)", [
+                "runs/detect/CIRCA_V12S_008_TRAIN_copypaste_small/weights/best_int8_openvino_model/best.xml",
+                "runs/detect/CIRCA_V12S_008_TRAIN_copypaste_small/weights/best_openvino_model/best.xml"
+            ]),
+            ("YOLOv12-Medium (Untuned FP16)", [
+                "runs/detect/CIRCA_V12M_006_TRAIN_Phase4_Medium/weights/best_int8_openvino_model/best.xml",
+                "runs/detect/CIRCA_V12M_006_TRAIN_Phase4_Medium/weights/best_openvino_model/best.xml"
+            ]),
+            ("YOLOv12-Medium (Tuned FP16)", [
+                "runs/detect/CIRCA_V12M_009_TRAIN_copypaste_medium/weights/best_int8_openvino_model/best.xml",
+                "runs/detect/CIRCA_V12M_009_TRAIN_copypaste_medium/weights/best_openvino_model/best.xml"
+            ]),
         ]
         
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         self.model_combo.blockSignals(True)
         self.model_combo.clear()
-        for name, rel_path in candidates:
-            abs_path = os.path.join(project_root, rel_path.replace("/", os.sep))
-            if os.path.isfile(abs_path):
-                self.model_combo.addItem(name, abs_path)
+        
+        for name, rel_paths in candidates:
+            resolved_path = None
+            for rel_path in rel_paths:
+                abs_path = os.path.join(project_root, rel_path.replace("/", os.sep))
+                if os.path.isfile(abs_path):
+                    resolved_path = abs_path
+                    break
+            
+            if resolved_path:
+                self.model_combo.addItem(name, resolved_path)
+            elif name == "YOLOv12-Nano (FP16 - Production)":
+                # Fallback to general best XML if production path doesn't exist
+                alt_path = os.path.join(project_root, "models", "yolov12_best.xml")
+                if os.path.isfile(alt_path):
+                    self.model_combo.addItem(name, alt_path)
+                    
         self.model_combo.blockSignals(False)
 
     def _emit_preprocessing_params(self, _=0.0):

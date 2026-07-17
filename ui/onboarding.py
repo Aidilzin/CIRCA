@@ -195,7 +195,7 @@ class OnboardingController(QObject):
             {
                 "target": self.main_window.analytics_dashboard,
                 "title": "Telemetry Repair Advisor",
-                "description": "Complete rework checklists, diagnose classifications (short/open), and mark false positive instances."
+                "description": "Complete repair checklists, diagnose classifications (short/open), and mark false positive instances."
             },
             {
                 "target": self.main_window.side_panel,

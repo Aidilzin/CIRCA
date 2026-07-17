@@ -190,14 +190,13 @@ class TiledInferenceEngine:
         boxes: List[BoundingBox], confidence_threshold: float
     ) -> List[BoundingBox]:
         """
-        Apply Non-Maximum Suppression across all detections pooled from every tile.
+        Apply Non-Maximum Suppression per class across all detections pooled from every tile.
 
         Filters out duplicate bounding boxes that arise when the same defect
         falls within the overlapping region of two adjacent tiles.
 
-        Uses class-agnostic NMS (standard practice for small class counts):
-        boxes from different classes can still suppress each other if they
-        overlap significantly — acceptable since defects rarely co-locate.
+        Uses class-aware NMS to prevent detections of different classes (e.g. 
+        excess_solder and insufficient_solder) from suppressing each other.
 
         Args:
             boxes:                All BoundingBox objects from all tiles.
@@ -209,21 +208,29 @@ class TiledInferenceEngine:
         if len(boxes) <= 1:
             return boxes
 
-        nms_input = [[b.x, b.y, b.width, b.height] for b in boxes]
-        scores = [b.confidence for b in boxes]
+        # Group boxes by class_name to run class-aware NMS
+        class_groups: dict[str, List[tuple[int, BoundingBox]]] = {}
+        for idx, box in enumerate(boxes):
+            class_groups.setdefault(box.class_name, []).append((idx, box))
 
-        # cv2.dnn.NMSBoxes uses strict >, subtract epsilon to match >= semantics
+        surviving_indices: List[int] = []
         _threshold = max(0.0, confidence_threshold - 1e-6)
 
-        indices = cv2.dnn.NMSBoxes(
-            bboxes=nms_input,
-            scores=scores,
-            score_threshold=_threshold,
-            nms_threshold=CROSS_TILE_IOU,
-        )
+        for class_name, group in class_groups.items():
+            group_boxes = [[item[1].x, item[1].y, item[1].width, item[1].height] for item in group]
+            group_scores = [item[1].confidence for item in group]
 
-        if indices is None or len(indices) == 0:
-            return []
+            indices = cv2.dnn.NMSBoxes(
+                bboxes=group_boxes,
+                scores=group_scores,
+                score_threshold=_threshold,
+                nms_threshold=CROSS_TILE_IOU,
+            )
 
-        indices = np.array(indices).flatten()
-        return [boxes[i] for i in indices]
+            if indices is not None and len(indices) > 0:
+                indices = np.array(indices).flatten()
+                for idx in indices:
+                    surviving_indices.append(group[idx][0])
+
+        surviving_indices.sort()
+        return [boxes[i] for i in surviving_indices]

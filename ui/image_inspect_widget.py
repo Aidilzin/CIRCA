@@ -32,7 +32,7 @@ import numpy as np
 from PyQt6.QtCore import Qt, QRect, QRectF, QTimer, pyqtSignal, pyqtSlot, QPointF
 from PyQt6.QtGui import (
     QBrush, QColor, QDragEnterEvent, QDropEvent, QFont, QFontMetrics,
-    QImage, QPainter, QPen,
+    QImage, QPainter, QPen, QWheelEvent
 )
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtSvg import QSvgRenderer
@@ -89,6 +89,7 @@ class ImageInspectWidget(QWidget):
 
         # Zoom & Drag/Pan State
         self._zoomed_index: int = -1
+        self._zoom_level: float = 1.0
         self._zoom_center: tuple[float, float] = (0.0, 0.0)
         self._zoom_size: tuple[int, int] = (0, 0)
         self._drag_start_pos: Optional[QPointF] = None
@@ -170,6 +171,7 @@ class ImageInspectWidget(QWidget):
         if idx == -1:
             self._zoom_center = (0.0, 0.0)
             self._zoom_size = (0, 0)
+            self._zoom_level = 1.0
         else:
             if self._qimage and self._detections and idx < len(self._detections.boxes):
                 box = self._detections.boxes[idx]
@@ -193,6 +195,7 @@ class ImageInspectWidget(QWidget):
                 
                 self._zoom_center = (cx, cy)
                 self._zoom_size = (crop_w, crop_h)
+                self._zoom_level = iw / crop_w
         self.update()
 
     @pyqtSlot(int)
@@ -318,6 +321,72 @@ class ImageInspectWidget(QWidget):
                         if matched_idx != -1:
                             self.set_zoom_index(matched_idx)
         super().mouseReleaseEvent(event)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802
+        if self._state != self._State.RESULT or self._qimage is None or self._qimage.isNull():
+            super().wheelEvent(event)
+            return
+
+        iw, ih = self._qimage.width(), self._qimage.height()
+        
+        # Initialize if full view
+        if self._zoom_level <= 1.0:
+            self._zoom_size = (iw, ih)
+            self._zoom_center = (iw / 2.0, ih / 2.0)
+            self._zoom_level = 1.0
+
+        # Map mouse position to image coordinates
+        pos = event.position()
+        ex, ey = pos.x(), pos.y()
+        letterbox = self._compute_letterbox(self._zoom_size[0], self._zoom_size[1])
+        
+        if not letterbox.contains(int(ex), int(ey)):
+            super().wheelEvent(event)
+            return
+
+        scale_x = letterbox.width() / self._zoom_size[0]
+        scale_y = letterbox.height() / self._zoom_size[1]
+        
+        x1 = self._zoom_center[0] - self._zoom_size[0] / 2.0
+        y1 = self._zoom_center[1] - self._zoom_size[1] / 2.0
+        
+        img_x = x1 + (ex - letterbox.x()) / scale_x
+        img_y = y1 + (ey - letterbox.y()) / scale_y
+
+        angle = event.angleDelta().y()
+        if angle > 0:
+            zoom_factor = 1.15
+        else:
+            zoom_factor = 1.0 / 1.15
+
+        new_zoom_level = self._zoom_level * zoom_factor
+        
+        if new_zoom_level <= 1.0:
+            self._zoom_level = 1.0
+            self._zoomed_index = -1
+            self._zoom_center = (iw / 2.0, ih / 2.0)
+            self._zoom_size = (iw, ih)
+        else:
+            self._zoom_level = min(new_zoom_level, 8.0)
+            crop_w = int(iw / self._zoom_level)
+            crop_h = int(ih / self._zoom_level)
+            
+            ratio_w = crop_w / self._zoom_size[0]
+            ratio_h = crop_h / self._zoom_size[1]
+            
+            new_cx = img_x + (self._zoom_center[0] - img_x) * ratio_w
+            new_cy = img_y + (self._zoom_center[1] - img_y) * ratio_h
+            
+            new_cx = max(crop_w / 2.0, min(new_cx, iw - crop_w / 2.0))
+            new_cy = max(crop_h / 2.0, min(new_cy, ih - crop_h / 2.0))
+            
+            self._zoom_center = (new_cx, new_cy)
+            self._zoom_size = (crop_w, crop_h)
+            
+            if self._zoomed_index == -1:
+                self._zoomed_index = -2
+
+        self.update()
 
     # ──────────────────────────────────────────────────────────────────────
     # Drag-and-drop
@@ -716,6 +785,10 @@ class ImageInspectWidget(QWidget):
             ).copy()  # .copy() so the buffer is owned by QImage
             self._state = self._State.ANALYZING
             self._detections = None
+            self._zoomed_index = -1
+            self._zoom_level = 1.0
+            self._zoom_center = (0.0, 0.0)
+            self._zoom_size = (0, 0)
             self.update()
             # Emit so MainWindow can route to inference worker
             self.image_loaded.emit(bgr)
