@@ -1,6 +1,9 @@
 # CIRCA Thesis Completion — Progress Tracker
 
-> **Last Updated:** 2026-07-18 by **Antigravity** — Hidden the segmented control at the top of the SidePanel when the Glossary view is active to prevent visual overlap. Replaced factory-centric 'Rework' terminology with user-friendly 'Repair' and 'Defect Checklist' across the UI (headers, cards, buttons, tooltips, diagnostic ticket files, and onboarding tutorials). Decoupled the Defect Glossary page from the settings/optimization tab segmented control, rendering it exclusively as its own independent tab view via the top nav Glossary icon. Refactored the `ChecklistItem` in the Rework Checklist to support vertical expansion: clicking any defect checklist item toggles an inline, styled explanation box displaying its plain-English glossary definition and rework advice dynamically. Implemented interactive scroll-wheel zooming (scroll up to zoom in, scroll down to zoom out) centered on the mouse pointer in the inspection workspace (`ImageInspectWidget`), unified with the existing crop and pan systems. Reset zoom parameters on loading new images. Completed sequential copy-paste fine-tuning for Small and Medium YOLOv12 variants on RunPod (Pod ID: `dt9e8sndzq5j5g`, RTX 4090). Evaluated all 6 variants on 50 phone-taken real PCB images. Small Fine-Tuned (CP) achieved the highest defect recall (28 TPs vs. 4 baseline). Deployed YOLOv12-Nano Tuned (CP) as the default production model in `models/yolov12_int8.*` to balance accuracy gains (600% TP boost) and sub-resolution latency limits.
+> **Last Updated:** 2026-07-21 by **Antigravity** — Finalized complete presentation deck (`docs/circa_deck.html` -> 11 slides, `docs/circa_deck.pdf`, `slide_*.png`), print poster (`docs/circa_poster.html` -> `docs/circa_poster.pdf`, `docs/circa_poster.png`), and talking points guide (`circa_talking_points.md`). Fixed 3 research questions alignment with thesis Chapter 1, resolved box content packing & vertical spacing across all slides, added 2 new app screenshot slides (GUI Overview & Diagnostic Report), fixed footer layout, and corrected all metric precision numbers across deck, poster, and talking points. Regenerated all deliverables cleanly via `scripts/make_deliverables.py`. Passed all 19 unit tests.
+> **Last Updated:** 2026-07-21 by **Antigravity** — Balanced all poster columns to land on the same bottom line (within 9.9px visual tolerance) by moving YOLO complexity metrics to the Performance Results card, removing redundant badges, adding a vertical 7-phase methodology pipeline timeline to Research Objectives, and displaying horizontal flip, HSV jitter, and mosaic augmentation crop thumbnails inside Dataset & Training. Configured borderless PDF page printing in Playwright to fix A3 poster formatting errors.
+> **Last Updated:** 2026-07-21 by **Antigravity** — Implemented per-class display thresholding using calibrated `circa_thresholds.yaml` to reduce visual false positives. Added a programmatic IPC Quality Grade classification system (Class 3/2/1 or Fail) to the advisory panel and diagnostic tickets. Corrected student name to Muhammad Aidil Al-Faizi Bin Mohd Zin across slides, poster, and thumbnail. Redesigned all exhibition deliverables in make_deliverables.py to follow the forest green and copper palette in portrait layout (bright mode poster, dark mode cover slide) and rendered them via Playwright. Passed all 19 unit tests.
+> **Last Updated:** 2026-07-21 by **Antigravity** — Continued Exhibition Preparation session. Fixed all remaining slide layout issues in `scripts/generate_exhibition_deliverables.py`: (1) Slide 1 right panel now shows the full CIRCA PySide6 app screenshot instead of a small detection crop; (2) Slide 3 research gap includes the app screenshot proving the solution exists; (3) Slide 7 benchmarks bottom half filled with PR curve + fixed broken star/checkmark Unicode rendering; (4) Slide 8 limitations bottom halves filled with failure gallery (left) and F1-confidence curve (right) using real project assets. All ⚠/★/✓/→ special chars replaced with ASCII equivalents. Deliverables regenerated: `docs/circa_poster_A3.png`, `docs/circa_deck.pdf`, `docs/circa_thumbnail.png`.
 > **Last Updated:** 2026-07-17 by **Antigravity** — Launched sequential YOLOv12-S and YOLOv12-M fine-tuning on RunPod (Pod ID: `tnte0rjeasne91`, RTX 4090). To maximize final model accuracy, we rebuilt the deployment archive to include the fully-converged Phase 4 weights inside the `models/` directory, allowing 50 epochs of copy-paste training to serve as true, non-destructive domain adaptation.
 > **Last Updated:** 2026-07-17 by **Antigravity** — Launched YOLOv12-N fine-tuning on the new domain-adapted copy-paste dataset (2,070 composite images) on RunPod GPU pod (RTX 3090). Active training is monitored locally by an automated polling and downloader daemon, with an estimated completion time of 17:07 local time.
 > **Last Updated:** 2026-07-17 by **Antigravity** — Extracted images from Zenodo DSLR and MiracleFactory YOLOv8 datasets (1,035 background images). Generated 2,070 copy-paste composite training images (excluding class 0: missing_hole). Implemented class-aware NMS in `core/tiled_inference.py` to prevent class-aware detection suppression. Packaged final training bundle into `CIRCA_runpod.zip` (1.73 GB). All 19 baseline unit tests pass.
@@ -265,6 +268,67 @@ MANDATORY BEFORE STARTING ANY TASK:
 - [x] **M6** Execute fine-tuning on RunPod for 50 epochs sequentially on YOLOv12-Small and YOLOv12-Medium variants using Phase 4 starting weights.
 - [x] **M7** Download all results and terminate GPU pod automatically.
 - [x] **M8** Re-run evaluation using the fine-tuned models on the 50 phone-taken real board cohort and select the best model (YOLOv12-Small Tuned had the highest Recall of 19.18% and 28 TPs; YOLOv12-Nano Tuned FP16 deployed as default production for F1-score boost & low latency).
+
+
+---
+
+## BLOCK N — Exhibition Final Deliverables (21 July 2026) ✅ COMPLETE
+
+- [x] **N1** Configure Canva MCP and set up correct global mcp_config.json file.
+- [x] **N2** Write compiler script `scripts/generate_exhibition_deliverables.py` to programmatically build PDFs and images using Pillow.
+- [x] **N3** Compile A3 Print-ready Poster PDF (`docs/CIRCA_Exhibition_Poster.pdf`) with 3mm bleed at 300 DPI, styled in deep-slate dark theme.
+- [x] **N4** Compile Padlet Widescreen Thumbnail PNG (`docs/circa_thumbnail.png`) and card description summary text (`docs/circa_thumbnail_text.txt`).
+- [x] **N5** Compile local running and PyInstaller packaging handbook (`docs/CIRCA_Demo_Handbook.md`).
+- [x] **N6** Compile 9-slide Pitch Presentation Deck PDF (`docs/CIRCA_Pitch_Deck.pdf`) in 16:9 widescreen layout with actual results.
+- [x] **N7** Draft 60-second social media reel impact script (video compile step deferred).
+- [x] **N8** Generate Padlet slot mapping upload checklist.
+
+---
+
+## BLOCK O — Final Deliverable Polish (21 July 2026) ✅ COMPLETE
+
+- [x] **O1** Fix all empty-canvas slides in `scripts/generate_exhibition_deliverables.py`:
+  - Slide 1 right panel: replaced small detection crop with full CIRCA PySide6 app screenshot
+  - Slide 3 research gap: added app screenshot on right proving the solution exists
+  - Slide 7 benchmarks: filled bottom-left with PR curve; fixed broken star/box Unicode rendering
+  - Slide 8 limitations: added failure gallery (bottom-left) and F1 curve (bottom-right)
+- [x] **O2** Replace all problematic Unicode special chars with ASCII equivalents across all slide text (star, checkmark, warning triangle, arrow) to prevent missing-glyph box rendering
+- [x] **O3** Regenerated final deliverables — all 3 output files confirmed clean:
+  - Poster:    `docs/circa_poster_A3.png`   (1240x1754 px, A3 portrait)
+  - Deck:      `docs/circa_deck.pdf`         (9 slides, 16:9 widescreen)
+  - Thumbnail: `docs/circa_thumbnail.png`   (1200x630 px)
+
+---
+
+## BLOCK P — Viva Examiner Defence Prep & Exhibition HTML Deck Refactor (21 July 2026) ✅ COMPLETE
+
+- [x] **P1** Compiled comprehensive Viva Defence & Examiner QA Guide (`brain/.../circa_talking_points.md`):
+  - Prepared detailed technical answers for architecture choices, dataset composition, domain choice, false positive mitigations, INT8 vs FP16 precision decisions, Genetic HPO pipeline, and methodology details.
+  - Aligned all 3 Research Questions and Research Objectives with thesis Chapter 1 (`docs/submitted_thesis.md`).
+- [x] **P2** Refactored Presentation Deck HTML (`docs/circa_deck.html`):
+  - Fixed 2-sided footer rendering across all 11 slides with flexbox layout (`flex-direction: row; justify-content: space-between`).
+  - Strict tight content-packing rule applied to all slide boxes with small fixed internal padding (8-12px) and consistent vertical margins (8-12px).
+  - Aligned Slide 3 to exact thesis specifications (3 RQs and 3 ROs).
+  - Expanded unused bottom space on Slides 3, 5, 7, and 8 with authentic thesis data (Dataset Split ratio, HPO search space, test set metrics breakdown, hardware latency breakdown).
+  - Added Slide 9: "Application Screenshots — Main Interface & Real-time Inspection" showcasing PySide6 desktop GUI layout, tiled inference viewer, and IPC quality grade advisory panel.
+  - Added Slide 10: "Application Screenshots — Diagnostic PDF Report & Quality Metrics" demonstrating automated PDF diagnostic ticket generation.
+  - Shifted Conclusion slide to Slide 11.
+- [x] **P3** Fixed Poster HTML Metrics (`docs/circa_poster.html`):
+  - Corrected test dataset split ratio to `70% train, 15% val, 15% test` (8,463 images).
+  - Updated stat bar to official Test Split metrics: Precision `85.70%`, mAP@0.5 `62.79%`, F1-Score `70.99%`, Recall `60.59%`.
+
+- [x] **P4** Regenerated all final exhibition deliverables via `scripts/make_deliverables.py`:
+
+- [x] **Q1** Native Flowchart Component (Slide 4):
+  - Replaced static `fig3_1` image with a crisp 5-phase connected HTML/CSS methodology flowchart (Phases 1–5).
+- [x] **Q2** Legible Typography Scale:
+  - Upgraded font sizes across all 13 slides: minimum font size to 15px+, body text to 17–19px, headers to 24px+.
+- [x] **Q3** Figure Maximization (Slides 5, 8, 9):
+  - Scaled up figures on Slides 8 and 9 to 480–500px vertical height (640px equivalent width).
+  - Enlarged Corpus Instances table on Slide 5 with 17–18px text and 8px cell padding.
+- [x] **Q4** Deliverables Recompiled:
+  - Regenerated `docs/circa_deck.pdf` (13 slides), `docs/slide_01.png` to `slide_13.png`, `docs/circa_poster.pdf`, and `docs/circa_thumbnail.png`.
+
 
 
 

@@ -16,7 +16,7 @@ Functional requirements covered:
   FR9  — Per-detection confidence score               → BoundingBox.confidence
 
 Non-functional requirements:
-  NFR2 — Total inference latency < 10s per frame (budgeted at ~40ms on consumer
+  NFR2 — Total inference latency < 10s per image (budgeted at ~40ms on consumer
           iGPU with INT8 IR; synchronous in dedicated thread satisfies NFR3).
 
 Output tensor layout (YOLOv12 / YOLOv8-style ONNX→OpenVINO export):
@@ -29,14 +29,14 @@ Output tensor layout (YOLOv12 / YOLOv8-style ONNX→OpenVINO export):
   This implementation derives num_classes from the output shape at load time
   so it is robust to both layouts.
 
-Post-processing pipeline (per frame):
+Post-processing pipeline (per image):
   1. Resize + normalize + NCHW transpose → model input tensor
   2. infer_new_request() → raw output tensor [1, 4+C, 8400]
   3. Transpose to [8400, 4+C]; split into boxes (cx,cy,w,h) and class scores
   4. Per anchor: class_id = argmax(scores), confidence = max(scores)
   5. Confidence threshold filter (uses InferenceParams.confidence_threshold)
   6. Convert cx,cy,w,h → x,y,w,h (top-left corner, pixel units)
-  7. Scale from model input size (640,640) → original frame size
+  7. Scale from model input size (640,640) → original image size
   8. NMS via cv2.dnn.NMSBoxes (IOU_THRESHOLD = 0.45)
   9. Construct and return List[BoundingBox]
 """
@@ -97,12 +97,12 @@ class InferenceEngine:
     Lifecycle:
       - Instantiated once in InferenceWorker.__init__().
       - Model is compiled and cached in self._compiled_model.
-      - run() is called once per sharp, preprocessed frame from the queue.
+      - run() is called once per sharp, preprocessed image.
       - No state is mutated between calls (thread-safe for single-consumer use).
 
     Usage:
         engine = InferenceEngine("models/yolov12_int8.xml")
-        result: DetectionResult = engine.run(bgr_frame, params)
+        result: DetectionResult = engine.run(bgr_image, params)
     """
 
     def __init__(self, model_xml_path: str) -> None:
@@ -182,10 +182,27 @@ class InferenceEngine:
             os.environ.get("CIRCA_DEVICE", "AUTO"),
         )
 
-        # Pre-create the infer request once and reuse it every frame.
+        # Pre-create the infer request once and reuse it every image.
         # OpenVINO's CompiledModel.create_infer_request() allocates internal
-        # buffers; calling it per-frame wastes ~1–3 ms per inference call.
+        # buffers; calling it per-image wastes ~1–3 ms per inference call.
         self._infer_request = self._compiled_model.create_infer_request()
+
+        # Load calibrated per-class display thresholds from config/circa_thresholds.yaml
+        self._display_thresholds = {}
+        self._warning_thresholds = {}
+        try:
+            config_path = Path(__file__).resolve().parent.parent / "config" / "circa_thresholds.yaml"
+            if config_path.exists():
+                import yaml
+                with open(config_path, "r") as f:
+                    cfg = yaml.safe_load(f)
+                    self._display_thresholds = cfg.get("display_thresholds", {})
+                    self._warning_thresholds = cfg.get("warning_thresholds", {})
+                logger.info("Loaded calibrated thresholds from %s", config_path.name)
+            else:
+                logger.warning("Calibrated thresholds file not found at %s. Defaulting to flat confidence_threshold.", config_path)
+        except Exception as exc:
+            logger.error("Failed to load calibrated thresholds: %s", exc)
 
     # ------------------------------------------------------------------
     # Public API
@@ -193,15 +210,15 @@ class InferenceEngine:
 
     def run(self, frame: np.ndarray, params: InferenceParams) -> DetectionResult:
         """
-        Run a single synchronous inference pass on a preprocessed BGR frame.
+        Run a single synchronous inference pass on a preprocessed BGR image.
 
         This method is the sole caller of infer_new_request() in the entire
         codebase (architecture boundary rule).
 
         Args:
-            frame:  Preprocessed BGR frame (H, W, 3) uint8 from CameraWorker.
+            frame:  Preprocessed BGR image (H, W, 3) uint8.
                     Must not be None or empty; caller is responsible for gating
-                    blurry frames via compute_variance() before calling here.
+                    blurry images via compute_variance() before calling here.
             params: Live inference parameters (confidence_threshold).
 
         Returns:
@@ -209,17 +226,17 @@ class InferenceEngine:
             filtered by confidence_threshold and de-duplicated by NMS.
 
         Raises:
-            ValueError: If frame is None, empty, or wrong shape.
+            ValueError: If image is None, empty, or wrong shape.
             RuntimeError: If OpenVINO inference raises an exception.
         """
         if frame is None or frame.size == 0:
-            raise ValueError("InferenceEngine.run() received an empty frame.")
+            raise ValueError("InferenceEngine.run() received an empty image.")
         if frame.ndim != 3 or frame.shape[2] != 3:
-            raise ValueError(f"Expected (H, W, 3) BGR frame; got shape {frame.shape}.")
+            raise ValueError(f"Expected (H, W, 3) BGR image; got shape {frame.shape}.")
 
         original_h, original_w = frame.shape[:2]
 
-        # Stage 1: Preprocess frame → model input tensor (letterbox)
+        # Stage 1: Preprocess image → model input tensor (letterbox)
         input_tensor, pad_x, pad_y, scale = self._preprocess_frame(frame)
 
         # Stage 2: Synchronous inference (reuse pre-allocated request)
@@ -331,10 +348,10 @@ class InferenceEngine:
             for row in output:
                 # Layout: [x_min, y_min, x_max, y_max, confidence, class_id]
                 x_min, y_min, x_max, y_max, confidence, class_id = row
-                if confidence >= params.confidence_threshold:
-                    class_id = int(class_id)
-                    class_name = CLASS_LABELS.get(class_id, f"class_{class_id}")
-                    
+                class_id = int(class_id)
+                class_name = CLASS_LABELS.get(class_id, f"class_{class_id}")
+                class_thresh = self._display_thresholds.get(class_name, params.confidence_threshold)
+                if confidence >= class_thresh:
                     # Convert [x_min, y_min, x_max, y_max] to model space [x, y, w, h]
                     x1_coord = x_min
                     y1_coord = y_min
@@ -385,8 +402,17 @@ class InferenceEngine:
         class_ids = np.argmax(class_scores, axis=1)  # [A]
         confidences = class_scores[np.arange(num_anchors), class_ids]  # [A]
 
+        # Build class thresholds array matching output classes
+        class_thresholds = np.zeros(class_scores.shape[1], dtype=np.float32)
+        for cid in range(class_scores.shape[1]):
+            cname = CLASS_LABELS.get(cid, f"class_{cid}")
+            class_thresholds[cid] = self._display_thresholds.get(cname, params.confidence_threshold)
+
+        # Get threshold for each anchor based on its predicted class ID
+        thresholds_per_anchor = class_thresholds[class_ids]
+
         # Confidence threshold filter (FR11 / InferenceParams.confidence_threshold)
-        conf_mask = confidences >= params.confidence_threshold
+        conf_mask = confidences >= thresholds_per_anchor
         if not np.any(conf_mask):
             return []
 
@@ -416,10 +442,9 @@ class InferenceEngine:
         #
         # NOTE: cv2.dnn.NMSBoxes applies a strict `score > score_threshold`
         # filter internally (i.e. it EXCLUDES boxes at exactly the threshold).
-        # Our upstream numpy mask already applied `>= confidence_threshold`, so
-        # subtracting a tiny epsilon here ensures NMSBoxes does not re-filter
-        # those boundary boxes, preserving the intended >= semantics.
-        _nms_score_threshold = max(0.0, params.confidence_threshold - 1e-6)
+        # Our upstream numpy mask already applied the class-specific thresholds, so
+        # setting this to 0.0 prevents NMSBoxes from re-filtering those boundary boxes.
+        _nms_score_threshold = 0.0
         nms_indices = cv2.dnn.NMSBoxes(
             bboxes=nms_boxes,
             scores=nms_scores,

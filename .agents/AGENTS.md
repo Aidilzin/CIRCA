@@ -4,15 +4,12 @@ These rules are loaded by Antigravity for all tasks in the CIRCA workspace.
 
 ## 1. Local Memory Preservation & Updates (CRITICAL)
 *   **Startup:** On startup, read BOTH:
-    1. [project-context.md](file:///d:/FYP/CIRCA/project-context.md) — overall project state, datasets, constraints.
+    1. [GRAPH_REPORT.md](file:///d:/FYP/CIRCA/GRAPH_REPORT.md) (Graphify knowledge base) — codebase structural knowledge graph, dependency maps, and architectural summary.
     2. [CIRCA_PROGRESS.md](file:///d:/FYP/CIRCA/CIRCA_PROGRESS.md) — live task checklist, current block status, metrics tracker.
-*   **Auto-Update Rule:** Proactively update BOTH files after any of the following events:
+*   **Auto-Update Rule:**
+    *   **Graphify Refresh:** Run `graphify` CLI to rebuild the workspace knowledge base (`GRAPH_REPORT.md`, `graph.json`, `graph.html`) whenever significant code refactoring, new component additions, or structural updates occur.
     *   **Task Completion:** Mark completed tasks `[x]` in [CIRCA_PROGRESS.md](file:///d:/FYP/CIRCA/CIRCA_PROGRESS.md) and fill in results.
-    *   **Dataset Changes:** Structural updates, capping ratios, oversampling shifts, or folder paths.
-    *   **Phase Transitions:** Starting or finishing any experiment phase (Phase 1–7).
-    *   **Key Findings:** Metric changes, ablation gate verdicts, or benchmarking results.
-    *   **System Constraints:** Modifications to hardware configs or script patterns.
-*   **Format:** Keep [project-context.md](file:///d:/FYP/CIRCA/project-context.md) neat, structured, and log your name and date at the top under the "Last Updated" row of the AI Agent Self-Updating Memory Rule section.
+    *   **Phase Transitions & Metric Swings:** Log phase transitions, dataset balance updates, or benchmark findings directly in [CIRCA_PROGRESS.md](file:///d:/FYP/CIRCA/CIRCA_PROGRESS.md).
 
 
 ## 2. CPU & Memory Safety Guardrail (CRITICAL)

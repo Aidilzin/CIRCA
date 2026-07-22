@@ -1,0 +1,41 @@
+# Datasets and large media
+datasets/
+*.zip
+*.tar
+*.gz
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# Python & Environment
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Build & Model artifacts
+build/
+dist/
+runs/
+scratch/
+wandb/
+log/
+*.log
+*.onnx
+*.engine
+*.pt
+*.bin
+*.exe
+
+# IDE & Hidden state directories
+.git/
+.OLD/
+.idea/
+.vscode/
+.gemini/
+.antigravitycli/
+.claude/

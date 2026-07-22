@@ -1,13 +1,13 @@
 # CIRCA — PCB Defect Detection System
 
-> **C**omputer vision **I**nspection system for **R**eal-time **C**ircuit board **A**nalysis  
-> FYP — Universiti Teknologi MARA | YOLOv12 · OpenVINO INT8 · PyQt6 · IPC-A-600/610H
+> **C**ircuit **I**nspection and **R**ecognition using **C**onvolutional **A**rchitectures  
+> FYP — Universiti Teknologi MARA | YOLOv12 · OpenVINO FP16 · PyQt6 · IPC-A-600/610H
 
 ---
 
 ## Overview
 
-CIRCA is a real-time PCB defect detection system that runs a quantised YOLOv12 INT8 model via Intel OpenVINO on a standard repair-bench PC. It detects **7 defect classes** spanning both bare-board (IPC-A-600) and assembly-stage solder (IPC-A-610H) defects from a live UVC camera feed.
+CIRCA is an on-demand, per-image PCB defect detection system that runs a quantised YOLOv12 FP16/INT8 model via Intel OpenVINO on a standard repair-bench PC. It detects **7 defect classes** spanning both bare-board (IPC-A-600) and assembly-stage solder (IPC-A-610H) defects from imported static images or on-demand camera captures.
 
 | Class | Standard | Description |
 |:---|:---|:---|

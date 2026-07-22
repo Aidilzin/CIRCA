@@ -457,54 +457,108 @@ class AnalyticsDashboard(QWidget):
             self.status_val.setStyleSheet("color: #EF4444;")
             self.status_desc.setText("Repair advice is currently unavailable.")
 
+    def get_ipc_grade(self, boxes) -> str:
+        if not boxes:
+            return "Class 3 (Conforming)"
+        
+        # Check for any critical faults
+        critical_faults = {"open_circuit", "short", "missing_hole", "cold_solder_joint"}
+        has_critical = any(box.class_name in critical_faults for box in boxes)
+        
+        if has_critical:
+            return "Fail (Non-conforming)"
+        
+        # Only minor faults remain (mouse_bite, excess_solder, insufficient_solder)
+        minor_count = len(boxes)
+        if minor_count <= 1:
+            return "Class 2 (Conforming)"
+        else:
+            return "Class 1 (Conforming)"
+
     def _update_advisory_ui(self):
         palette = ThemeManager().get_palette()
         self._pulse_anim.stop()
 
-        if self._active_defects > 0:
-            # Calibrate pulse color based on confidence (Constraint #5)
-            conf = self._active_avg_conf
-            
-            # Base warning color selection
-            if conf < 0.65:
-                base_color = QColor(255, 193, 7) # Amber
-                self.status_val.setText("CHECK COLD SOLDER")
-                self.status_val.setStyleSheet("color: #FFC107;")
-                self.status_desc.setText(
-                    "Warning: low confidence detections. Inspect highlighted joints "
-                    "manually to verify potential cold solder or micro-cracks."
-                )
-            else:
-                base_color = QColor(244, 67, 54) # Red
-                self.status_val.setText("REPAIR REQUIRED")
-                self.status_val.setStyleSheet("color: #F44336;")
-                
-                # List dominant defect
-                counts = {}
-                for box in self._active_boxes:
-                    counts[box.class_name] = counts.get(box.class_name, 0) + 1
-                max_class = max(counts, key=counts.get).replace("_", " ").upper()
-                
-                self.status_desc.setText(
-                    f"Found {self._active_defects} fault(s). Dominant type: {max_class}. "
-                    "Locate bounding boxes on feed and repair."
-                )
+        grade = self.get_ipc_grade(self._active_boxes)
 
-            # Scale alpha based on confidence: range 30 to 110 (Constraint #5)
+        if grade == "Fail (Non-conforming)":
+            base_color = QColor(244, 67, 54) # Red
+            self.status_val.setText("NON-CONFORMING (FAIL)")
+            self.status_val.setStyleSheet("color: #F44336;")
+            
+            # List dominant defect
+            counts = {}
+            for box in self._active_boxes:
+                counts[box.class_name] = counts.get(box.class_name, 0) + 1
+            max_class = max(counts, key=counts.get).replace("_", " ").upper()
+            
+            self.status_desc.setText(
+                f"IPC Grade: FAIL. Found {self._active_defects} fault(s) including critical defects. "
+                f"Dominant type: {max_class}. Repair and inspect required."
+            )
+            
+            # Pulse Red
+            conf = self._active_avg_conf
             peak_alpha = int(30 + conf * 80)
             peak_color = QColor(base_color.red(), base_color.green(), base_color.blue(), peak_alpha)
             start_color = QColor(palette["BG_SURFACE"])
 
-            # Setup pulsing animation values
             self._pulse_anim.setDuration(1200)
             self._pulse_anim.setStartValue(start_color)
             self._pulse_anim.setEndValue(start_color)
             self._pulse_anim.setKeyValueAt(0.5, peak_color)
             self._pulse_anim.start()
+
+        elif grade == "Class 2 (Conforming)":
+            base_color = QColor(255, 193, 7) # Amber
+            self.status_val.setText("CLASS 2 CONFORMING")
+            self.status_val.setStyleSheet("color: #FFC107;")
+            
+            # Single minor defect name
+            defect_name = self._active_boxes[0].class_name.replace("_", " ").upper()
+            self.status_desc.setText(
+                f"IPC Grade: Class 2. Conforms to dedicated service electronics. "
+                f"Minor process indicator ({defect_name}) detected; review recommended."
+            )
+            
+            # Pulse Amber
+            conf = self._active_avg_conf
+            peak_alpha = int(30 + conf * 80)
+            peak_color = QColor(base_color.red(), base_color.green(), base_color.blue(), peak_alpha)
+            start_color = QColor(palette["BG_SURFACE"])
+
+            self._pulse_anim.setDuration(1200)
+            self._pulse_anim.setStartValue(start_color)
+            self._pulse_anim.setEndValue(start_color)
+            self._pulse_anim.setKeyValueAt(0.5, peak_color)
+            self._pulse_anim.start()
+
+        elif grade == "Class 1 (Conforming)":
+            base_color = QColor(255, 193, 7) # Amber
+            self.status_val.setText("CLASS 1 CONFORMING")
+            self.status_val.setStyleSheet("color: #FFC107;")
+            
+            self.status_desc.setText(
+                f"IPC Grade: Class 1. Conforms to general electronic products. "
+                f"Found {self._active_defects} minor process indicator deviations; rework recommended."
+            )
+            
+            # Pulse Amber
+            conf = self._active_avg_conf
+            peak_alpha = int(30 + conf * 80)
+            peak_color = QColor(base_color.red(), base_color.green(), base_color.blue(), peak_alpha)
+            start_color = QColor(palette["BG_SURFACE"])
+
+            self._pulse_anim.setDuration(1200)
+            self._pulse_anim.setStartValue(start_color)
+            self._pulse_anim.setEndValue(start_color)
+            self._pulse_anim.setKeyValueAt(0.5, peak_color)
+            self._pulse_anim.start()
+
         else:
-            self.status_val.setText("BOARD CLEAN")
+            self.status_val.setText("CLASS 3 CONFORMING")
             self.status_val.setStyleSheet("color: #4CAF50;") # Green
-            self.status_desc.setText("Visual inspection complete. No surface defects detected in current view.")
+            self.status_desc.setText("Visual inspection complete. Conforms to highest reliability Class 3 standard.")
             self.status_card.set_bg_color(QColor(palette["BG_SURFACE"]))
 
     @pyqtSlot(float)
@@ -644,7 +698,8 @@ class AnalyticsDashboard(QWidget):
                     writer.writerow(["Inference Latency", latency])
                     writer.writerow(["Active Faults Count", self._active_defects])
                     writer.writerow(["Average Confidence", f"{self._active_avg_conf * 100:.1f}%"])
-                    writer.writerow(["Board Status", "REPAIR REQUIRED" if self._active_defects > 0 else "PASSED"])
+                    writer.writerow(["IPC Quality Grade", self.get_ipc_grade(self._active_boxes)])
+                    writer.writerow(["Board Status", "REPAIR REQUIRED" if self.get_ipc_grade(self._active_boxes) == "Fail (Non-conforming)" else "PASSED"])
                     writer.writerow([])
                     writer.writerow(["Item", "Fault Class", "IPC Standard Section", "Confidence", "Repair Action"])
                     for i, box in enumerate(self._active_boxes, 1):
@@ -660,10 +715,12 @@ class AnalyticsDashboard(QWidget):
                     f.write(f"Diagnostic Model    : {self._model_name}\n")
                     f.write(f"Execution Device    : {device}\n")
                     f.write(f"Inference Latency   : {latency}\n")
-                    if self._active_defects > 0:
+                    grade = self.get_ipc_grade(self._active_boxes)
+                    f.write(f"IPC Quality Grade   : {grade}\n")
+                    if grade == "Fail (Non-conforming)":
                         f.write(f"Board Status        : ❌ REPAIR REQUIRED ({self._active_defects} defect(s) detected)\n")
                     else:
-                        f.write("Board Status        : ✅ PASSED (No surface defects detected)\n")
+                        f.write(f"Board Status        : ✅ PASSED ({grade})\n")
                     f.write("\n[ DEFECT BREAKDOWN ]\n")
                     f.write(f"IPC-A-600 (Bare-Board) Defects      : {bare_board_count}\n")
                     f.write(f"IPC-A-610H (Solder Assembly) Defects: {solder_assembly_count}\n")

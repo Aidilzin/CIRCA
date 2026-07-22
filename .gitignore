@@ -115,6 +115,21 @@ docs/Thesis_Formatting*.pdf
 docs/Chapter_4_Results_and_Findings.pdf
 docs/CIRCA_THESIS_CH1_4.md
 docs/references_pdf/
-# DOCX/PDF thesis builds (binary, dynamically compiled from Markdown source)
 docs/*.docx
 docs/*.pdf
+
+# 13. PyInstaller & Local Build Artifacts
+build/
+dist/
+scratch/
+*.spec
+
+# 14. Graphify Output Artifacts (HTML/JSON)
+graph.html
+graph.json
+graphify-out/
+
+# 15. Dynamically Rendered Slide PNG/HTML Intermediate Files
+docs/slide_*.png
+docs/circa_slides/
+docs/circa_slides_png/

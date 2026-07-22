@@ -14,7 +14,7 @@ Functional requirements covered:
   FR5  — Laplacian variance blur/motion gate  → compute_variance()
 
 Non-functional requirements:
-  NFR1 — Total preprocessing budget < 5 ms per frame.
+  NFR1 — Total preprocessing budget < 5 ms per image.
           Each function is profiled independently; avoid redundant allocations.
   NFR7 — > 90% mAP under ±30% lighting variation — CLAHE + gamma satisfy this.
 """
@@ -28,7 +28,7 @@ from core.models import PreprocessParams
 
 # ---------------------------------------------------------------------------
 # Pre-built gamma LUT cache and CLAHE object cache.
-# Avoids re-allocating heavy objects on every frame (NFR1).
+# Avoids re-allocating heavy objects on every image (NFR1).
 # Fix #2: OrderedDict + LRU cap prevents unbounded growth when users drag
 # the manual sliders, which emit continuous float values as dict keys.
 # ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ def _build_gamma_lut(gamma: float) -> np.ndarray:
 def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     """
     Apply CLAHE (Contrast Limited Adaptive Histogram Equalisation) to the
-    luminance channel of the input BGR frame.
+    luminance channel of the input BGR image.
 
     ... (rest of docstring)
 
@@ -90,10 +90,10 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     ...
     """
     if frame is None or frame.size == 0:
-        raise ValueError("apply_clahe received an empty frame.")
+        raise ValueError("apply_clahe received an empty image.")
     if frame.ndim != 3 or frame.shape[2] != 3:
         raise ValueError(
-            f"apply_clahe expects a 3-channel BGR frame; got shape {frame.shape}."
+            f"apply_clahe expects a 3-channel BGR image; got shape {frame.shape}."
         )
 
     # NFR1 Optimization: Reuse CLAHE object if clipLimit hasn't changed.
@@ -130,7 +130,7 @@ def apply_clahe(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
 
 def apply_gamma(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
     """
-    Apply power-law gamma correction to a BGR frame using a pre-built LUT.
+    Apply power-law gamma correction to a BGR image using a pre-built LUT.
 
     Gamma correction lifts shadow detail in underexposed areas of the PCB
     (e.g. under component overhangs) and compresses highlights in overexposed
@@ -149,17 +149,17 @@ def apply_gamma(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
       the technician moves the slider to a new position (rare).
 
     Args:
-        frame:  Input BGR frame as a (H, W, 3) uint8 numpy array.
+        frame:  Input BGR image as a (H, W, 3) uint8 numpy array.
         params: Live preprocessing parameters. Only params.gamma is consumed.
 
     Returns:
-        Gamma-corrected BGR frame as a (H, W, 3) uint8 numpy array.
+        Gamma-corrected BGR image as a (H, W, 3) uint8 numpy array.
 
     Raises:
-        ValueError: If frame is empty or params.gamma is not positive.
+        ValueError: If image is empty or params.gamma is not positive.
     """
     if frame is None or frame.size == 0:
-        raise ValueError("apply_gamma received an empty frame.")
+        raise ValueError("apply_gamma received an empty image.")
     if params.gamma <= 0.0:
         raise ValueError(f"Gamma must be > 0; got {params.gamma}.")
 
@@ -186,29 +186,20 @@ def apply_gamma(frame: np.ndarray, params: PreprocessParams) -> np.ndarray:
 
 def compute_variance(frame: np.ndarray) -> float:
     """
-    Compute the Laplacian variance of a frame as a sharpness metric.
+    Compute the Laplacian variance of an image as a sharpness metric.
 
-    The Laplacian operator measures local second-order intensity gradients —
-    high values indicate sharp edges (clear, still board); low values indicate
-    uniform intensity (motion blur or out-of-focus board).
-
-    ... (rest of docstring)
-
-    Implementation:
-      1. Convert to greyscale (Laplacian is defined on single-channel images).
-      2. Apply cv2.Laplacian(grey, cv2.CV_32F) — 32-bit float is significantly
-         faster than CV_64F while providing sufficient range for variance.
-      3. Use cv2.meanStdDev for high-performance variance calculation.
+    This serves as a blur and motion quality gate (FR5/NFR6). Boards captured
+    during camera focus hunting or user movement are blocked from inference
+    if variance falls below blur_threshold.
 
     Args:
-        frame: Input frame — BGR or greyscale, any resolution.
-               Must not be None or empty.
+        frame: Input image — BGR or greyscale, any resolution.
 
     Returns:
-        A float representing the sharpness of the frame.
+        A float representing the sharpness of the image.
     """
     if frame is None or frame.size == 0:
-        raise ValueError("compute_variance received an empty frame.")
+        raise ValueError("compute_variance received an empty image.")
 
     # Convert to greyscale if the input is colour.
     if frame.ndim == 3:
@@ -241,19 +232,19 @@ def apply_denoise(frame: np.ndarray) -> np.ndarray:
     it weights pixels by both spatial proximity AND intensity similarity, so edges
     between solder and copper remain sharp while uniform regions are smoothed.
 
-    Parameters chosen for real-time performance at 720p:
+    Parameters chosen for optimal performance at 720p:
       d=5        — neighbourhood diameter; d>9 is very slow
       sigmaColor=35 — compresses colour range; keeps component edges intact
       sigmaSpace=5  — spatial kernel width
     """
     if frame is None or frame.size == 0:
-        raise ValueError("apply_denoise received an empty frame.")
+        raise ValueError("apply_denoise received an empty image.")
     return cv2.bilateralFilter(frame, d=5, sigmaColor=35, sigmaSpace=5)
 
 
 def auto_tune_parameters(frame: np.ndarray) -> tuple[float, float]:
     """
-    Analyze frame luminance histogram to calculate optimal CLAHE and Gamma values.
+    Analyze image luminance histogram to calculate optimal CLAHE and Gamma values.
 
     Fix #10: Uses np.interp (piecewise linear interpolation) instead of a step-function
     ladder to produce smooth, continuous parameter transitions. When mean brightness
